@@ -116,4 +116,63 @@
     padding: 0.75rem 1rem;
     box-shadow: 0 4px 12px hsl(0 0% 0% / 0.15);
   }
+
+  .toast-error {
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--red) / 0.4);
+    background-color: hsl(var(--surface2));
+    color: hsl(var(--red));
+    padding: 0.75rem 1rem;
+    box-shadow: 0 4px 12px hsl(0 0% 0% / 0.15);
+  }
+
+  .pin-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+  }
+
+  .pin-dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .pin-dot {
+    height: 0.875rem;
+    width: 0.875rem;
+    border-radius: 9999px;
+    border: 1px solid hsl(var(--border));
+    background-color: transparent;
+    transition: background-color 0.15s ease;
+  }
+
+  .pin-dot.filled {
+    background-color: hsl(var(--accent));
+    border-color: hsl(var(--accent));
+  }
+
+  .shake {
+    animation: pin-shake 0.4s ease;
+  }
+}
+
+@keyframes pin-shake {
+  10%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  80% {
+    transform: translateX(4px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-8px);
+  }
+  40%,
+  60% {
+    transform: translateX(8px);
+  }
 }

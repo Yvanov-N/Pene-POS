@@ -4,36 +4,25 @@ import { BarcodeInput } from "./BarcodeInput";
 import { ProductFilters } from "./ProductFilters";
 import { ProductGrid } from "./ProductGrid";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { PosCart } from "./PosCart";
+import { CartProvider, useCart } from "@/hooks/useCart";
 import { seedLocalProducts } from "@/lib/seedLocalProducts";
+import { seedLocalProfiles } from "@/lib/seedLocalProfiles";
 import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
-import type { Product } from "@/types/db";
 
-const TOAST_DURATION_MS = 2000;
+const ERROR_TOAST_DURATION_MS = 2000;
 
-interface ToastMessage {
-  id: number;
-  text: string;
-}
-
-export function PosLayout() {
+function PosLayoutContent() {
   const { t } = useTranslation();
+  const cart = useCart();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORIES_VALUE);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   useEffect(() => {
-    void seedLocalProducts();
-  }, []);
-
-  // Temporary stand-in for real cart state -- Phase 2.2 replaces this with
-  // actual cart management. This only proves the selection wiring works.
-  const handleProductSelect = (product: Product) => {
-    const id = Date.now();
-    setToasts((current) => [...current, { id, text: t("pos.toast.added", { name: product.name }) }]);
-    window.setTimeout(() => {
-      setToasts((current) => current.filter((toast) => toast.id !== id));
-    }, TOAST_DURATION_MS);
-  };
+    if (!cart.outOfStockError) return;
+    const timeout = window.setTimeout(cart.clearOutOfStockError, ERROR_TOAST_DURATION_MS);
+    return () => window.clearTimeout(timeout);
+  }, [cart.outOfStockError, cart.clearOutOfStockError]);
 
   return (
     <div className="flex h-screen w-full bg-background text-foreground">
@@ -42,28 +31,38 @@ export function PosLayout() {
           <h1 className="text-sm font-semibold text-muted">Pene POS</h1>
           <LanguageSwitcher />
         </div>
-        <BarcodeInput onProductSelect={handleProductSelect} />
+        <BarcodeInput onProductSelect={cart.addItem} />
         <ProductFilters
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           activeCategory={activeCategory}
           onCategoryChange={setActiveCategory}
         />
-        <ProductGrid searchTerm={searchTerm} category={activeCategory} onProductSelect={handleProductSelect} />
+        <ProductGrid searchTerm={searchTerm} category={activeCategory} onProductSelect={cart.addItem} />
       </div>
 
-      <div className="hidden w-80 flex-col items-center justify-center gap-2 p-4 text-muted lg:flex">
-        <span className="text-2xl">🛒</span>
-        <p className="text-sm">{t("pos.cart.placeholder")}</p>
-      </div>
+      <PosCart />
 
-      <div className="toast-viewport">
-        {toasts.map((toast) => (
-          <div key={toast.id} className="toast">
-            {toast.text}
+      {cart.outOfStockError && (
+        <div className="toast-viewport">
+          <div className="toast-error">
+            {t("pos.cart.outOfStockError", { name: cart.outOfStockError })}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export function PosLayout() {
+  useEffect(() => {
+    void seedLocalProducts();
+    void seedLocalProfiles();
+  }, []);
+
+  return (
+    <CartProvider>
+      <PosLayoutContent />
+    </CartProvider>
   );
 }

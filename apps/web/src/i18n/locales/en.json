@@ -18,11 +18,53 @@
       "expiringSoon": "Expiring soon"
     },
     "cart": {
-      "placeholder": "Cart -- available in Phase 2.2"
+      "title": "Cart",
+      "empty": "Cart is empty",
+      "total": "Total",
+      "remove": "Remove",
+      "clear": "Clear cart",
+      "checkout": "Checkout",
+      "outOfStockError": "{{name}} is out of stock",
+      "paymentMethod": {
+        "cash": "Cash",
+        "momo_mtn": "MTN MoMo",
+        "momo_orange": "Orange Money",
+        "student_wallet": "Student wallet"
+      }
     },
-    "toast": {
-      "added": "Added: {{name}}"
+    "pin": {
+      "clearTitle": "Authorization required",
+      "checkoutTitle": "Identify yourself to check out",
+      "incorrect": "Incorrect PIN",
+      "close": "Close"
     }
+  },
+  "auth": {
+    "title": "Sign in",
+    "tagline": "Cite Shop",
+    "subtitle": "Sign in to open the register",
+    "emailPlaceholder": "Email address",
+    "passwordPlaceholder": "Password",
+    "submit": "Sign in",
+    "orContinueWith": "Or continue with",
+    "google": "Continue with Google",
+    "apple": "Continue with Apple",
+    "error": "Incorrect credentials. Please try again.",
+    "networkError": "Couldn't reach the server. Check that the backend is running.",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Reset your password",
+    "forgotPasswordSubtitle": "Enter your email to receive a reset link.",
+    "sendResetLink": "Send reset link",
+    "resetEmailSent": "If an account exists for that address, a reset email has been sent.",
+    "resetError": "Couldn't send the email. Please try again.",
+    "backToLogin": "Back to sign in",
+    "newPasswordTitle": "Choose a new password",
+    "newPasswordPlaceholder": "New password",
+    "confirmPasswordPlaceholder": "Confirm password",
+    "updatePassword": "Update password",
+    "passwordMismatch": "Passwords don't match.",
+    "passwordTooShort": "Password must be at least 6 characters.",
+    "passwordUpdated": "Password updated. Signing you in..."
   },
   "language": {
     "fr": "FR",

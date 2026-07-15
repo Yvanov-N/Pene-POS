@@ -1,3 +1,17 @@
+import type { UserRole } from "@/types/supabase";
+
+export interface Profile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  // Locally-computed SHA-256 digest for offline PIN checks -- unrelated to
+  // the server's bcrypt pin_code hash, which is intentionally never synced
+  // down (see supabase/migrations/00001_initial_schema.sql). Phase 3 needs
+  // to design the real secure sync path for this table.
+  pin_hash: string;
+}
+
 export interface Product {
   id: string;
   name: string;

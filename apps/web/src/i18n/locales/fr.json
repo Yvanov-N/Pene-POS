@@ -18,11 +18,53 @@
       "expiringSoon": "Expire bientot"
     },
     "cart": {
-      "placeholder": "Panier -- disponible en Phase 2.2"
+      "title": "Panier",
+      "empty": "Le panier est vide",
+      "total": "Total",
+      "remove": "Retirer",
+      "clear": "Vider le panier",
+      "checkout": "Encaisser",
+      "outOfStockError": "{{name}} est en rupture de stock",
+      "paymentMethod": {
+        "cash": "Especes",
+        "momo_mtn": "MTN MoMo",
+        "momo_orange": "Orange Money",
+        "student_wallet": "Portefeuille etudiant"
+      }
     },
-    "toast": {
-      "added": "Ajoute : {{name}}"
+    "pin": {
+      "clearTitle": "Autorisation requise",
+      "checkoutTitle": "Identifiez-vous pour encaisser",
+      "incorrect": "Code PIN incorrect",
+      "close": "Fermer"
     }
+  },
+  "auth": {
+    "title": "Connexion",
+    "tagline": "Cite Shop",
+    "subtitle": "Connectez-vous pour ouvrir la caisse",
+    "emailPlaceholder": "Adresse e-mail",
+    "passwordPlaceholder": "Mot de passe",
+    "submit": "Se connecter",
+    "orContinueWith": "Ou continuer avec",
+    "google": "Continuer avec Google",
+    "apple": "Continuer avec Apple",
+    "error": "Identifiants incorrects. Veuillez reessayer.",
+    "networkError": "Impossible de contacter le serveur. Verifiez que le backend est demarre.",
+    "forgotPassword": "Mot de passe oublie ?",
+    "forgotPasswordTitle": "Reinitialiser le mot de passe",
+    "forgotPasswordSubtitle": "Saisissez votre e-mail pour recevoir un lien de reinitialisation.",
+    "sendResetLink": "Envoyer le lien",
+    "resetEmailSent": "Si un compte existe pour cette adresse, un e-mail de reinitialisation a ete envoye.",
+    "resetError": "Impossible d'envoyer l'e-mail. Veuillez reessayer.",
+    "backToLogin": "Retour a la connexion",
+    "newPasswordTitle": "Choisissez un nouveau mot de passe",
+    "newPasswordPlaceholder": "Nouveau mot de passe",
+    "confirmPasswordPlaceholder": "Confirmer le mot de passe",
+    "updatePassword": "Mettre a jour le mot de passe",
+    "passwordMismatch": "Les mots de passe ne correspondent pas.",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 6 caracteres.",
+    "passwordUpdated": "Mot de passe mis a jour. Connexion en cours..."
   },
   "language": {
     "fr": "FR",
