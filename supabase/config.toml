@@ -1,19 +1,26 @@
-project_id = "pene-pos"
+project_id = "pene-pos-dev"
 
 [api]
 enabled = true
-port = 54321
+port = 55321
 schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]
-port = 54322
+port = 55322
 major_version = 15
 
 [studio]
 enabled = true
-port = 54323
+port = 55323
+
+[inbucket]
+enabled = true
+port = 55324
+
+[analytics]
+enabled = false
 
 [auth]
 enabled = true

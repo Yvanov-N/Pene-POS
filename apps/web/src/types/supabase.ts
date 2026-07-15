@@ -1,0 +1,140 @@
+// Hand-authored to mirror supabase/migrations/00001_initial_schema.sql.
+// Regenerate from the real database once it's stable:
+//   supabase gen types typescript --local > src/types/supabase.ts
+
+export type UserRole = "admin" | "cashier";
+export type PaymentMethod = "cash" | "momo_mtn" | "momo_orange" | "student_wallet";
+export type SaleStatus = "completed" | "pending_sync" | "conflict_warning";
+
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          email: string;
+          full_name: string;
+          role: UserRole;
+          pin_code: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          full_name: string;
+          role: UserRole;
+          pin_code: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+      };
+      products: {
+        Row: {
+          id: string;
+          name: string;
+          price: number;
+          stock: number;
+          barcode: string | null;
+          category: string | null;
+          image_url: string | null;
+          emoji: string | null;
+          expiry_date: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          price: number;
+          stock?: number;
+          barcode?: string | null;
+          category?: string | null;
+          image_url?: string | null;
+          emoji?: string | null;
+          expiry_date?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
+      };
+      sales: {
+        Row: {
+          id: string;
+          created_at: string;
+          cashier_id: string;
+          total_amount: number;
+          payment_method: PaymentMethod;
+          student_wallet_id: string | null;
+          status: SaleStatus;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          cashier_id: string;
+          total_amount: number;
+          payment_method: PaymentMethod;
+          student_wallet_id?: string | null;
+          status?: SaleStatus;
+        };
+        Update: Partial<Database["public"]["Tables"]["sales"]["Insert"]>;
+      };
+      sale_items: {
+        Row: {
+          id: string;
+          sale_id: string;
+          product_id: string;
+          quantity: number;
+          unit_price: number;
+        };
+        Insert: {
+          id?: string;
+          sale_id: string;
+          product_id: string;
+          quantity: number;
+          unit_price: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["sale_items"]["Insert"]>;
+      };
+      student_wallets: {
+        Row: {
+          id: string;
+          student_name: string;
+          badge_code: string;
+          balance: number;
+          email: string | null;
+        };
+        Insert: {
+          id?: string;
+          student_name: string;
+          badge_code: string;
+          balance?: number;
+          email?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["student_wallets"]["Insert"]>;
+      };
+      shop_status: {
+        Row: {
+          id: number;
+          is_open: boolean;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: number;
+          is_open?: boolean;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["shop_status"]["Insert"]>;
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: {
+      user_role: UserRole;
+      payment_method: PaymentMethod;
+      sale_status: SaleStatus;
+    };
+    CompositeTypes: Record<string, never>;
+  };
+}

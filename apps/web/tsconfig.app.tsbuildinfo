@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/lib/db.ts","./src/lib/supabase.ts","./src/types/db.ts","./src/types/supabase.ts"],"version":"5.9.3"}
