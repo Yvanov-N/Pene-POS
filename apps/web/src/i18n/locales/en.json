@@ -1,0 +1,31 @@
+{
+  "pos": {
+    "barcode": {
+      "placeholder": "Scan or type a barcode...",
+      "notFound": "Barcode not found"
+    },
+    "filters": {
+      "searchPlaceholder": "Search a product or barcode...",
+      "allCategory": "All"
+    },
+    "grid": {
+      "loading": "Loading products...",
+      "empty": "No products found.",
+      "stockLabel": "Stock: {{count}}",
+      "outOfStock": "Out of stock",
+      "lowStock": "Low stock",
+      "expired": "Expired",
+      "expiringSoon": "Expiring soon"
+    },
+    "cart": {
+      "placeholder": "Cart -- available in Phase 2.2"
+    },
+    "toast": {
+      "added": "Added: {{name}}"
+    }
+  },
+  "language": {
+    "fr": "FR",
+    "en": "EN"
+  }
+}

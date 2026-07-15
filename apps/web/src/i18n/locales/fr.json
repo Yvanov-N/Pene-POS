@@ -1,0 +1,31 @@
+{
+  "pos": {
+    "barcode": {
+      "placeholder": "Scanner ou saisir un code-barres...",
+      "notFound": "Code-barres introuvable"
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher un produit ou un code-barres...",
+      "allCategory": "Tous"
+    },
+    "grid": {
+      "loading": "Chargement des produits...",
+      "empty": "Aucun produit trouve.",
+      "stockLabel": "Stock : {{count}}",
+      "outOfStock": "Rupture",
+      "lowStock": "Stock critique",
+      "expired": "Expire",
+      "expiringSoon": "Expire bientot"
+    },
+    "cart": {
+      "placeholder": "Panier -- disponible en Phase 2.2"
+    },
+    "toast": {
+      "added": "Ajoute : {{name}}"
+    }
+  },
+  "language": {
+    "fr": "FR",
+    "en": "EN"
+  }
+}
