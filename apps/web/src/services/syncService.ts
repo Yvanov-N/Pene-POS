@@ -171,7 +171,7 @@ async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
 type SupabaseProductRow = Database["public"]["Tables"]["products"]["Row"];
 type SupabaseWalletRow = Database["public"]["Tables"]["student_wallets"]["Row"];
 
-function mapProductRow(row: SupabaseProductRow): Product {
+export function mapProductRow(row: SupabaseProductRow): Product {
   return {
     id: row.id,
     name: row.name,

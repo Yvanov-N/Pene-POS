@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { db } from "@/lib/db";
 import { hashPin } from "@/lib/hashPin";
 import type { Profile } from "@/types/db";
+import type { UserRole } from "@/types/supabase";
 
 const PIN_LENGTH = 4;
 const SHAKE_DURATION_MS = 400;
@@ -12,9 +13,13 @@ interface PinPadModalProps {
   title: string;
   onSuccess: (profile: Profile) => void;
   onClose: () => void;
+  // When set, only a profile with this exact role can match -- a correct
+  // PIN belonging to a profile of the wrong role is treated the same as an
+  // incorrect PIN (never reveal "valid PIN, wrong role").
+  requiredRole?: UserRole;
 }
 
-export function PinPadModal({ title, onSuccess, onClose }: PinPadModalProps) {
+export function PinPadModal({ title, onSuccess, onClose, requiredRole }: PinPadModalProps) {
   const { t } = useTranslation();
   const [digits, setDigits] = useState("");
   const [shake, setShake] = useState(false);
@@ -23,7 +28,8 @@ export function PinPadModal({ title, onSuccess, onClose }: PinPadModalProps) {
 
   const verify = async (candidate: string) => {
     setChecking(true);
-    const candidates = await db.profiles.where("role").anyOf(["admin", "cashier"]).toArray();
+    const allowedRoles = requiredRole ? [requiredRole] : (["admin", "cashier"] as const);
+    const candidates = await db.profiles.where("role").anyOf(allowedRoles).toArray();
     const candidateHash = await hashPin(candidate);
     const match = candidates.find((profile) => profile.pin_hash === candidateHash);
     setChecking(false);

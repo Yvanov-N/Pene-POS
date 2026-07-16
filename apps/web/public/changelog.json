@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.3.0",
+    "date": "2026-07-16",
+    "changes": [
+      "stock conflict resolution engine and admin alert dashboard"
+    ]
+  },
+  {
     "version": "0.2.0",
     "date": "2026-07-16",
     "changes": [

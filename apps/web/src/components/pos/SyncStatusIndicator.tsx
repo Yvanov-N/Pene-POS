@@ -1,9 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 
-// Minimal placeholder for verification purposes -- not the real TopBar
-// component (doesn't exist yet), just enough to see the sync engine is
-// alive without needing devtools.
 export function SyncStatusIndicator() {
   const { t } = useTranslation();
   const { isOnline, isSyncing, lastSyncedAt } = useSyncEngine();

@@ -39,6 +39,20 @@
       "close": "Fermer"
     }
   },
+  "admin": {
+    "conflicts": {
+      "badge_one": "{{count}} Conflit",
+      "badge_other": "{{count}} Conflits",
+      "pinTitle": "Autorisation administrateur requise",
+      "title": "Conflits de stock",
+      "loading": "Chargement des conflits...",
+      "empty": "Aucun conflit en attente.",
+      "resolveAll": "Tout resoudre",
+      "lineDescription": "Produit : {{product}} — Stock negatif ({{stock}}) detecte suite a une vente hors-ligne synchronisee avec retard.",
+      "adjustToZero": "Regulariser a 0",
+      "forceIgnore": "Forcer / Ignorer"
+    }
+  },
   "auth": {
     "title": "Connexion",
     "tagline": "Cite Shop",

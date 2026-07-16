@@ -39,6 +39,20 @@
       "close": "Close"
     }
   },
+  "admin": {
+    "conflicts": {
+      "badge_one": "{{count}} Conflict",
+      "badge_other": "{{count}} Conflicts",
+      "pinTitle": "Administrator authorization required",
+      "title": "Stock conflicts",
+      "loading": "Loading conflicts...",
+      "empty": "No pending conflicts.",
+      "resolveAll": "Resolve all",
+      "lineDescription": "Product: {{product}} — Negative stock ({{stock}}) detected following a delayed offline sale sync.",
+      "adjustToZero": "Adjust to 0",
+      "forceIgnore": "Force / Ignore"
+    }
+  },
   "auth": {
     "title": "Sign in",
     "tagline": "Cite Shop",
