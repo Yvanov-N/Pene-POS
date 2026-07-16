@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useCart } from "@/hooks/useCart";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
+import { enqueueMutation } from "@/services/syncService";
 import { PinPadModal } from "./PinPadModal";
 import type { PaymentMethod, Profile, Sale, SaleItem } from "@/types/db";
 
@@ -69,14 +70,7 @@ export function PosCart() {
           }
         }
 
-        // Just the write -- the background sync engine itself is Phase 3.
-        await db.sync_queue.add({
-          action: "SALE",
-          table_name: "sales",
-          payload: { sale, items: saleItems },
-          created_at: now,
-          status: "pending",
-        });
+        await enqueueMutation("SALE", "sales", { sale, items: saleItems });
 
         await db.cart_items.clear();
       },

@@ -5,7 +5,9 @@ import { ProductFilters } from "./ProductFilters";
 import { ProductGrid } from "./ProductGrid";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { PosCart } from "./PosCart";
+import { SyncStatusIndicator } from "./SyncStatusIndicator";
 import { CartProvider, useCart } from "@/hooks/useCart";
+import { SyncProvider } from "@/hooks/useSyncEngine";
 import { seedLocalProducts } from "@/lib/seedLocalProducts";
 import { seedLocalProfiles } from "@/lib/seedLocalProfiles";
 import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
@@ -29,7 +31,10 @@ function PosLayoutContent() {
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto border-r border-border p-4">
         <div className="flex items-center justify-between">
           <h1 className="text-sm font-semibold text-muted">Pene POS</h1>
-          <LanguageSwitcher />
+          <div className="flex items-center gap-3">
+            <SyncStatusIndicator />
+            <LanguageSwitcher />
+          </div>
         </div>
         <BarcodeInput onProductSelect={cart.addItem} />
         <ProductFilters
@@ -61,8 +66,10 @@ export function PosLayout() {
   }, []);
 
   return (
-    <CartProvider>
-      <PosLayoutContent />
-    </CartProvider>
+    <SyncProvider>
+      <CartProvider>
+        <PosLayoutContent />
+      </CartProvider>
+    </SyncProvider>
   );
 }

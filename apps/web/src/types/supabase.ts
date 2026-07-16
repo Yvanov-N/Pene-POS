@@ -1,5 +1,6 @@
-// Hand-authored to mirror supabase/migrations/00001_initial_schema.sql.
-// Regenerate from the real database once it's stable:
+// Hand-authored to mirror supabase/migrations/00001_initial_schema.sql and
+// 00002_relax_sync_rls.sql. Regenerate from the real database once it's
+// stable:
 //   supabase gen types typescript --local > src/types/supabase.ts
 
 export type UserRole = "admin" | "cashier";
@@ -29,6 +30,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+        Relationships: [];
       };
       products: {
         Row: {
@@ -56,6 +58,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
+        Relationships: [];
       };
       sales: {
         Row: {
@@ -77,6 +80,7 @@ export interface Database {
           status?: SaleStatus;
         };
         Update: Partial<Database["public"]["Tables"]["sales"]["Insert"]>;
+        Relationships: [];
       };
       sale_items: {
         Row: {
@@ -94,6 +98,7 @@ export interface Database {
           unit_price: number;
         };
         Update: Partial<Database["public"]["Tables"]["sale_items"]["Insert"]>;
+        Relationships: [];
       };
       student_wallets: {
         Row: {
@@ -111,6 +116,7 @@ export interface Database {
           email?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["student_wallets"]["Insert"]>;
+        Relationships: [];
       };
       shop_status: {
         Row: {
@@ -126,10 +132,20 @@ export interface Database {
           updated_by?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["shop_status"]["Insert"]>;
+        Relationships: [];
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      decrement_product_stock: {
+        Args: { p_product_id: string; p_quantity: number };
+        Returns: Database["public"]["Tables"]["products"]["Row"];
+      };
+      adjust_wallet_balance: {
+        Args: { p_wallet_id: string; p_delta: number };
+        Returns: Database["public"]["Tables"]["student_wallets"]["Row"];
+      };
+    };
     Enums: {
       user_role: UserRole;
       payment_method: PaymentMethod;

@@ -66,6 +66,11 @@
     "passwordTooShort": "Le mot de passe doit contenir au moins 6 caracteres.",
     "passwordUpdated": "Mot de passe mis a jour. Connexion en cours..."
   },
+  "sync": {
+    "online": "En ligne",
+    "syncing": "Synchronisation...",
+    "offline": "Hors ligne"
+  },
   "language": {
     "fr": "FR",
     "en": "EN"

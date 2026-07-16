@@ -67,7 +67,7 @@ export interface StudentWallet {
 
 export type SyncAction = "INSERT" | "UPDATE" | "DELETE" | "SALE" | "WALLET_RECHARGE";
 
-export type SyncStatus = "pending" | "syncing" | "failed" | "conflict_warning";
+export type SyncStatus = "pending" | "syncing" | "completed" | "failed" | "conflict_warning";
 
 export interface SyncQueueItem {
   id?: number;
@@ -76,4 +76,5 @@ export interface SyncQueueItem {
   payload: Record<string, any>;
   created_at: string;
   status: SyncStatus;
+  retryCount: number;
 }

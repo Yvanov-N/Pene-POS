@@ -66,6 +66,11 @@
     "passwordTooShort": "Password must be at least 6 characters.",
     "passwordUpdated": "Password updated. Signing you in..."
   },
+  "sync": {
+    "online": "Online",
+    "syncing": "Syncing...",
+    "offline": "Offline"
+  },
   "language": {
     "fr": "FR",
     "en": "EN"
