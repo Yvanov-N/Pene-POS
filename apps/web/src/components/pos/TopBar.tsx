@@ -7,9 +7,20 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { PinPadModal } from "./PinPadModal";
 import { AdminConflictDashboard } from "@/components/admin/AdminConflictDashboard";
 import { AdminSettingsModal } from "@/components/admin/AdminSettingsModal";
+import { NavigationDrawer, type NavigationTarget } from "@/components/admin/NavigationDrawer";
+import { ProductManagementModal } from "@/components/admin/ProductManagementModal";
+import { StudentManagementModal } from "@/components/admin/StudentManagementModal";
 import logo from "@/assets/logo.png";
 
-type AdminModal = "conflicts" | "settings" | null;
+type AdminModal = "conflicts" | "drawer" | NavigationTarget | null;
+
+const PIN_TITLE_KEY = {
+  conflicts: "admin.conflicts.pinTitle",
+  drawer: "admin.nav.pinTitle",
+  products: "admin.nav.pinTitle",
+  students: "admin.nav.pinTitle",
+  settings: "admin.settings.pinTitle",
+} as const satisfies Record<Exclude<AdminModal, null>, string>;
 
 export function TopBar() {
   const { t } = useTranslation();
@@ -38,7 +49,18 @@ export function TopBar() {
   return (
     <>
       <div className="flex items-center justify-between">
-        <img src={logo} alt="Pene POS" className="h-6 object-contain w-auto" />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setPendingModal("drawer")}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface2 text-lg text-foreground hover:border-accent hover:bg-surface"
+            aria-label={t("admin.nav.title")}
+            title={t("admin.nav.title")}
+          >
+            ☰
+          </button>
+          <img src={logo} alt="Pene POS" className="h-6 object-contain w-auto" />
+        </div>
         <div className="flex items-center gap-3">
           {!!conflictCount && conflictCount > 0 && (
             <button
@@ -49,15 +71,6 @@ export function TopBar() {
               ⚠️ {t("admin.conflicts.badge", { count: conflictCount })}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setPendingModal("settings")}
-            className="text-muted hover:text-foreground"
-            aria-label={t("admin.settings.title")}
-            title={t("admin.settings.title")}
-          >
-            ⚙️
-          </button>
           <SyncStatusIndicator />
           <LanguageSwitcher />
         </div>
@@ -65,7 +78,7 @@ export function TopBar() {
 
       {pendingModal && (
         <PinPadModal
-          title={pendingModal === "conflicts" ? t("admin.conflicts.pinTitle") : t("admin.settings.pinTitle")}
+          title={t(PIN_TITLE_KEY[pendingModal])}
           requiredRole="admin"
           onSuccess={() => {
             setOpenModal(pendingModal);
@@ -76,6 +89,11 @@ export function TopBar() {
       )}
 
       {openModal === "conflicts" && <AdminConflictDashboard onClose={() => setOpenModal(null)} />}
+      {openModal === "drawer" && (
+        <NavigationDrawer onClose={() => setOpenModal(null)} onNavigate={(target) => setOpenModal(target)} />
+      )}
+      {openModal === "products" && <ProductManagementModal onClose={() => setOpenModal(null)} />}
+      {openModal === "students" && <StudentManagementModal onClose={() => setOpenModal(null)} />}
       {openModal === "settings" && <AdminSettingsModal onClose={() => setOpenModal(null)} />}
     </>
   );

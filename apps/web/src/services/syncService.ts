@@ -11,6 +11,20 @@ const MAX_RETRIES = 5;
 // distinguish "oversold" from "something else went wrong".
 const CHECK_VIOLATION_CODE = "23514";
 
+// Postgres SQLSTATE for a foreign_key_violation -- deleting a product that's
+// referenced by historical sale_items (no ON DELETE clause -> RESTRICT) hits
+// this. Treated the same as a check violation: surfaced as a "conflict"
+// (stops retrying) instead of silently retrying MAX_RETRIES times and then
+// giving up with no visible trace.
+const FOREIGN_KEY_VIOLATION_CODE = "23503";
+
+// Postgres SQLSTATE for a unique_violation -- e.g. two offline devices both
+// creating a student wallet with the same badge_code before either has synced.
+// The client already checks this locally before enqueueing, but a second
+// device can't see the first device's still-unsynced row, so this is the
+// real backstop. Same "conflict, don't infinite-retry" treatment.
+const UNIQUE_VIOLATION_CODE = "23505";
+
 type QueueOutcome = "completed" | "conflict";
 
 interface SalePayload {
@@ -101,7 +115,13 @@ async function pushGeneric(
         : await table.delete().eq("id", id);
 
   if (error) {
-    if (error.code === CHECK_VIOLATION_CODE) return "conflict";
+    if (
+      error.code === CHECK_VIOLATION_CODE ||
+      error.code === FOREIGN_KEY_VIOLATION_CODE ||
+      error.code === UNIQUE_VIOLATION_CODE
+    ) {
+      return "conflict";
+    }
     throw error;
   }
   return "completed";
@@ -151,6 +171,11 @@ export async function processSyncQueue(): Promise<void> {
 
 type PendingIdKind = "product_id" | "wallet_id";
 
+const PENDING_ID_TABLE: Record<PendingIdKind, string> = {
+  product_id: "products",
+  wallet_id: "student_wallets",
+};
+
 async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
   const pending = await db.sync_queue.where("status").anyOf(["pending", "failed"]).toArray();
   const ids = new Set<string>();
@@ -162,6 +187,17 @@ async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
     } else if (kind === "wallet_id" && item.action === "WALLET_RECHARGE") {
       const { wallet_id } = item.payload as WalletRechargePayload;
       ids.add(wallet_id);
+    } else if (
+      (item.action === "INSERT" || item.action === "UPDATE" || item.action === "DELETE") &&
+      item.table_name === PENDING_ID_TABLE[kind]
+    ) {
+      // The generic INSERT/UPDATE/DELETE path (products/student_wallets admin
+      // CRUD) was previously unused -- SALE/WALLET_RECHARGE were the only
+      // producers this protection accounted for. Without this branch, a
+      // still-retrying product/wallet edit would get silently overwritten by
+      // the very next pull, right after the push that's supposed to persist it.
+      const id = (item.payload as { id?: string }).id;
+      if (id) ids.add(id);
     }
   }
 
