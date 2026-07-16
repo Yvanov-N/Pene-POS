@@ -7,6 +7,7 @@ import type {
   StudentWallet,
   SyncQueueItem,
   Profile,
+  LocalSettings,
 } from "@/types/db";
 
 export class PosDatabase extends Dexie {
@@ -17,6 +18,7 @@ export class PosDatabase extends Dexie {
   student_wallets!: Table<StudentWallet, string>;
   sync_queue!: Table<SyncQueueItem, number>;
   profiles!: Table<Profile, string>;
+  local_settings!: Table<LocalSettings, string>;
 
   constructor() {
     super("pene_pos");
@@ -32,6 +34,10 @@ export class PosDatabase extends Dexie {
 
     this.version(2).stores({
       profiles: "id, role",
+    });
+
+    this.version(3).stores({
+      local_settings: "id",
     });
   }
 }

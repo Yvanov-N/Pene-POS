@@ -2,7 +2,11 @@
   "pos": {
     "barcode": {
       "placeholder": "Scanner ou saisir un code-barres...",
-      "notFound": "Code-barres introuvable"
+      "notFound": "Code-barres introuvable",
+      "connectedHid": "Connecte via Web HID",
+      "connectedSerial": "Connecte via port serie",
+      "keyboardMode": "Mode clavier standard",
+      "pairScanner": "Associer une douchette"
     },
     "filters": {
       "searchPlaceholder": "Rechercher un produit ou un code-barres...",
@@ -51,7 +55,28 @@
       "lineDescription": "Produit : {{product}} — Stock negatif ({{stock}}) detecte suite a une vente hors-ligne synchronisee avec retard.",
       "adjustToZero": "Regulariser a 0",
       "forceIgnore": "Forcer / Ignorer"
+    },
+    "settings": {
+      "title": "Parametres",
+      "pinTitle": "Autorisation administrateur requise",
+      "printModeLabel": "Mode d'impression par defaut",
+      "printMode": {
+        "browser": "Navigateur",
+        "bluetooth": "Bluetooth"
+      },
+      "bluetoothSection": "Imprimante thermique Bluetooth",
+      "bluetoothConnected": "Connectee",
+      "bluetoothDisconnected": "Non connectee",
+      "pairBluetooth": "Jumeler une imprimante thermique Bluetooth",
+      "disconnectBluetooth": "Deconnecter",
+      "bluetoothUnsupported": "Web Bluetooth n'est pas pris en charge par ce navigateur.",
+      "bluetoothPairError": "Impossible de jumeler l'imprimante. Veuillez reessayer."
     }
+  },
+  "receipt": {
+    "shopName": "Cite Shop",
+    "cashier": "Caissier : {{name}}",
+    "footer": "Merci de votre visite !"
   },
   "auth": {
     "title": "Connexion",

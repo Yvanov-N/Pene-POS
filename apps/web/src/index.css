@@ -171,6 +171,75 @@
   .shake {
     animation: pin-shake 0.4s ease;
   }
+
+  /* Deliberately fixed black-on-white, not the theme tokens -- a printed
+     receipt is always black ink on paper regardless of the admin's screen
+     theme. Hidden on screen; @media print below makes it the only visible
+     thing on the page. */
+  .receipt {
+    display: none;
+    width: 320px;
+    max-width: 320px;
+    margin: 0 auto;
+    padding: 1rem;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #000;
+    background: #fff;
+  }
+
+  .receipt-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px dashed #000;
+    text-align: center;
+  }
+
+  .receipt-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .receipt-total {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #000;
+    font-weight: bold;
+  }
+}
+
+@media print {
+  /* Print only .receipt, wherever it happens to be mounted in the tree --
+     visibility (not display) so a hidden ancestor can still have a visible
+     descendant, which is what makes this independent of exactly where
+     ReceiptPrintHost is mounted. */
+  body * {
+    visibility: hidden;
+  }
+
+  .receipt,
+  .receipt * {
+    visibility: visible;
+  }
+
+  .receipt {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: 320px;
+    margin: 0;
+    padding: 0;
+  }
+
+  @page {
+    margin: 0;
+  }
 }
 
 @keyframes pin-shake {

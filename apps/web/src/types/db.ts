@@ -78,3 +78,13 @@ export interface SyncQueueItem {
   status: SyncStatus;
   retryCount: number;
 }
+
+export type PrintMode = "browser" | "bluetooth";
+
+// Device-local preferences only -- print mode and the paired Bluetooth
+// printer are inherently per-terminal, not shop-wide business data, so this
+// deliberately never goes through sync_queue/Supabase.
+export interface LocalSettings {
+  id: string;
+  printMode: PrintMode;
+}

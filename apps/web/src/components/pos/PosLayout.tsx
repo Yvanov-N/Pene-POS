@@ -5,6 +5,7 @@ import { ProductFilters } from "./ProductFilters";
 import { ProductGrid } from "./ProductGrid";
 import { PosCart } from "./PosCart";
 import { TopBar } from "./TopBar";
+import { ReceiptPrintHost } from "./ReceiptPrintHost";
 import { CartProvider, useCart } from "@/hooks/useCart";
 import { SyncProvider } from "@/hooks/useSyncEngine";
 import { seedLocalProducts } from "@/lib/seedLocalProducts";
@@ -26,7 +27,7 @@ function PosLayoutContent() {
   }, [cart.outOfStockError, cart.clearOutOfStockError]);
 
   return (
-    <div className="flex h-screen w-full bg-background text-foreground">
+    <div className="pos-layout flex h-screen w-full bg-background text-foreground">
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto border-r border-border p-4">
         <TopBar />
         <BarcodeInput onProductSelect={cart.addItem} />
@@ -48,6 +49,8 @@ function PosLayoutContent() {
           </div>
         </div>
       )}
+
+      <ReceiptPrintHost />
     </div>
   );
 }

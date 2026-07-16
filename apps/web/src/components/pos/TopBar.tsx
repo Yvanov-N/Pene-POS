@@ -6,12 +6,15 @@ import { SyncStatusIndicator } from "./SyncStatusIndicator";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { PinPadModal } from "./PinPadModal";
 import { AdminConflictDashboard } from "@/components/admin/AdminConflictDashboard";
+import { AdminSettingsModal } from "@/components/admin/AdminSettingsModal";
 import logo from "@/assets/logo.png";
+
+type AdminModal = "conflicts" | "settings" | null;
 
 export function TopBar() {
   const { t } = useTranslation();
-  const [showPinGate, setShowPinGate] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [pendingModal, setPendingModal] = useState<AdminModal>(null);
+  const [openModal, setOpenModal] = useState<AdminModal>(null);
 
   const conflictCount = useLiveQuery(
     () => db.sales.where("status").equals("conflict_warning").count(),
@@ -26,30 +29,40 @@ export function TopBar() {
           {!!conflictCount && conflictCount > 0 && (
             <button
               type="button"
-              onClick={() => setShowPinGate(true)}
+              onClick={() => setPendingModal("conflicts")}
               className="badge-red animate-pulse"
             >
               ⚠️ {t("admin.conflicts.badge", { count: conflictCount })}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setPendingModal("settings")}
+            className="text-muted hover:text-foreground"
+            aria-label={t("admin.settings.title")}
+            title={t("admin.settings.title")}
+          >
+            ⚙️
+          </button>
           <SyncStatusIndicator />
           <LanguageSwitcher />
         </div>
       </div>
 
-      {showPinGate && (
+      {pendingModal && (
         <PinPadModal
-          title={t("admin.conflicts.pinTitle")}
+          title={pendingModal === "conflicts" ? t("admin.conflicts.pinTitle") : t("admin.settings.pinTitle")}
           requiredRole="admin"
           onSuccess={() => {
-            setShowPinGate(false);
-            setShowDashboard(true);
+            setOpenModal(pendingModal);
+            setPendingModal(null);
           }}
-          onClose={() => setShowPinGate(false)}
+          onClose={() => setPendingModal(null)}
         />
       )}
 
-      {showDashboard && <AdminConflictDashboard onClose={() => setShowDashboard(false)} />}
+      {openModal === "conflicts" && <AdminConflictDashboard onClose={() => setOpenModal(null)} />}
+      {openModal === "settings" && <AdminSettingsModal onClose={() => setOpenModal(null)} />}
     </>
   );
 }

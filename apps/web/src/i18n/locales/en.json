@@ -2,7 +2,11 @@
   "pos": {
     "barcode": {
       "placeholder": "Scan or type a barcode...",
-      "notFound": "Barcode not found"
+      "notFound": "Barcode not found",
+      "connectedHid": "Connected via Web HID",
+      "connectedSerial": "Connected via serial port",
+      "keyboardMode": "Standard keyboard mode",
+      "pairScanner": "Pair a scanner"
     },
     "filters": {
       "searchPlaceholder": "Search a product or barcode...",
@@ -51,7 +55,28 @@
       "lineDescription": "Product: {{product}} — Negative stock ({{stock}}) detected following a delayed offline sale sync.",
       "adjustToZero": "Adjust to 0",
       "forceIgnore": "Force / Ignore"
+    },
+    "settings": {
+      "title": "Settings",
+      "pinTitle": "Administrator authorization required",
+      "printModeLabel": "Default print mode",
+      "printMode": {
+        "browser": "Browser",
+        "bluetooth": "Bluetooth"
+      },
+      "bluetoothSection": "Bluetooth thermal printer",
+      "bluetoothConnected": "Connected",
+      "bluetoothDisconnected": "Not connected",
+      "pairBluetooth": "Pair a Bluetooth thermal printer",
+      "disconnectBluetooth": "Disconnect",
+      "bluetoothUnsupported": "Web Bluetooth isn't supported by this browser.",
+      "bluetoothPairError": "Couldn't pair the printer. Please try again."
     }
+  },
+  "receipt": {
+    "shopName": "Cite Shop",
+    "cashier": "Cashier: {{name}}",
+    "footer": "Thank you for your visit!"
   },
   "auth": {
     "title": "Sign in",

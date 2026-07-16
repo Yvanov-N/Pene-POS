@@ -4,8 +4,11 @@ import { useCart } from "@/hooks/useCart";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { enqueueMutation } from "@/services/syncService";
+import { printService } from "@/services/hardware/printService";
 import { PinPadModal } from "./PinPadModal";
 import type { PaymentMethod, Profile, Sale, SaleItem } from "@/types/db";
+
+const SETTINGS_ID = "default";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
 
@@ -33,6 +36,8 @@ export function PosCart() {
   const completeCheckout = async (profile: Profile) => {
     const saleId = crypto.randomUUID();
     const now = new Date().toISOString();
+    let committedSale: Sale | null = null;
+    let committedItems: SaleItem[] = [];
 
     await db.transaction(
       "rw",
@@ -73,10 +78,24 @@ export function PosCart() {
         await enqueueMutation("SALE", "sales", { sale, items: saleItems });
 
         await db.cart_items.clear();
+
+        committedSale = sale;
+        committedItems = saleItems;
       },
     );
 
     setPaymentMethod(null);
+
+    // Printing is best-effort -- the sale already succeeded, so a printer
+    // being unplugged/unpaired must never surface as a checkout failure.
+    if (committedSale) {
+      try {
+        const settings = await db.local_settings.get(SETTINGS_ID);
+        await printService.printReceipt(committedSale, committedItems, settings?.printMode ?? "browser");
+      } catch (error) {
+        console.warn("[PosCart] receipt print failed", error);
+      }
+    }
   };
 
   const handlePinSuccess = (profile: Profile) => {
