@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
@@ -20,6 +20,20 @@ export function TopBar() {
     () => db.sales.where("status").equals("conflict_warning").count(),
     [],
   );
+
+  // No router exists, so a push notification's "open the conflicts view"
+  // click can't be a URL-routed deep link -- the SW opens/focuses the app
+  // at ?notification=conflicts, and this just opens the (still PIN-gated)
+  // conflicts flow instead of the dashboard itself directly.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("notification") === "conflicts") {
+      setPendingModal("conflicts");
+      params.delete("notification");
+      const nextSearch = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (nextSearch ? `?${nextSearch}` : ""));
+    }
+  }, []);
 
   return (
     <>

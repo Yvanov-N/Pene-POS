@@ -1,6 +1,6 @@
-// Hand-authored to mirror supabase/migrations/00001_initial_schema.sql and
-// 00002_relax_sync_rls.sql. Regenerate from the real database once it's
-// stable:
+// Hand-authored to mirror supabase/migrations/00001_initial_schema.sql,
+// 00002_relax_sync_rls.sql, and 00003_push_subscriptions.sql. Regenerate
+// from the real database once it's stable:
 //   supabase gen types typescript --local > src/types/supabase.ts
 
 export type UserRole = "admin" | "cashier";
@@ -132,6 +132,26 @@ export interface Database {
           updated_by?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["shop_status"]["Insert"]>;
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Insert"]>;
         Relationships: [];
       };
     };

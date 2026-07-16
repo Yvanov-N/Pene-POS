@@ -70,7 +70,15 @@
       "pairBluetooth": "Pair a Bluetooth thermal printer",
       "disconnectBluetooth": "Disconnect",
       "bluetoothUnsupported": "Web Bluetooth isn't supported by this browser.",
-      "bluetoothPairError": "Couldn't pair the printer. Please try again."
+      "bluetoothPairError": "Couldn't pair the printer. Please try again.",
+      "pushSection": "System alerts",
+      "pushEnabled": "Enabled on this device",
+      "pushDisabled": "Disabled on this device",
+      "enablePush": "Enable system alerts",
+      "disablePush": "Disable system alerts",
+      "pushUnsupported": "Notifications aren't supported by this browser.",
+      "pushMisconfigured": "Notifications aren't configured for this environment.",
+      "pushError": "Couldn't enable alerts. Please try again."
     }
   },
   "receipt": {

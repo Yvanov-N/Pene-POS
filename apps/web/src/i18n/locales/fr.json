@@ -70,7 +70,15 @@
       "pairBluetooth": "Jumeler une imprimante thermique Bluetooth",
       "disconnectBluetooth": "Deconnecter",
       "bluetoothUnsupported": "Web Bluetooth n'est pas pris en charge par ce navigateur.",
-      "bluetoothPairError": "Impossible de jumeler l'imprimante. Veuillez reessayer."
+      "bluetoothPairError": "Impossible de jumeler l'imprimante. Veuillez reessayer.",
+      "pushSection": "Alertes systeme",
+      "pushEnabled": "Activees sur cet appareil",
+      "pushDisabled": "Desactivees sur cet appareil",
+      "enablePush": "Activer les alertes systeme",
+      "disablePush": "Desactiver les alertes systeme",
+      "pushUnsupported": "Les notifications ne sont pas prises en charge par ce navigateur.",
+      "pushMisconfigured": "Les notifications ne sont pas configurees pour cet environnement.",
+      "pushError": "Impossible d'activer les alertes. Veuillez reessayer."
     }
   },
   "receipt": {

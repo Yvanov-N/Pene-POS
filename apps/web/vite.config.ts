@@ -12,6 +12,12 @@ export default defineConfig({
     VitePWA({
       registerType: "prompt",
       injectRegister: false,
+      // A custom 'push' handler can't be added under the default
+      // generateSW strategy -- src/sw.ts is the real source now, and it
+      // ports what the workbox block below used to auto-generate.
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "maskable-icon-512x512.png"],
       manifest: {
         name: "Pene POS",
@@ -42,21 +48,8 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest,woff2}"],
-        cleanupOutdatedCaches: true,
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) =>
-              url.pathname.startsWith("/rest/v1") || url.pathname.startsWith("/auth/v1"),
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "supabase-api-cache",
-              networkTimeoutSeconds: 5,
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
       },
       devOptions: {
         enabled: true,

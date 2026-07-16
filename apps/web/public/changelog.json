@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.0",
+    "date": "2026-07-16",
+    "changes": [
+      "VAPID web push notifications & automated student emailing"
+    ]
+  },
+  {
     "version": "0.7.0",
     "date": "2026-07-16",
     "changes": [

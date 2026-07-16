@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { printService } from "@/services/hardware/printService";
+import {
+  isPushSupported,
+  isPushSubscribed,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from "@/services/pushService";
 import type { PrintMode } from "@/types/db";
 
 interface AdminSettingsModalProps {
@@ -11,8 +17,10 @@ interface AdminSettingsModalProps {
 
 const SETTINGS_ID = "default";
 const PRINT_MODES: PrintMode[] = ["browser", "bluetooth"];
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
 type BluetoothStatus = "idle" | "connecting" | "connected";
+type PushStatus = "checking" | "enabled" | "disabled";
 
 export function AdminSettingsModal({ onClose }: AdminSettingsModalProps) {
   const { t } = useTranslation();
@@ -21,6 +29,12 @@ export function AdminSettingsModal({ onClose }: AdminSettingsModalProps) {
     printService.isBluetoothPrinterConnected() ? "connected" : "idle",
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pushStatus, setPushStatus] = useState<PushStatus>("checking");
+  const [pushError, setPushError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void isPushSubscribed().then((subscribed) => setPushStatus(subscribed ? "enabled" : "disabled"));
+  }, []);
 
   const printMode: PrintMode = settings?.printMode ?? "browser";
 
@@ -48,6 +62,30 @@ export function AdminSettingsModal({ onClose }: AdminSettingsModalProps) {
   const handleDisconnectBluetooth = async () => {
     await printService.disconnectBluetoothPrinter();
     setBluetoothStatus("idle");
+  };
+
+  const handleEnablePush = async () => {
+    setPushError(null);
+    if (!isPushSupported()) {
+      setPushError(t("admin.settings.pushUnsupported"));
+      return;
+    }
+    if (!VAPID_PUBLIC_KEY) {
+      setPushError(t("admin.settings.pushMisconfigured"));
+      return;
+    }
+    try {
+      await subscribeToPush(VAPID_PUBLIC_KEY);
+      setPushStatus("enabled");
+    } catch (error) {
+      console.warn("[AdminSettingsModal] push subscription failed", error);
+      setPushError(t("admin.settings.pushError"));
+    }
+  };
+
+  const handleDisablePush = async () => {
+    await unsubscribeFromPush();
+    setPushStatus("disabled");
   };
 
   return (
@@ -116,6 +154,40 @@ export function AdminSettingsModal({ onClose }: AdminSettingsModalProps) {
                 className="w-full rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
               >
                 {t("admin.settings.pairBluetooth")}
+              </button>
+            )}
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <p className="mb-2 text-sm font-medium text-foreground">{t("admin.settings.pushSection")}</p>
+            <span className="mb-2 inline-flex items-center gap-1.5 text-xs text-muted">
+              <span
+                className={`h-2 w-2 rounded-full ${pushStatus === "enabled" ? "bg-success" : "bg-muted"}`}
+                aria-hidden
+              />
+              {pushStatus === "enabled"
+                ? t("admin.settings.pushEnabled")
+                : t("admin.settings.pushDisabled")}
+            </span>
+
+            {pushError && <p className="mb-2 text-xs text-destructive">{pushError}</p>}
+
+            {pushStatus === "enabled" ? (
+              <button
+                type="button"
+                onClick={() => void handleDisablePush()}
+                className="w-full rounded-lg border border-border bg-surface2 py-2 text-sm font-medium text-foreground hover:border-accent"
+              >
+                {t("admin.settings.disablePush")}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={pushStatus === "checking"}
+                onClick={() => void handleEnablePush()}
+                className="w-full rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+              >
+                {t("admin.settings.enablePush")}
               </button>
             )}
           </div>
