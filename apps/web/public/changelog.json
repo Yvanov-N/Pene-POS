@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.3.1",
+    "date": "2026-07-16",
+    "changes": [
+      "auto-start Supabase backend with pnpm dev"
+    ]
+  },
+  {
     "version": "0.3.0",
     "date": "2026-07-16",
     "changes": [
