@@ -71,6 +71,22 @@
     "syncing": "Syncing...",
     "offline": "Offline"
   },
+  "update": {
+    "toast": {
+      "titleWithVersion": "NEW VERSION · v{{version}}",
+      "message": "Your cart and session are preserved.",
+      "viewChangelog": "What's new",
+      "later": "Later",
+      "updateNow": "Update now"
+    },
+    "loading": {
+      "text": "Loading version {{version}}..."
+    },
+    "changelog": {
+      "title": "What's new",
+      "close": "Close"
+    }
+  },
   "language": {
     "fr": "FR",
     "en": "EN"

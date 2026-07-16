@@ -12,6 +12,7 @@ export default {
     "badge-blue",
     "toast-viewport",
     "toast",
+    "update-pill",
   ],
   theme: {
     container: {

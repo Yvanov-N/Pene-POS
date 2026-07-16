@@ -8,6 +8,7 @@
   },
   "packageManager": "pnpm@9.12.0",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
     "lint": "pnpm -r lint",

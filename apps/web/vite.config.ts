@@ -10,8 +10,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
-      includeAssets: ["apple-touch-icon.png", "maskable-icon-512x512.png"],
+      registerType: "prompt",
+      injectRegister: false,
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "maskable-icon-512x512.png"],
       manifest: {
         name: "Pene POS",
         short_name: "Pene POS",
@@ -44,8 +45,6 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest,woff2}"],
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>

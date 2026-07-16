@@ -1,0 +1,16 @@
+[
+  {
+    "version": "0.2.0",
+    "date": "2026-07-16",
+    "changes": [
+      "Linear-style PWA update system (prompt-mode SW, versioning, update UI)"
+    ]
+  },
+  {
+    "version": "0.1.0",
+    "date": "2026-07-16",
+    "changes": [
+      "Version initiale"
+    ]
+  }
+]

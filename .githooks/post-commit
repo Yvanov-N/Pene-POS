@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[ -n "${SKIP_VERSION_HOOK:-}" ] && exit 0
+git rev-parse -q --verify HEAD^2 >/dev/null 2>&1 && exit 0 # merge commit, skip
+command -v node >/dev/null 2>&1 || exit 0
+
+node "$(git rev-parse --show-toplevel)/.githooks/bump-version.mjs"

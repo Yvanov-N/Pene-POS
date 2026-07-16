@@ -71,6 +71,22 @@
     "syncing": "Synchronisation...",
     "offline": "Hors ligne"
   },
+  "update": {
+    "toast": {
+      "titleWithVersion": "NOUVELLE VERSION - v{{version}}",
+      "message": "Ta session et ton panier sont conserves.",
+      "viewChangelog": "Nouveautes",
+      "later": "Plus tard",
+      "updateNow": "Mettre a jour"
+    },
+    "loading": {
+      "text": "Chargement de la version {{version}}..."
+    },
+    "changelog": {
+      "title": "Nouveautes",
+      "close": "Fermer"
+    }
+  },
   "language": {
     "fr": "FR",
     "en": "EN"

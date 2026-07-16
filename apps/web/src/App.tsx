@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { GlobalLogin } from "@/components/auth/GlobalLogin";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
 import { PosLayout } from "@/components/pos/PosLayout";
+import { VersionGate } from "@/components/pwa/VersionGate";
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -24,13 +25,18 @@ function App() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  if (checkingSession) return null;
-
-  if (passwordRecovery) {
-    return <ResetPasswordForm onComplete={() => setPasswordRecovery(false)} />;
-  }
-
-  return session ? <PosLayout /> : <GlobalLogin />;
+  return (
+    <>
+      {checkingSession ? null : passwordRecovery ? (
+        <ResetPasswordForm onComplete={() => setPasswordRecovery(false)} />
+      ) : session ? (
+        <PosLayout />
+      ) : (
+        <GlobalLogin />
+      )}
+      <VersionGate />
+    </>
+  );
 }
 
 export default App;
