@@ -11,7 +11,7 @@ export function UpdateLoading({ info }: UpdateLoadingProps) {
 
   return (
     <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-4 bg-background">
-      <img src={logo} alt="" className="h-16 w-16" aria-hidden />
+      <img src={logo} alt="" className="h-16 w-16 object-contain" aria-hidden />
       <span
         className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent"
         aria-hidden

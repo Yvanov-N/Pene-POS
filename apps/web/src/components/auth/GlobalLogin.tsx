@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
+import logo from "@/assets/logo.png";
+import cashierPhoto from "@/assets/cashier.jpg";
 
 type Mode = "login" | "forgot";
 
@@ -64,15 +66,18 @@ export function GlobalLogin() {
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background p-4">
       <div className="flex w-full max-w-3xl overflow-hidden rounded-xl border border-border">
-        <div className="hidden w-1/2 flex-col justify-between bg-accent p-8 text-accent-foreground sm:flex">
-          <span className="text-lg font-semibold">Pene POS</span>
-          <div>
+        <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-8 sm:flex">
+          <img src={cashierPhoto} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-black/70" />
+          <img
+            src={logo}
+            alt="Pene POS"
+            className="relative z-10 h-9 object-contain w-auto drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]"
+          />
+          <div className="relative z-10 text-white">
             <p className="text-2xl font-semibold">{t("auth.tagline")}</p>
             <p className="mt-2 text-sm opacity-80">{t("auth.subtitle")}</p>
           </div>
-          <span className="text-4xl" aria-hidden>
-            🛒
-          </span>
         </div>
 
         <div className="flex w-full flex-col justify-center gap-4 bg-surface p-8 sm:w-1/2">
