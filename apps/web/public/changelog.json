@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.6.0",
+    "date": "2026-07-16",
+    "changes": [
+      "native hardware barcode scanner (Web HID & Web Serial)"
+    ]
+  },
+  {
     "version": "0.5.0",
     "date": "2026-07-16",
     "changes": [
