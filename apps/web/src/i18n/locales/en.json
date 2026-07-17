@@ -54,6 +54,7 @@
       "students": "Students",
       "recharge": "Recharge",
       "momo": "MoMo",
+      "salesHistory": "History",
       "settings": "Settings",
       "comingSoon": "Coming soon",
       "lockNow": "Lock admin session"
@@ -80,6 +81,42 @@
       "reject": "Reject",
       "confirmedToast": "✓ MoMo transaction confirmed ({{amount}})",
       "rejectedToast": "✕ MoMo transaction rejected, stock restored"
+    },
+    "dashboard": {
+      "revenueLabel": "TODAY'S REVENUE",
+      "revenueSub": "Cash {{cash}}% · Mobile Money {{momo}}%",
+      "transactionsLabel": "TRANSACTIONS",
+      "transactionsSub": "Tickets validated today",
+      "averageCartLabel": "AVERAGE CART",
+      "averageCartSub": "Average spend per student",
+      "walletLabel": "WALLET PAYMENTS",
+      "walletSub_one": "{{count}} transaction via student wallet",
+      "walletSub_other": "{{count}} transactions via student wallet"
+    },
+    "salesHistory": {
+      "title": "Sales history",
+      "allPaymentMethods": "All",
+      "cashierSearchPlaceholder": "Cashier name...",
+      "loading": "Loading...",
+      "empty": "No sales found.",
+      "itemsTitle": "Items",
+      "unknownProduct": "Deleted product",
+      "reprint": "Reprint",
+      "reprintToast": "✓ Receipt printing started",
+      "reprintError": "✕ Printing failed",
+      "void": "Void / Refund",
+      "voidPinTitle": "Authorization required to void this sale",
+      "voidSuccessToast": "✓ Sale voided — stock and wallet restored",
+      "voidErrorNotAuthorized": "✕ Not authorized",
+      "voidErrorNotFound": "✕ Sale not found",
+      "voidErrorAlreadyRefunded": "✕ This sale was already voided",
+      "voidErrorGeneric": "✕ Void failed",
+      "status": {
+        "completed": "Completed",
+        "pending_sync": "Syncing",
+        "conflict_warning": "Conflict",
+        "refunded": "Refunded"
+      }
     },
     "products": {
       "title": "Products",

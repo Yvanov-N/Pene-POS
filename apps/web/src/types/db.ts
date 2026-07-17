@@ -37,7 +37,7 @@ export interface CartItem {
 
 export type PaymentMethod = "cash" | "momo_mtn" | "momo_orange" | "student_wallet";
 
-export type SaleStatus = "completed" | "pending_sync" | "conflict_warning";
+export type SaleStatus = "completed" | "pending_sync" | "conflict_warning" | "refunded";
 
 // Orthogonal to SaleStatus (which tracks offline push/sync state) -- whether
 // a MoMo sale's SMS confirmation has been checked is a separate concern.

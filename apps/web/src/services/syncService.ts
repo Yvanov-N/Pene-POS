@@ -215,6 +215,24 @@ async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
   return ids;
 }
 
+// Deletes any not-yet-pushed SALE queue entry for a given sale -- used when
+// a sale gets voided/rejected before it ever reached Supabase, so the
+// original (now-superseded) push never fires and re-decrements server-side
+// stock after the caller has already restored it locally. Shared by
+// MoMoVerificationCard's reject flow and refundService's voidSale.
+export async function cancelPendingSalePush(saleId: string): Promise<void> {
+  const queueItems = await db.sync_queue.toArray();
+  for (const item of queueItems) {
+    if (
+      item.action === "SALE" &&
+      (item.payload as { sale?: Sale }).sale?.id === saleId &&
+      item.id !== undefined
+    ) {
+      await db.sync_queue.delete(item.id);
+    }
+  }
+}
+
 type SupabaseProductRow = Database["public"]["Tables"]["products"]["Row"];
 type SupabaseWalletRow = Database["public"]["Tables"]["student_wallets"]["Row"];
 

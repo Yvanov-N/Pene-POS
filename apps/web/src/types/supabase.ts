@@ -1,12 +1,12 @@
 // Hand-authored to mirror supabase/migrations/00001_initial_schema.sql,
-// 00002_relax_sync_rls.sql, 00003_push_subscriptions.sql, and
-// 00004_momo_verification.sql. Regenerate from the real database once it's
-// stable:
+// 00002_relax_sync_rls.sql, 00003_push_subscriptions.sql,
+// 00004_momo_verification.sql, and 00005_sale_refund_status.sql. Regenerate
+// from the real database once it's stable:
 //   supabase gen types typescript --local > src/types/supabase.ts
 
 export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "momo_mtn" | "momo_orange" | "student_wallet";
-export type SaleStatus = "completed" | "pending_sync" | "conflict_warning";
+export type SaleStatus = "completed" | "pending_sync" | "conflict_warning" | "refunded";
 export type MomoVerificationStatus = "pending" | "confirmed" | "rejected";
 
 export interface Database {

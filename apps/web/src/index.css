@@ -205,6 +205,36 @@
     box-shadow: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
   }
 
+  /* .stat-card is deliberately a separate token from .card (same radius,
+     tighter 16px padding, no shadow) -- a dense 4-up grid reads better
+     without the extra padding/elevation a single larger content card wants. */
+  .stat-card {
+    position: relative;
+    background-color: hsl(var(--surface));
+    border: 1px solid hsl(var(--border));
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .stat-grid {
+    @apply grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4;
+  }
+
+  .stat-label {
+    @apply text-xs font-bold uppercase tracking-wide;
+    color: hsl(var(--muted));
+  }
+
+  .stat-value {
+    @apply text-3xl font-extrabold;
+    color: hsl(var(--text));
+  }
+
+  .stat-sub {
+    @apply text-xs;
+    color: hsl(var(--muted));
+  }
+
   .update-pill {
     position: fixed;
     bottom: 1rem;

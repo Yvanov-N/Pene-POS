@@ -54,6 +54,7 @@
       "students": "Etudiants",
       "recharge": "Recharge",
       "momo": "MoMo",
+      "salesHistory": "Historique",
       "settings": "Parametres",
       "comingSoon": "Bientot disponible",
       "lockNow": "Verrouiller la session admin"
@@ -80,6 +81,42 @@
       "reject": "Rejeter",
       "confirmedToast": "✓ Transaction MoMo confirmee ({{amount}})",
       "rejectedToast": "✕ Transaction MoMo rejetee, stock restaure"
+    },
+    "dashboard": {
+      "revenueLabel": "CA DU JOUR",
+      "revenueSub": "Especes {{cash}}% · Mobile Money {{momo}}%",
+      "transactionsLabel": "TRANSACTIONS",
+      "transactionsSub": "Tickets valides aujourd'hui",
+      "averageCartLabel": "PANIER MOYEN",
+      "averageCartSub": "Depense moyenne par etudiant",
+      "walletLabel": "PAIEMENTS WALLET",
+      "walletSub_one": "{{count}} transaction par portefeuille etudiant",
+      "walletSub_other": "{{count}} transactions par portefeuille etudiant"
+    },
+    "salesHistory": {
+      "title": "Historique des ventes",
+      "allPaymentMethods": "Tous",
+      "cashierSearchPlaceholder": "Nom du caissier...",
+      "loading": "Chargement...",
+      "empty": "Aucune vente trouvee.",
+      "itemsTitle": "Articles",
+      "unknownProduct": "Produit supprime",
+      "reprint": "Reimprimer",
+      "reprintToast": "✓ Impression du ticket lancee",
+      "reprintError": "✕ Echec de l'impression",
+      "void": "Annuler / Rembourser",
+      "voidPinTitle": "Autorisation requise pour annuler cette vente",
+      "voidSuccessToast": "✓ Vente annulee — Stocks et portefeuille restaures",
+      "voidErrorNotAuthorized": "✕ Autorisation refusee",
+      "voidErrorNotFound": "✕ Vente introuvable",
+      "voidErrorAlreadyRefunded": "✕ Cette vente a deja ete annulee",
+      "voidErrorGeneric": "✕ Echec de l'annulation",
+      "status": {
+        "completed": "Terminee",
+        "pending_sync": "Synchronisation",
+        "conflict_warning": "Conflit",
+        "refunded": "Remboursee"
+      }
     },
     "products": {
       "title": "Produits",

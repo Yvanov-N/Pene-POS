@@ -1,0 +1,26 @@
+-- ============================================================================
+-- Phase 8.3 -- extend sale_status with 'refunded' for the void/refund engine.
+-- ============================================================================
+--
+-- A single unified terminal value, not separate 'voided'/'refunded' values:
+-- refundService.voidSale() treats "cancel before settlement" and "refund
+-- after settlement" as the same outcome (restore stock + wallet, mark done),
+-- so there's no real distinction for this app to track yet.
+--
+-- Added directly to sales.status (not a separate column, unlike
+-- momo_verification_status in migration 4): a refunded sale is a genuine
+-- terminal lifecycle state that supersedes whatever push/sync state it was
+-- in, unlike MoMo verification, which had to coexist *alongside* normal sync
+-- progress for a while before resolving. Every existing consumer that reads
+-- `status` already only matches specific values it cares about
+-- (AdminConflictDashboard/TopBar's badge match 'conflict_warning';
+-- useTodayKPIs matches 'completed'/'pending_sync') -- 'refunded' simply never
+-- matches any of them, which is exactly the correct behavior (a refunded
+-- sale should not count toward today's revenue) with no other code changes
+-- required.
+--
+-- No RLS/grant changes needed: the existing admin "for all" policy and the
+-- table-level grant to authenticated (migration 1) aren't value-restricted.
+-- ============================================================================
+
+alter type public.sale_status add value if not exists 'refunded';

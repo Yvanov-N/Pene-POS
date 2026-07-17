@@ -12,19 +12,19 @@ import { ProductManagementModal } from "@/components/admin/ProductManagementModa
 import { StudentManagementModal } from "@/components/admin/StudentManagementModal";
 import { StudentWalletRechargeCard } from "@/components/admin/StudentWalletRechargeCard";
 import { MoMoVerificationCard } from "@/components/admin/MoMoVerificationCard";
+import { KpiDashboard } from "@/components/admin/KpiDashboard";
+import { SalesHistoryCard } from "@/components/admin/SalesHistoryCard";
 import logo from "@/assets/logo.png";
 
-// "dashboard" has no screen yet -- the KPI analytics dashboard is explicitly
-// deferred (Phase 8), so its nav item renders visibly but disabled rather
-// than being silently omitted or wired to something that doesn't exist.
-type AdminView = "dashboard" | "stocks" | "students" | "settings" | "recharge" | "momo";
+type AdminView = "dashboard" | "stocks" | "students" | "settings" | "recharge" | "momo" | "salesHistory";
 
 const ADMIN_NAV_ITEMS = [
-  { view: "dashboard", labelKey: "admin.nav.dashboard", disabled: true },
+  { view: "dashboard", labelKey: "admin.nav.dashboard", disabled: false },
   { view: "stocks", labelKey: "admin.nav.products", disabled: false },
   { view: "students", labelKey: "admin.nav.students", disabled: false },
   { view: "recharge", labelKey: "admin.nav.recharge", disabled: false },
   { view: "momo", labelKey: "admin.nav.momo", disabled: false },
+  { view: "salesHistory", labelKey: "admin.nav.salesHistory", disabled: false },
   { view: "settings", labelKey: "admin.nav.settings", disabled: false },
 ] as const satisfies { view: AdminView; labelKey: string; disabled: boolean }[];
 
@@ -149,10 +149,12 @@ export function TopBar() {
       )}
 
       {conflictsOpen && <AdminConflictDashboard onClose={() => setConflictsOpen(false)} />}
+      {openView === "dashboard" && <KpiDashboard onClose={() => setOpenView(null)} />}
       {openView === "stocks" && <ProductManagementModal onClose={() => setOpenView(null)} />}
       {openView === "students" && <StudentManagementModal onClose={() => setOpenView(null)} />}
       {openView === "recharge" && <StudentWalletRechargeCard onClose={() => setOpenView(null)} />}
       {openView === "momo" && <MoMoVerificationCard onClose={() => setOpenView(null)} />}
+      {openView === "salesHistory" && <SalesHistoryCard onClose={() => setOpenView(null)} />}
       {openView === "settings" && <AdminSettingsModal onClose={() => setOpenView(null)} />}
     </>
   );

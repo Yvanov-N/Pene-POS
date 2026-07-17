@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { enqueueMutation } from "@/services/syncService";
+import { cancelPendingSalePush, enqueueMutation } from "@/services/syncService";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
@@ -12,10 +12,6 @@ import type { Sale } from "@/types/db";
 
 interface MoMoVerificationCardProps {
   onClose: () => void;
-}
-
-interface SalePayloadLike {
-  sale?: Sale;
 }
 
 export function MoMoVerificationCard({ onClose }: MoMoVerificationCardProps) {
@@ -65,16 +61,7 @@ export function MoMoVerificationCard({ onClose }: MoMoVerificationCardProps) {
       // Cancel any not-yet-pushed SALE queue entry for this exact sale
       // first -- otherwise it could still reach Supabase and re-decrement
       // server-side stock after we've already restored it locally below.
-      const queueItems = await db.sync_queue.toArray();
-      for (const item of queueItems) {
-        if (
-          item.action === "SALE" &&
-          (item.payload as SalePayloadLike).sale?.id === sale.id &&
-          item.id !== undefined
-        ) {
-          await db.sync_queue.delete(item.id);
-        }
-      }
+      await cancelPendingSalePush(sale.id);
 
       const lines = await db.sale_items.where("sale_id").equals(sale.id).toArray();
       for (const line of lines) {

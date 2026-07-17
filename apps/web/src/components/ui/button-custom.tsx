@@ -1,6 +1,7 @@
 import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { PinPadModal } from "@/components/pos/PinPadModal";
+import type { Profile } from "@/types/db";
 
 export type ButtonVariant = "primary" | "success" | "danger";
 export type ButtonSize = "sm" | "md" | "lg" | "icon";
@@ -15,7 +16,13 @@ interface ButtonCustomProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>
   // actions (TopBar.tsx).
   requiresAdminPin?: boolean;
   pinModalTitle?: string;
-  onClick?: () => void | Promise<void>;
+  // The matched Profile is only ever populated when requiresAdminPin
+  // actually gated this click -- PinPadModal already resolves it during
+  // verification, so passing it through here is what lets an action record
+  // *which* admin authorized it (e.g. refundService.voidSale's adminId)
+  // instead of silently discarding that information. Non-gated callers can
+  // just ignore the parameter.
+  onClick?: (profile?: Profile) => void | Promise<void>;
   children?: ReactNode;
 }
 
@@ -60,8 +67,8 @@ export function ButtonCustom({
   const { t } = useTranslation();
   const [showPinPad, setShowPinPad] = useState(false);
 
-  const runClick = () => {
-    if (onClick) void onClick();
+  const runClick = (profile?: Profile) => {
+    if (onClick) void onClick(profile);
   };
 
   const handleClick = () => {
@@ -93,9 +100,9 @@ export function ButtonCustom({
         <PinPadModal
           title={pinModalTitle ?? t("admin.nav.pinTitle")}
           requiredRole="admin"
-          onSuccess={() => {
+          onSuccess={(profile) => {
             setShowPinPad(false);
-            runClick();
+            runClick(profile);
           }}
           onClose={() => setShowPinPad(false)}
         />
