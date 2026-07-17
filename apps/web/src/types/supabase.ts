@@ -1,8 +1,11 @@
 // Hand-authored to mirror supabase/migrations/00001_initial_schema.sql,
 // 00002_relax_sync_rls.sql, 00003_push_subscriptions.sql,
-// 00004_momo_verification.sql, and 00005_sale_refund_status.sql. Regenerate
-// from the real database once it's stable:
+// 00004_momo_verification.sql, 00005_sale_refund_status.sql, and
+// 00006_public_receipt_rpc.sql. Regenerate from the real database once it's
+// stable:
 //   supabase gen types typescript --local > src/types/supabase.ts
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "momo_mtn" | "momo_orange" | "student_wallet";
@@ -168,6 +171,10 @@ export interface Database {
       adjust_wallet_balance: {
         Args: { p_wallet_id: string; p_delta: number };
         Returns: Database["public"]["Tables"]["student_wallets"]["Row"];
+      };
+      get_public_receipt: {
+        Args: { p_sale_id: string };
+        Returns: Json | null;
       };
     };
     Enums: {

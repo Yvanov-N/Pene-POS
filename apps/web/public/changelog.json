@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.12.0",
+    "date": "2026-07-17",
+    "changes": [
+      "SPA routing, sidebar navigation, and public receipt view"
+    ]
+  },
+  {
     "version": "0.11.0",
     "date": "2026-07-17",
     "changes": [

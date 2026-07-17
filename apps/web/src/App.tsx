@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { GlobalLogin } from "@/components/auth/GlobalLogin";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
-import { PosLayout } from "@/components/pos/PosLayout";
+import { AppShell } from "@/components/layout/AppShell";
+import { ReceiptPage } from "@/pages/ReceiptPage";
 import { VersionGate } from "@/components/pwa/VersionGate";
 import { ToastProvider } from "@/hooks/useToast";
 
@@ -28,13 +30,26 @@ function App() {
 
   return (
     <ToastProvider>
-      {checkingSession ? null : passwordRecovery ? (
-        <ResetPasswordForm onComplete={() => setPasswordRecovery(false)} />
-      ) : session ? (
-        <PosLayout />
-      ) : (
-        <GlobalLogin />
-      )}
+      <BrowserRouter>
+        <Routes>
+          {/* Public: works for a signed-out visitor with no local data at
+              all, via the get_public_receipt RPC (migration 6) -- must never
+              sit behind the auth gate below. */}
+          <Route path="/receipt/:saleId" element={<ReceiptPage />} />
+          <Route
+            path="/*"
+            element={
+              checkingSession ? null : passwordRecovery ? (
+                <ResetPasswordForm onComplete={() => setPasswordRecovery(false)} />
+              ) : session ? (
+                <AppShell />
+              ) : (
+                <GlobalLogin />
+              )
+            }
+          />
+        </Routes>
+      </BrowserRouter>
       <VersionGate />
     </ToastProvider>
   );

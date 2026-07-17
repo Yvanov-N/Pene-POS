@@ -199,7 +199,36 @@
       "pushUnsupported": "Notifications aren't supported by this browser.",
       "pushMisconfigured": "Notifications aren't configured for this environment.",
       "pushError": "Couldn't enable alerts. Please try again."
+    },
+    "routeGuard": {
+      "locked": "This section is locked. Enter the admin PIN to continue.",
+      "unlock": "Unlock"
     }
+  },
+  "sidebar": {
+    "pos": "Point of Sale",
+    "wallets": "Students / Wallets",
+    "restocking": "Restocking",
+    "restockingComingSoon": "Coming soon in a future phase.",
+    "modeAdmin": "Admin mode",
+    "modeCashier": "Cashier mode",
+    "cashierZone": "Cashier",
+    "adminZone": "Admin only",
+    "shopOpen": "Shop open",
+    "shopClosed": "Shop closed",
+    "shopTogglePinTitle": "Authorization required to change shop status",
+    "shopOpenedToast": "✓ Shop marked as open",
+    "shopClosedToast": "✓ Shop marked as closed",
+    "shopToggleError": "✕ Couldn't update shop status"
+  },
+  "receiptPage": {
+    "loading": "Loading receipt...",
+    "notFound": "Receipt not found.",
+    "share": "Share receipt",
+    "shareTitle": "Cite Shop receipt",
+    "shareText": "Here's your Cite Shop purchase receipt for {{amount}}",
+    "linkCopiedToast": "✓ Receipt link copied to clipboard",
+    "shareError": "✕ Couldn't share the receipt"
   },
   "receipt": {
     "shopName": "Cite Shop",

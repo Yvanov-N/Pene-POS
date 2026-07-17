@@ -17,7 +17,7 @@ interface AdminLockContextValue {
   // profiles directly) -- usable by any future admin-only entry point that
   // doesn't already go through PinPadModal.
   unlockWithPin: (pin: string) => Promise<boolean>;
-  // For callers where verification already happened elsewhere (TopBar's
+  // For callers where verification already happened elsewhere (SidebarNav's
   // click-interception reuses the existing PinPadModal, which does its own
   // hash+lookup internally and only ever reports success for a matching
   // admin profile) -- this just records that outcome.

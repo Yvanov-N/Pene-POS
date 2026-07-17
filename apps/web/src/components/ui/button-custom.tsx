@@ -13,7 +13,7 @@ interface ButtonCustomProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>
   // When set, onClick is deferred until an admin PIN is verified via the
   // existing PinPadModal -- always re-prompts (no "already admin session"
   // shortcut), matching the app's one existing convention for admin-gated
-  // actions (TopBar.tsx).
+  // actions (SidebarNav.tsx).
   requiresAdminPin?: boolean;
   pinModalTitle?: string;
   // The matched Profile is only ever populated when requiresAdminPin

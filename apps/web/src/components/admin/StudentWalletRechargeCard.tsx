@@ -10,11 +10,7 @@ import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import type { StudentWallet } from "@/types/db";
 
-interface StudentWalletRechargeCardProps {
-  onClose: () => void;
-}
-
-export function StudentWalletRechargeCard({ onClose }: StudentWalletRechargeCardProps) {
+export function StudentWalletRechargeCard() {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { triggerManualSync } = useSyncEngine();
@@ -92,22 +88,8 @@ export function StudentWalletRechargeCard({ onClose }: StudentWalletRechargeCard
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <CardCustom
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-y-auto"
-        title={t("admin.recharge.title")}
-        header={
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted hover:text-foreground"
-            aria-label={t("pos.pin.close")}
-          >
-            ✕
-          </button>
-        }
-      >
-        <div className="flex flex-col gap-4">
+    <CardCustom className="mx-auto max-w-lg" title={t("admin.recharge.title")}>
+      <div className="flex flex-col gap-4">
           <input
             type="text"
             value={searchTerm}
@@ -172,8 +154,7 @@ export function StudentWalletRechargeCard({ onClose }: StudentWalletRechargeCard
           ) : (
             <p className="text-sm text-muted">{t("admin.recharge.selectPrompt")}</p>
           )}
-        </div>
-      </CardCustom>
-    </div>
+      </div>
+    </CardCustom>
   );
 }

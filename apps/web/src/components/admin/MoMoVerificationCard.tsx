@@ -10,11 +10,7 @@ import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import type { Sale } from "@/types/db";
 
-interface MoMoVerificationCardProps {
-  onClose: () => void;
-}
-
-export function MoMoVerificationCard({ onClose }: MoMoVerificationCardProps) {
+export function MoMoVerificationCard() {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { triggerManualSync } = useSyncEngine();
@@ -84,21 +80,7 @@ export function MoMoVerificationCard({ onClose }: MoMoVerificationCardProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <CardCustom
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-y-auto"
-        title={t("admin.momo.title")}
-        header={
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted hover:text-foreground"
-            aria-label={t("pos.pin.close")}
-          >
-            ✕
-          </button>
-        }
-      >
+    <CardCustom className="mx-auto max-w-2xl" title={t("admin.momo.title")}>
         {pendingSales === undefined ? (
           <p className="text-sm text-muted">{t("admin.momo.loading")}</p>
         ) : pendingSales.length === 0 ? (
@@ -146,7 +128,6 @@ export function MoMoVerificationCard({ onClose }: MoMoVerificationCardProps) {
             ))}
           </ul>
         )}
-      </CardCustom>
-    </div>
+    </CardCustom>
   );
 }

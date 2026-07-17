@@ -199,7 +199,36 @@
       "pushUnsupported": "Les notifications ne sont pas prises en charge par ce navigateur.",
       "pushMisconfigured": "Les notifications ne sont pas configurees pour cet environnement.",
       "pushError": "Impossible d'activer les alertes. Veuillez reessayer."
+    },
+    "routeGuard": {
+      "locked": "Cette section est verrouillee. Saisissez le code PIN administrateur pour continuer.",
+      "unlock": "Deverrouiller"
     }
+  },
+  "sidebar": {
+    "pos": "Point de vente",
+    "wallets": "Etudiants / Portefeuilles",
+    "restocking": "Reapprovisionnement",
+    "restockingComingSoon": "Bientot disponible dans une prochaine phase.",
+    "modeAdmin": "Mode admin",
+    "modeCashier": "Mode caissier",
+    "cashierZone": "Caisse",
+    "adminZone": "Admin uniquement",
+    "shopOpen": "Boutique ouverte",
+    "shopClosed": "Boutique fermee",
+    "shopTogglePinTitle": "Autorisation requise pour changer le statut de la boutique",
+    "shopOpenedToast": "✓ Boutique marquee comme ouverte",
+    "shopClosedToast": "✓ Boutique marquee comme fermee",
+    "shopToggleError": "✕ Impossible de mettre a jour le statut de la boutique"
+  },
+  "receiptPage": {
+    "loading": "Chargement du recu...",
+    "notFound": "Recu introuvable.",
+    "share": "Partager le recu",
+    "shareTitle": "Recu Cite Shop",
+    "shareText": "Voici votre recu d'achat Cite Shop de {{amount}}",
+    "linkCopiedToast": "✓ Lien du recu copie dans le presse-papier",
+    "shareError": "✕ Impossible de partager le recu"
   },
   "receipt": {
     "shopName": "Cite Shop",

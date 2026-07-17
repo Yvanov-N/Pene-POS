@@ -5,11 +5,8 @@ import { db } from "@/lib/db";
 import { enqueueMutation } from "@/services/syncService";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { formatCurrency } from "@/lib/currency";
+import { CardCustom } from "@/components/ui/card-custom";
 import type { Product } from "@/types/db";
-
-interface ProductManagementModalProps {
-  onClose: () => void;
-}
 
 type View = "list" | "form";
 
@@ -45,7 +42,7 @@ function productToForm(product: Product): FormState {
   };
 }
 
-export function ProductManagementModal({ onClose }: ProductManagementModalProps) {
+export function ProductManagementModal() {
   const { t } = useTranslation();
   const { triggerManualSync } = useSyncEngine();
   // "name" isn't part of the Dexie schema's index list (id, barcode,
@@ -128,21 +125,12 @@ export function ProductManagementModal({ onClose }: ProductManagementModalProps)
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-lg border border-border bg-surface p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">
-            {view === "list" ? t("admin.products.title") : editingId ? t("admin.products.editTitle") : t("admin.products.addTitle")}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted hover:text-foreground"
-            aria-label={t("pos.pin.close")}
-          >
-            ✕
-          </button>
-        </div>
+    <CardCustom
+      className="mx-auto max-w-lg"
+      title={
+        view === "list" ? t("admin.products.title") : editingId ? t("admin.products.editTitle") : t("admin.products.addTitle")
+      }
+    >
 
         {view === "list" ? (
           <>
@@ -321,7 +309,6 @@ export function ProductManagementModal({ onClose }: ProductManagementModalProps)
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </CardCustom>
   );
 }

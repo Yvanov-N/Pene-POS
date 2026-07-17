@@ -4,10 +4,6 @@ import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
 import { StatCard } from "./StatCard";
 
-interface KpiDashboardProps {
-  onClose: () => void;
-}
-
 function StatCardSkeleton() {
   return (
     <div className="stat-card animate-pulse">
@@ -18,7 +14,7 @@ function StatCardSkeleton() {
   );
 }
 
-export function KpiDashboard({ onClose }: KpiDashboardProps) {
+export function KpiDashboard() {
   const { t } = useTranslation();
   const kpis = useTodayKPIs();
 
@@ -29,21 +25,8 @@ export function KpiDashboard({ onClose }: KpiDashboardProps) {
   const walletBreakdown = kpis.paymentBreakdown.student_wallet;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <CardCustom
-        className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-y-auto"
-        title={t("admin.nav.dashboard")}
-        header={
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted hover:text-foreground"
-            aria-label={t("pos.pin.close")}
-          >
-            ✕
-          </button>
-        }
-      >
+    <div className="mx-auto max-w-4xl p-4">
+      <CardCustom title={t("admin.nav.dashboard")}>
         <div className="stat-grid">
           {kpis.isLoading ? (
             <>

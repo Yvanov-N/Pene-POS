@@ -11,17 +11,13 @@ import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import type { PaymentMethod, Profile, Sale, SaleStatus } from "@/types/db";
 
-interface SalesHistoryCardProps {
-  onClose: () => void;
-}
-
 const SETTINGS_ID = "default";
 const SALES_LIMIT = 200;
 
 const PAYMENT_FILTERS = ["all", "cash", "momo_mtn", "momo_orange", "student_wallet"] as const;
 type PaymentFilter = (typeof PAYMENT_FILTERS)[number];
 
-const PAYMENT_BADGE_CLASS: Record<PaymentMethod, string> = {
+export const PAYMENT_BADGE_CLASS: Record<PaymentMethod, string> = {
   cash: "badge-blue",
   momo_mtn: "badge-amber",
   momo_orange: "badge-orange",
@@ -56,7 +52,7 @@ function getLocalDayRange(dateInputValue: string): { start: string; end: string 
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
-export function SalesHistoryCard({ onClose }: SalesHistoryCardProps) {
+export function SalesHistoryCard() {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { triggerManualSync } = useSyncEngine();
@@ -132,21 +128,7 @@ export function SalesHistoryCard({ onClose }: SalesHistoryCardProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <CardCustom
-        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-y-auto"
-        title={t("admin.salesHistory.title")}
-        header={
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted hover:text-foreground"
-            aria-label={t("pos.pin.close")}
-          >
-            ✕
-          </button>
-        }
-      >
+    <CardCustom className="mx-auto max-w-3xl" title={t("admin.salesHistory.title")}>
         <div className="mb-4 flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">
             {PAYMENT_FILTERS.map((filter) => (
@@ -262,7 +244,6 @@ export function SalesHistoryCard({ onClose }: SalesHistoryCardProps) {
             })}
           </ul>
         )}
-      </CardCustom>
-    </div>
+    </CardCustom>
   );
 }

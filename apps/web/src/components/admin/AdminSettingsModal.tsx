@@ -9,11 +9,8 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
 } from "@/services/pushService";
+import { CardCustom } from "@/components/ui/card-custom";
 import type { PrintMode } from "@/types/db";
-
-interface AdminSettingsModalProps {
-  onClose: () => void;
-}
 
 const SETTINGS_ID = "default";
 const PRINT_MODES: PrintMode[] = ["browser", "bluetooth"];
@@ -22,7 +19,7 @@ const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undef
 type BluetoothStatus = "idle" | "connecting" | "connected";
 type PushStatus = "checking" | "enabled" | "disabled";
 
-export function AdminSettingsModal({ onClose }: AdminSettingsModalProps) {
+export function AdminSettingsModal() {
   const { t } = useTranslation();
   const settings = useLiveQuery(() => db.local_settings.get(SETTINGS_ID), []);
   const [bluetoothStatus, setBluetoothStatus] = useState<BluetoothStatus>(
@@ -89,20 +86,7 @@ export function AdminSettingsModal({ onClose }: AdminSettingsModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">{t("admin.settings.title")}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted hover:text-foreground"
-            aria-label={t("pos.pin.close")}
-          >
-            ✕
-          </button>
-        </div>
-
+    <CardCustom className="mx-auto max-w-md" title={t("admin.settings.title")}>
         <div className="flex flex-col gap-4">
           <div>
             <p className="mb-2 text-sm font-medium text-foreground">{t("admin.settings.printModeLabel")}</p>
@@ -192,7 +176,6 @@ export function AdminSettingsModal({ onClose }: AdminSettingsModalProps) {
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </CardCustom>
   );
 }
