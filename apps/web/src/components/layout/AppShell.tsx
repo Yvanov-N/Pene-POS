@@ -11,8 +11,8 @@ import { PosLayout } from "@/components/pos/PosLayout";
 import { SalesHistoryCard } from "@/components/admin/SalesHistoryCard";
 import { KpiDashboard } from "@/components/admin/KpiDashboard";
 import { AdminWalletsPage } from "@/pages/AdminWalletsPage";
-import { ProductManagementModal } from "@/components/admin/ProductManagementModal";
-import { RestockingPlaceholderPage } from "@/pages/RestockingPlaceholderPage";
+import { ProductsPage } from "@/pages/admin/ProductsPage";
+import { RestockingPage } from "@/pages/admin/RestockingPage";
 import { AdminSettingsModal } from "@/components/admin/AdminSettingsModal";
 
 export function AppShell() {
@@ -52,7 +52,7 @@ export function AppShell() {
                   path="/admin/products"
                   element={
                     <AdminRouteGuard>
-                      <ProductManagementModal />
+                      <ProductsPage />
                     </AdminRouteGuard>
                   }
                 />
@@ -60,7 +60,7 @@ export function AppShell() {
                   path="/admin/restocking"
                   element={
                     <AdminRouteGuard>
-                      <RestockingPlaceholderPage />
+                      <RestockingPage />
                     </AdminRouteGuard>
                   }
                 />

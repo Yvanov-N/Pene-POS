@@ -118,12 +118,12 @@ export function ReceiptPage() {
 
   const handleShare = async () => {
     if (!saleId || !receipt) return;
-    // The app's own route, not the Phase 9.3 edge function the original spec
-    // mentions -- that endpoint doesn't exist yet (it's explicitly future
-    // work, for social-preview meta tags), so pointing there today would
-    // just 404. This URL works right now for any visitor, authenticated or
-    // not, via the public RPC above.
-    const shareUrl = `${window.location.origin}/receipt/${saleId}`;
+    // The share-receipt edge function (Phase 9.3) -- it detects real humans
+    // by User-Agent and 302s them straight to this same /receipt/:saleId
+    // route, but gives social scrapers (WhatsApp, Telegram, etc.) populated
+    // Open Graph / Twitter Card meta tags instead, so a shared link shows a
+    // rich preview with the actual amount and items in the chat app.
+    const shareUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/share-receipt?id=${saleId}`;
 
     if (navigator.share) {
       try {

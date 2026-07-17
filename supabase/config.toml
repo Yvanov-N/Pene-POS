@@ -31,3 +31,13 @@ enable_signup = false
 
 [storage]
 enabled = true
+
+# Both hit directly by anonymous browsers (clicking a shared receipt link)
+# and by social-platform scrapers -- neither ever carries a Supabase auth
+# header, so the default verify_jwt gate must be off or every request 401s
+# before reaching the function's own bot/human branching.
+[functions.share-receipt]
+verify_jwt = false
+
+[functions.receipt-og-image]
+verify_jwt = false

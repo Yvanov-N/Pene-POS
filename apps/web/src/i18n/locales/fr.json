@@ -127,20 +127,23 @@
       "editTitle": "Modifier le produit",
       "edit": "Modifier",
       "delete": "Supprimer",
-      "confirmDelete": "Confirmer",
-      "cancelDelete": "Annuler",
       "fieldName": "Nom",
       "fieldPrice": "Prix (FCFA)",
       "fieldStock": "Stock",
       "fieldCategory": "Categorie",
       "fieldEmoji": "Icone",
+      "fieldImageUrl": "URL de l'image",
       "fieldBarcode": "Code-barres",
       "fieldExpiry": "Date d'expiration",
       "formCancel": "Annuler",
       "formSave": "Enregistrer",
       "errorNameRequired": "Le nom est requis.",
       "errorPriceInvalid": "Le prix doit etre un nombre positif.",
-      "errorStockInvalid": "Le stock doit etre un nombre entier positif."
+      "errorStockInvalid": "Le stock doit etre un nombre entier positif.",
+      "deletePinTitle": "Autorisation requise pour supprimer ce produit",
+      "createSuccessToast": "✓ Produit cree : {{name}}",
+      "updateSuccessToast": "✓ Produit mis a jour : {{name}}",
+      "deleteSuccessToast": "✓ Produit supprime : {{name}}"
     },
     "students": {
       "title": "Etudiants",
@@ -209,7 +212,6 @@
     "pos": "Point de vente",
     "wallets": "Etudiants / Portefeuilles",
     "restocking": "Reapprovisionnement",
-    "restockingComingSoon": "Bientot disponible dans une prochaine phase.",
     "modeAdmin": "Mode admin",
     "modeCashier": "Mode caissier",
     "cashierZone": "Caisse",
@@ -234,6 +236,18 @@
     "shopName": "Cite Shop",
     "cashier": "Caissier : {{name}}",
     "footer": "Merci de votre visite !"
+  },
+  "restocking": {
+    "title": "Reapprovisionnement rapide",
+    "searchPlaceholder": "Rechercher un produit par nom...",
+    "noMatches": "Aucun produit trouve.",
+    "noProductSelected": "Scannez un code-barres ou recherchez un produit pour commencer.",
+    "currentStock": "Stock actuel : {{count}}",
+    "quantityLabel": "Quantite livree",
+    "expiryLabel": "Date d'expiration du lot (optionnel)",
+    "validate": "Valider le reapprovisionnement",
+    "successToast": "✓ Stock mis a jour : {{name}} (+{{quantity}} unites)",
+    "productGoneError": "✕ Ce produit n'existe plus."
   },
   "auth": {
     "title": "Connexion",

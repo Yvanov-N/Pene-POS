@@ -127,20 +127,23 @@
       "editTitle": "Edit product",
       "edit": "Edit",
       "delete": "Delete",
-      "confirmDelete": "Confirm",
-      "cancelDelete": "Cancel",
       "fieldName": "Name",
       "fieldPrice": "Price (FCFA)",
       "fieldStock": "Stock",
       "fieldCategory": "Category",
       "fieldEmoji": "Icon",
+      "fieldImageUrl": "Image URL",
       "fieldBarcode": "Barcode",
       "fieldExpiry": "Expiry date",
       "formCancel": "Cancel",
       "formSave": "Save",
       "errorNameRequired": "Name is required.",
       "errorPriceInvalid": "Price must be a positive number.",
-      "errorStockInvalid": "Stock must be a positive whole number."
+      "errorStockInvalid": "Stock must be a positive whole number.",
+      "deletePinTitle": "Authorization required to delete this product",
+      "createSuccessToast": "✓ Product created: {{name}}",
+      "updateSuccessToast": "✓ Product updated: {{name}}",
+      "deleteSuccessToast": "✓ Product deleted: {{name}}"
     },
     "students": {
       "title": "Students",
@@ -209,7 +212,6 @@
     "pos": "Point of Sale",
     "wallets": "Students / Wallets",
     "restocking": "Restocking",
-    "restockingComingSoon": "Coming soon in a future phase.",
     "modeAdmin": "Admin mode",
     "modeCashier": "Cashier mode",
     "cashierZone": "Cashier",
@@ -234,6 +236,18 @@
     "shopName": "Cite Shop",
     "cashier": "Cashier: {{name}}",
     "footer": "Thank you for your visit!"
+  },
+  "restocking": {
+    "title": "Fast restocking",
+    "searchPlaceholder": "Search for a product by name...",
+    "noMatches": "No matching products.",
+    "noProductSelected": "Scan a barcode or search for a product to get started.",
+    "currentStock": "Current stock: {{count}}",
+    "quantityLabel": "Delivered quantity",
+    "expiryLabel": "Batch expiry date (optional)",
+    "validate": "Confirm restocking",
+    "successToast": "✓ Stock updated: {{name}} (+{{quantity}} units)",
+    "productGoneError": "✕ This product no longer exists."
   },
   "auth": {
     "title": "Sign in",
