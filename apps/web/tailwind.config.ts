@@ -10,6 +10,7 @@ export default {
     "badge-red",
     "badge-amber",
     "badge-blue",
+    "badge-orange",
     "toast-viewport",
     "toast",
     "update-pill",
@@ -63,6 +64,10 @@ export default {
         },
         info: {
           DEFAULT: "hsl(var(--blue))",
+          foreground: "hsl(var(--white))",
+        },
+        orange: {
+          DEFAULT: "hsl(var(--orange))",
           foreground: "hsl(var(--white))",
         },
         popover: {

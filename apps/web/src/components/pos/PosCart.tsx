@@ -6,13 +6,18 @@ import { formatCurrency } from "@/lib/currency";
 import { enqueueMutation } from "@/services/syncService";
 import { printService } from "@/services/hardware/printService";
 import { PinPadModal } from "./PinPadModal";
+import { ButtonCustom } from "@/components/ui/button-custom";
 import type { PaymentMethod, Profile, Sale, SaleItem } from "@/types/db";
 
 const SETTINGS_ID = "default";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
 
-type PendingAction = "clear" | "checkout" | null;
+// "clear" no longer needs to live here -- ButtonCustom's requiresAdminPin
+// now owns that gate itself. Only checkout still uses this shared
+// pending-action/PinPadModal pattern (its any-role gate predates this phase
+// and isn't being changed).
+type PendingAction = "checkout" | null;
 
 function CartLineVisual({ image_url, emoji }: { image_url?: string; emoji?: string }) {
   if (image_url) {
@@ -54,6 +59,11 @@ export function PosCart() {
           total_amount: cart.totalAmount,
           payment_method: paymentMethod!,
           status: "pending_sync",
+          // Only Mobile Money sales need a shop-phone SMS checked before
+          // they're considered settled -- cash and student_wallet sales
+          // never enter this workflow at all.
+          momo_verification_status:
+            paymentMethod === "momo_mtn" || paymentMethod === "momo_orange" ? "pending" : undefined,
         };
         await db.sales.put(sale);
 
@@ -98,12 +108,8 @@ export function PosCart() {
     }
   };
 
-  const handlePinSuccess = (profile: Profile) => {
-    if (pendingAction === "clear") {
-      cart.clearCart();
-    } else if (pendingAction === "checkout") {
-      void completeCheckout(profile);
-    }
+  const handleCheckoutPinSuccess = (profile: Profile) => {
+    void completeCheckout(profile);
     setPendingAction(null);
   };
 
@@ -142,14 +148,15 @@ export function PosCart() {
                     +
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => cart.removeItem(item.product_id)}
-                  className="text-muted hover:text-destructive"
+                <ButtonCustom
+                  variant="danger"
+                  size="icon"
+                  requiresAdminPin
                   aria-label={t("pos.cart.remove")}
+                  onClick={() => cart.removeItem(item.product_id)}
                 >
                   ✕
-                </button>
+                </ButtonCustom>
               </li>
             ))}
           </ul>
@@ -179,28 +186,28 @@ export function PosCart() {
           ))}
         </div>
 
-        <button
-          type="button"
+        <ButtonCustom
+          variant="danger"
           disabled={isEmpty}
-          onClick={() => setPendingAction("clear")}
-          className="rounded-lg border border-border bg-surface2 py-2 text-sm font-medium text-foreground disabled:opacity-40"
+          requiresAdminPin
+          pinModalTitle={t("pos.pin.clearTitle")}
+          onClick={() => cart.clearCart()}
         >
           {t("pos.cart.clear")}
-        </button>
-        <button
-          type="button"
+        </ButtonCustom>
+        <ButtonCustom
+          variant="success"
           disabled={isEmpty || !paymentMethod}
           onClick={() => setPendingAction("checkout")}
-          className="rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-40"
         >
           {t("pos.cart.checkout")}
-        </button>
+        </ButtonCustom>
       </div>
 
-      {pendingAction && (
+      {pendingAction === "checkout" && (
         <PinPadModal
-          title={pendingAction === "clear" ? t("pos.pin.clearTitle") : t("pos.pin.checkoutTitle")}
-          onSuccess={handlePinSuccess}
+          title={t("pos.pin.checkoutTitle")}
+          onSuccess={handleCheckoutPinSuccess}
           onClose={() => setPendingAction(null)}
         />
       )}

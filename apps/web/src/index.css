@@ -21,6 +21,9 @@
     --red: 0 72% 45%;
     --amber: 38 92% 45%;
     --blue: 217 91% 50%;
+    /* Orange Money's brand color -- distinct from --amber (MTN's yellow) so
+       the two MoMo providers stay visually distinguishable. */
+    --orange: 25 95% 45%;
 
     --radius: 0.5rem;
   }
@@ -40,6 +43,7 @@
     --red: 0 70% 55%;
     --amber: 38 92% 55%;
     --blue: 217 91% 65%;
+    --orange: 25 90% 55%;
   }
 
   * {
@@ -96,6 +100,12 @@
     color: hsl(var(--blue));
   }
 
+  .badge-orange {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+    background-color: hsl(var(--orange) / 0.15);
+    color: hsl(var(--orange));
+  }
+
   .toast-viewport {
     position: fixed;
     bottom: 1rem;
@@ -120,10 +130,79 @@
   .toast-error {
     border-radius: var(--radius);
     border: 1px solid hsl(var(--red) / 0.4);
-    background-color: hsl(var(--surface2));
+    background-color: hsl(var(--red) / 0.08);
     color: hsl(var(--red));
     padding: 0.75rem 1rem;
     box-shadow: 0 4px 12px hsl(0 0% 0% / 0.15);
+  }
+
+  .toast-success {
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--green) / 0.4);
+    background-color: hsl(var(--green) / 0.08);
+    color: hsl(var(--green));
+    padding: 0.75rem 1rem;
+    box-shadow: 0 4px 12px hsl(0 0% 0% / 0.15);
+  }
+
+  /* Dedicated positioning for the Phase 6.2 toast engine -- deliberately
+     separate from .toast-viewport (used only by the PWA update banner, at
+     bottom:1rem/z-index:100) so the two float independently and neither
+     phase's positioning drifts when the other changes. pointer-events is
+     none on the empty stack area so it never blocks clicks on the POS UI
+     underneath, but auto on each toast so its own close button still works. */
+  .toast-stack {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 200;
+    display: flex;
+    width: 100%;
+    max-width: 360px;
+    /* Column, not column-reverse: the container is bottom-anchored and grows
+       upward as toasts stack, so the newest (last-appended) toast needs to
+       land at the container's own bottom edge -- closest to the viewport
+       corner -- with older toasts pushed up above it. column-reverse would
+       do the opposite (newest ends up farthest from the corner). */
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+  }
+
+  .toast-stack > * {
+    pointer-events: auto;
+  }
+
+  .admin-nav {
+    opacity: 0.7;
+    transition: opacity 0.2s ease-out;
+  }
+
+  .admin-nav button:not(:disabled) {
+    cursor: not-allowed;
+  }
+
+  .admin-nav.unlocked {
+    opacity: 1;
+  }
+
+  .admin-nav.unlocked button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  .lock-icon {
+    opacity: 0.6;
+  }
+
+  /* Literal values from the original design spec, not the shared --radius
+     token (8px) -- .card is a deliberately distinct, slightly larger-radius
+     container from the rounded-lg modals elsewhere in the app. */
+  .card {
+    background-color: hsl(var(--surface));
+    border: 1px solid hsl(var(--border));
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
   }
 
   .update-pill {

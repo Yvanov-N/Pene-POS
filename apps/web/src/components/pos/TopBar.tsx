@@ -2,30 +2,46 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { useAdminLock } from "@/hooks/useAdminLock";
 import { SyncStatusIndicator } from "./SyncStatusIndicator";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { PinPadModal } from "./PinPadModal";
 import { AdminConflictDashboard } from "@/components/admin/AdminConflictDashboard";
 import { AdminSettingsModal } from "@/components/admin/AdminSettingsModal";
-import { NavigationDrawer, type NavigationTarget } from "@/components/admin/NavigationDrawer";
 import { ProductManagementModal } from "@/components/admin/ProductManagementModal";
 import { StudentManagementModal } from "@/components/admin/StudentManagementModal";
+import { StudentWalletRechargeCard } from "@/components/admin/StudentWalletRechargeCard";
+import { MoMoVerificationCard } from "@/components/admin/MoMoVerificationCard";
 import logo from "@/assets/logo.png";
 
-type AdminModal = "conflicts" | "drawer" | NavigationTarget | null;
+// "dashboard" has no screen yet -- the KPI analytics dashboard is explicitly
+// deferred (Phase 8), so its nav item renders visibly but disabled rather
+// than being silently omitted or wired to something that doesn't exist.
+type AdminView = "dashboard" | "stocks" | "students" | "settings" | "recharge" | "momo";
 
-const PIN_TITLE_KEY = {
-  conflicts: "admin.conflicts.pinTitle",
-  drawer: "admin.nav.pinTitle",
-  products: "admin.nav.pinTitle",
-  students: "admin.nav.pinTitle",
-  settings: "admin.settings.pinTitle",
-} as const satisfies Record<Exclude<AdminModal, null>, string>;
+const ADMIN_NAV_ITEMS = [
+  { view: "dashboard", labelKey: "admin.nav.dashboard", disabled: true },
+  { view: "stocks", labelKey: "admin.nav.products", disabled: false },
+  { view: "students", labelKey: "admin.nav.students", disabled: false },
+  { view: "recharge", labelKey: "admin.nav.recharge", disabled: false },
+  { view: "momo", labelKey: "admin.nav.momo", disabled: false },
+  { view: "settings", labelKey: "admin.nav.settings", disabled: false },
+] as const satisfies { view: AdminView; labelKey: string; disabled: boolean }[];
 
 export function TopBar() {
   const { t } = useTranslation();
-  const [pendingModal, setPendingModal] = useState<AdminModal>(null);
-  const [openModal, setOpenModal] = useState<AdminModal>(null);
+  const lock = useAdminLock();
+
+  // Conflicts keeps its own, separate always-re-prompt PIN gate (an alert,
+  // not "navigation") -- untouched by the new session-based admin lock.
+  const [conflictsPinPending, setConflictsPinPending] = useState(false);
+  const [conflictsOpen, setConflictsOpen] = useState(false);
+
+  // The 4 admin-nav tabs share the new session lock: once unlocked, clicking
+  // any of them opens directly; while locked, a click arms the PIN gate and
+  // only opens after a successful admin PIN unlocks the whole session.
+  const [pendingView, setPendingView] = useState<AdminView | null>(null);
+  const [openView, setOpenView] = useState<AdminView | null>(null);
 
   const conflictCount = useLiveQuery(
     () => db.sales.where("status").equals("conflict_warning").count(),
@@ -39,33 +55,64 @@ export function TopBar() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("notification") === "conflicts") {
-      setPendingModal("conflicts");
+      setConflictsPinPending(true);
       params.delete("notification");
       const nextSearch = params.toString();
       window.history.replaceState(null, "", window.location.pathname + (nextSearch ? `?${nextSearch}` : ""));
     }
   }, []);
 
+  const handleNavClick = (view: AdminView) => {
+    if (lock.isAdminUnlocked) {
+      setOpenView(view);
+    } else {
+      setPendingView(view);
+    }
+  };
+
   return (
     <>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setPendingModal("drawer")}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface2 text-lg text-foreground hover:border-accent hover:bg-surface"
-            aria-label={t("admin.nav.title")}
-            title={t("admin.nav.title")}
-          >
-            ☰
-          </button>
           <img src={logo} alt="Pene POS" className="h-6 object-contain w-auto" />
+
+          <nav className={`admin-nav flex items-center gap-1 ${lock.isAdminUnlocked ? "unlocked" : ""}`}>
+            {!lock.isAdminUnlocked && (
+              <span className="lock-icon text-sm" aria-hidden>
+                🔒
+              </span>
+            )}
+            {ADMIN_NAV_ITEMS.map((item) => (
+              <button
+                key={item.view}
+                type="button"
+                disabled={item.disabled}
+                title={item.disabled ? t("admin.nav.comingSoon") : undefined}
+                onClick={() => handleNavClick(item.view)}
+                className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface2 disabled:opacity-50 disabled:hover:bg-transparent"
+              >
+                {t(item.labelKey)}
+              </button>
+            ))}
+            {lock.isAdminUnlocked && (
+              <button
+                type="button"
+                onClick={lock.manualLock}
+                className="rounded-lg px-2 py-1.5 text-sm hover:bg-surface2"
+                aria-label={t("admin.nav.lockNow")}
+                title={t("admin.nav.lockNow")}
+              >
+                🔓
+              </button>
+            )}
+          </nav>
         </div>
+
         <div className="flex items-center gap-3">
           {!!conflictCount && conflictCount > 0 && (
             <button
               type="button"
-              onClick={() => setPendingModal("conflicts")}
+              onClick={() => setConflictsPinPending(true)}
               className="badge-red animate-pulse"
             >
               ⚠️ {t("admin.conflicts.badge", { count: conflictCount })}
@@ -76,25 +123,37 @@ export function TopBar() {
         </div>
       </div>
 
-      {pendingModal && (
+      {pendingView && (
         <PinPadModal
-          title={t(PIN_TITLE_KEY[pendingModal])}
+          title={t("admin.nav.pinTitle")}
           requiredRole="admin"
           onSuccess={() => {
-            setOpenModal(pendingModal);
-            setPendingModal(null);
+            lock.unlock();
+            setOpenView(pendingView);
+            setPendingView(null);
           }}
-          onClose={() => setPendingModal(null)}
+          onClose={() => setPendingView(null)}
         />
       )}
 
-      {openModal === "conflicts" && <AdminConflictDashboard onClose={() => setOpenModal(null)} />}
-      {openModal === "drawer" && (
-        <NavigationDrawer onClose={() => setOpenModal(null)} onNavigate={(target) => setOpenModal(target)} />
+      {conflictsPinPending && (
+        <PinPadModal
+          title={t("admin.conflicts.pinTitle")}
+          requiredRole="admin"
+          onSuccess={() => {
+            setConflictsOpen(true);
+            setConflictsPinPending(false);
+          }}
+          onClose={() => setConflictsPinPending(false)}
+        />
       )}
-      {openModal === "products" && <ProductManagementModal onClose={() => setOpenModal(null)} />}
-      {openModal === "students" && <StudentManagementModal onClose={() => setOpenModal(null)} />}
-      {openModal === "settings" && <AdminSettingsModal onClose={() => setOpenModal(null)} />}
+
+      {conflictsOpen && <AdminConflictDashboard onClose={() => setConflictsOpen(false)} />}
+      {openView === "stocks" && <ProductManagementModal onClose={() => setOpenView(null)} />}
+      {openView === "students" && <StudentManagementModal onClose={() => setOpenView(null)} />}
+      {openView === "recharge" && <StudentWalletRechargeCard onClose={() => setOpenView(null)} />}
+      {openView === "momo" && <MoMoVerificationCard onClose={() => setOpenView(null)} />}
+      {openView === "settings" && <AdminSettingsModal onClose={() => setOpenView(null)} />}
     </>
   );
 }

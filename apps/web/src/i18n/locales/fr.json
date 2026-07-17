@@ -6,7 +6,8 @@
       "connectedHid": "Connecte via Web HID",
       "connectedSerial": "Connecte via port serie",
       "keyboardMode": "Mode clavier standard",
-      "pairScanner": "Associer une douchette"
+      "pairScanner": "Associer une douchette",
+      "notFoundToast": "✕ Code-barres inconnu dans la base locale."
     },
     "filters": {
       "searchPlaceholder": "Rechercher un produit ou un code-barres...",
@@ -28,7 +29,8 @@
       "remove": "Retirer",
       "clear": "Vider le panier",
       "checkout": "Encaisser",
-      "outOfStockError": "{{name}} est en rupture de stock",
+      "addedToast": "✓ {{name}} ajoute au panier (x1)",
+      "outOfStockError": "✕ Erreur : Stock epuise pour {{name}} !",
       "paymentMethod": {
         "cash": "Especes",
         "momo_mtn": "MTN MoMo",
@@ -37,7 +39,7 @@
       }
     },
     "pin": {
-      "clearTitle": "Autorisation requise",
+      "clearTitle": "Autorisation requise pour vider le panier",
       "checkoutTitle": "Identifiez-vous pour encaisser",
       "incorrect": "Code PIN incorrect",
       "close": "Fermer"
@@ -47,9 +49,37 @@
     "nav": {
       "title": "Menu",
       "pinTitle": "Autorisation administrateur requise",
-      "products": "Produits",
+      "dashboard": "Tableau de bord",
+      "products": "Stocks",
       "students": "Etudiants",
-      "settings": "Parametres"
+      "recharge": "Recharge",
+      "momo": "MoMo",
+      "settings": "Parametres",
+      "comingSoon": "Bientot disponible",
+      "lockNow": "Verrouiller la session admin"
+    },
+    "lock": {
+      "autoLockedToast": "🔒 Session Admin verrouillee par inactivite"
+    },
+    "recharge": {
+      "title": "Recharge portefeuille etudiant",
+      "searchPlaceholder": "Nom ou code badge...",
+      "noResults": "Aucun etudiant correspondant.",
+      "selectPrompt": "Recherchez un etudiant pour recharger son portefeuille.",
+      "currentBalance": "Solde actuel : {{balance}}",
+      "amountLabel": "Montant a recharger (FCFA)",
+      "confirm": "Valider la recharge",
+      "errorAmountInvalid": "Le montant doit etre un nombre positif.",
+      "toastSuccess": "✓ Recharge de {{amount}} effectuee pour {{name}}"
+    },
+    "momo": {
+      "title": "Verification Mobile Money",
+      "loading": "Chargement des transactions...",
+      "empty": "Aucune transaction Mobile Money en attente.",
+      "confirm": "Confirmer SMS",
+      "reject": "Rejeter",
+      "confirmedToast": "✓ Transaction MoMo confirmee ({{amount}})",
+      "rejectedToast": "✕ Transaction MoMo rejetee, stock restaure"
     },
     "products": {
       "title": "Produits",
@@ -169,7 +199,10 @@
   "sync": {
     "online": "En ligne",
     "syncing": "Synchronisation...",
-    "offline": "Hors ligne"
+    "offline": "Hors ligne",
+    "toastSuccess_one": "✓ Synchronisation Cloud reussie ({{count}} vente sauvegardee)",
+    "toastSuccess_other": "✓ Synchronisation Cloud reussie ({{count}} ventes sauvegardees)",
+    "toastConflict": "⚠️ Conflit de stock detecte lors de la synchronisation !"
   },
   "update": {
     "toast": {

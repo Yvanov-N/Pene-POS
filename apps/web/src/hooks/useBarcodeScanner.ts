@@ -49,6 +49,17 @@ export function useBarcodeScanner({
     }
     lastEmittedRef.current = { code, time: now };
     onScanRef.current(code);
+    // Dispatched as a plain window CustomEvent (carrying the scanned code in
+    // `detail`) so any number of other consumers -- the admin-lock inactivity
+    // timer, other admin views wanting scan-to-search -- can listen without
+    // a direct dependency on this hook. This matters beyond decoupling: the
+    // hook wraps a *singleton* scannerService (one active HID/serial
+    // connection), so a second useBarcodeScanner() instance mounted
+    // alongside BarcodeInput would silently steal its hardware callback
+    // registration and then, on unmount, dispose() the shared connection --
+    // breaking the main POS scanner. Listening for this event instead avoids
+    // ever needing a second hook instance.
+    window.dispatchEvent(new CustomEvent<string>("pos:barcode-scan", { detail: code }));
   }, []);
 
   // Source B: native hardware (Web HID / Web Serial).

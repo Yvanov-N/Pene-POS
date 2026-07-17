@@ -39,6 +39,12 @@ export type PaymentMethod = "cash" | "momo_mtn" | "momo_orange" | "student_walle
 
 export type SaleStatus = "completed" | "pending_sync" | "conflict_warning";
 
+// Orthogonal to SaleStatus (which tracks offline push/sync state) -- whether
+// a MoMo sale's SMS confirmation has been checked is a separate concern.
+// Undefined/absent for cash and student_wallet sales, which never go through
+// MoMo verification at all.
+export type MomoVerificationStatus = "pending" | "confirmed" | "rejected";
+
 export interface Sale {
   id: string;
   created_at: string;
@@ -47,6 +53,7 @@ export interface Sale {
   payment_method: PaymentMethod;
   student_wallet_id?: string;
   status: SaleStatus;
+  momo_verification_status?: MomoVerificationStatus;
 }
 
 export interface SaleItem {

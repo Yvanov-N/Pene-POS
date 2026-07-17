@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.10.0",
+    "date": "2026-07-17",
+    "changes": [
+      "semantic buttons, toast engine, admin session lock, and card views"
+    ]
+  },
+  {
     "version": "0.9.0",
     "date": "2026-07-16",
     "changes": [

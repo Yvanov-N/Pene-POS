@@ -1,11 +1,13 @@
 // Hand-authored to mirror supabase/migrations/00001_initial_schema.sql,
-// 00002_relax_sync_rls.sql, and 00003_push_subscriptions.sql. Regenerate
-// from the real database once it's stable:
+// 00002_relax_sync_rls.sql, 00003_push_subscriptions.sql, and
+// 00004_momo_verification.sql. Regenerate from the real database once it's
+// stable:
 //   supabase gen types typescript --local > src/types/supabase.ts
 
 export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "momo_mtn" | "momo_orange" | "student_wallet";
 export type SaleStatus = "completed" | "pending_sync" | "conflict_warning";
+export type MomoVerificationStatus = "pending" | "confirmed" | "rejected";
 
 export interface Database {
   public: {
@@ -69,6 +71,7 @@ export interface Database {
           payment_method: PaymentMethod;
           student_wallet_id: string | null;
           status: SaleStatus;
+          momo_verification_status: MomoVerificationStatus | null;
         };
         Insert: {
           id?: string;
@@ -78,6 +81,7 @@ export interface Database {
           payment_method: PaymentMethod;
           student_wallet_id?: string | null;
           status?: SaleStatus;
+          momo_verification_status?: MomoVerificationStatus | null;
         };
         Update: Partial<Database["public"]["Tables"]["sales"]["Insert"]>;
         Relationships: [];

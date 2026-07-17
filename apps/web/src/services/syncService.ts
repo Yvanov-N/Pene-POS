@@ -138,8 +138,15 @@ async function pushItem(item: SyncQueueItem): Promise<QueueOutcome> {
   }
 }
 
-export async function processSyncQueue(): Promise<void> {
+export interface SyncQueueSummary {
+  completedSales: number;
+  conflicts: number;
+}
+
+export async function processSyncQueue(): Promise<SyncQueueSummary> {
   const candidates = await db.sync_queue.where("status").anyOf(["pending", "failed"]).toArray();
+  let completedSales = 0;
+  let conflicts = 0;
 
   for (const item of candidates) {
     if (item.id === undefined) continue;
@@ -154,8 +161,10 @@ export async function processSyncQueue(): Promise<void> {
           const { sale } = item.payload as SalePayload;
           await db.sales.update(sale.id, { status: "conflict_warning" });
         }
+        conflicts += 1;
       } else {
         await db.sync_queue.update(item.id, { status: "completed" });
+        if (item.action === "SALE") completedSales += 1;
       }
     } catch (error) {
       // One bad item must never stop the loop -- log and let it retry
@@ -167,6 +176,8 @@ export async function processSyncQueue(): Promise<void> {
       });
     }
   }
+
+  return { completedSales, conflicts };
 }
 
 type PendingIdKind = "product_id" | "wallet_id";

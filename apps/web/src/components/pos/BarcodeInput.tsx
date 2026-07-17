@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { db } from "@/lib/db";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
+import { useToast } from "@/hooks/useToast";
 import { scannerService } from "@/services/hardware/scannerService";
 import type { Product } from "@/types/db";
 
@@ -13,6 +14,7 @@ const NOT_FOUND_MESSAGE_MS = 1500;
 
 export function BarcodeInput({ onProductSelect }: BarcodeInputProps) {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const [value, setValue] = useState("");
   const [notFound, setNotFound] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -30,6 +32,7 @@ export function BarcodeInput({ onProductSelect }: BarcodeInputProps) {
       onProductSelect(product);
     } else {
       setNotFound(true);
+      showToast("error", t("pos.barcode.notFoundToast"));
       clearTimeout(notFoundTimeoutRef.current);
       notFoundTimeoutRef.current = setTimeout(() => setNotFound(false), NOT_FOUND_MESSAGE_MS);
     }

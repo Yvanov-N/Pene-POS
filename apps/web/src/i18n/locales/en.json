@@ -6,7 +6,8 @@
       "connectedHid": "Connected via Web HID",
       "connectedSerial": "Connected via serial port",
       "keyboardMode": "Standard keyboard mode",
-      "pairScanner": "Pair a scanner"
+      "pairScanner": "Pair a scanner",
+      "notFoundToast": "✕ Barcode not found in the local database."
     },
     "filters": {
       "searchPlaceholder": "Search a product or barcode...",
@@ -28,7 +29,8 @@
       "remove": "Remove",
       "clear": "Clear cart",
       "checkout": "Checkout",
-      "outOfStockError": "{{name}} is out of stock",
+      "addedToast": "✓ {{name}} added to cart (x1)",
+      "outOfStockError": "✕ Error: Out of stock for {{name}}!",
       "paymentMethod": {
         "cash": "Cash",
         "momo_mtn": "MTN MoMo",
@@ -37,7 +39,7 @@
       }
     },
     "pin": {
-      "clearTitle": "Authorization required",
+      "clearTitle": "Authorization required to clear the cart",
       "checkoutTitle": "Identify yourself to check out",
       "incorrect": "Incorrect PIN",
       "close": "Close"
@@ -47,9 +49,37 @@
     "nav": {
       "title": "Menu",
       "pinTitle": "Administrator authorization required",
-      "products": "Products",
+      "dashboard": "Dashboard",
+      "products": "Stock",
       "students": "Students",
-      "settings": "Settings"
+      "recharge": "Recharge",
+      "momo": "MoMo",
+      "settings": "Settings",
+      "comingSoon": "Coming soon",
+      "lockNow": "Lock admin session"
+    },
+    "lock": {
+      "autoLockedToast": "🔒 Admin session locked due to inactivity"
+    },
+    "recharge": {
+      "title": "Student wallet recharge",
+      "searchPlaceholder": "Name or badge code...",
+      "noResults": "No matching student.",
+      "selectPrompt": "Search for a student to recharge their wallet.",
+      "currentBalance": "Current balance: {{balance}}",
+      "amountLabel": "Amount to recharge (FCFA)",
+      "confirm": "Confirm recharge",
+      "errorAmountInvalid": "Amount must be a positive number.",
+      "toastSuccess": "✓ Recharge of {{amount}} completed for {{name}}"
+    },
+    "momo": {
+      "title": "Mobile Money verification",
+      "loading": "Loading transactions...",
+      "empty": "No pending Mobile Money transactions.",
+      "confirm": "Confirm SMS",
+      "reject": "Reject",
+      "confirmedToast": "✓ MoMo transaction confirmed ({{amount}})",
+      "rejectedToast": "✕ MoMo transaction rejected, stock restored"
     },
     "products": {
       "title": "Products",
@@ -169,7 +199,10 @@
   "sync": {
     "online": "Online",
     "syncing": "Syncing...",
-    "offline": "Offline"
+    "offline": "Offline",
+    "toastSuccess_one": "✓ Cloud sync successful ({{count}} sale saved)",
+    "toastSuccess_other": "✓ Cloud sync successful ({{count}} sales saved)",
+    "toastConflict": "⚠️ Stock conflict detected during synchronization!"
   },
   "update": {
     "toast": {

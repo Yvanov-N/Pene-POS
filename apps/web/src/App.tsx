@@ -5,6 +5,7 @@ import { GlobalLogin } from "@/components/auth/GlobalLogin";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
 import { PosLayout } from "@/components/pos/PosLayout";
 import { VersionGate } from "@/components/pwa/VersionGate";
+import { ToastProvider } from "@/hooks/useToast";
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -26,7 +27,7 @@ function App() {
   }, []);
 
   return (
-    <>
+    <ToastProvider>
       {checkingSession ? null : passwordRecovery ? (
         <ResetPasswordForm onComplete={() => setPasswordRecovery(false)} />
       ) : session ? (
@@ -35,7 +36,7 @@ function App() {
         <GlobalLogin />
       )}
       <VersionGate />
-    </>
+    </ToastProvider>
   );
 }
 
