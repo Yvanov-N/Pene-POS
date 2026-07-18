@@ -15,8 +15,7 @@ import type { Product } from "@/types/db";
 const QUICK_ADD_AMOUNTS = [10, 24, 50, 100] as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Mirrors ProductGrid.tsx's own EXPIRY_WARNING_DAYS -- kept as a separate
-// local constant since that file doesn't export it (same "kept local to this
-// file" precedent as SalesHistoryCard's getLocalDayRange).
+// local constant since that file doesn't export it.
 const EXPIRY_WARNING_DAYS = 7;
 
 function getExpiryBadge(t: TFunction, expiryDate?: string): { label: string; className: string } | null {

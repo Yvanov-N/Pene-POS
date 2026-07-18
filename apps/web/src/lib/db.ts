@@ -39,6 +39,15 @@ export class PosDatabase extends Dexie {
     this.version(3).stores({
       local_settings: "id",
     });
+
+    // Adds a product_id index to sale_items -- ProductsPage's delete guard
+    // needs to check "has this product ever been sold" (the server rejects
+    // deleting a product referenced by historical sale_items, no ON DELETE
+    // clause -> RESTRICT) without a full table scan. Purely additive: Dexie
+    // builds the new index over existing rows, no data migration needed.
+    this.version(4).stores({
+      sale_items: "id, sale_id, product_id",
+    });
   }
 }
 

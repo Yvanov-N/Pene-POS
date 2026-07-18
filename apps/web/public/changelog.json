@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.14.0",
+    "date": "2026-07-18",
+    "changes": [
+      "analytics dashboard, sales history audit page, and inventory safety guards"
+    ]
+  },
+  {
     "version": "0.13.0",
     "date": "2026-07-17",
     "changes": [

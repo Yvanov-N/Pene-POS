@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
-import { PAYMENT_BADGE_CLASS } from "@/components/admin/SalesHistoryCard";
+import { PAYMENT_BADGE_CLASS } from "@/lib/paymentMethodStyles";
 import type { PaymentMethod, SaleStatus } from "@/types/db";
 
 interface ReceiptItem {

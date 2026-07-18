@@ -8,8 +8,8 @@ import { seedLocalProfiles } from "@/lib/seedLocalProfiles";
 import { SidebarNav } from "./SidebarNav";
 import { AdminRouteGuard } from "./AdminRouteGuard";
 import { PosLayout } from "@/components/pos/PosLayout";
-import { SalesHistoryCard } from "@/components/admin/SalesHistoryCard";
-import { KpiDashboard } from "@/components/admin/KpiDashboard";
+import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
+import { DashboardPage } from "@/pages/admin/DashboardPage";
 import { AdminWalletsPage } from "@/pages/AdminWalletsPage";
 import { ProductsPage } from "@/pages/admin/ProductsPage";
 import { RestockingPage } from "@/pages/admin/RestockingPage";
@@ -31,12 +31,12 @@ export function AppShell() {
               <Routes>
                 <Route path="/" element={<PosLayout />} />
                 <Route path="/pos" element={<Navigate to="/" replace />} />
-                <Route path="/history" element={<SalesHistoryCard />} />
+                <Route path="/history" element={<SalesHistoryPage />} />
                 <Route
                   path="/admin/dashboard"
                   element={
                     <AdminRouteGuard>
-                      <KpiDashboard />
+                      <DashboardPage />
                     </AdminRouteGuard>
                   }
                 />
