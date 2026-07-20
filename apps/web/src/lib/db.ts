@@ -9,6 +9,7 @@ import type {
   SyncQueueItem,
   Profile,
   LocalSettings,
+  ShopStatus,
 } from "@/types/db";
 
 export class PosDatabase extends Dexie {
@@ -21,6 +22,7 @@ export class PosDatabase extends Dexie {
   sync_queue!: Table<SyncQueueItem, number>;
   profiles!: Table<Profile, string>;
   local_settings!: Table<LocalSettings, string>;
+  shop_status!: Table<ShopStatus, number>;
 
   constructor() {
     super("pene_pos");
@@ -70,6 +72,15 @@ export class PosDatabase extends Dexie {
     // reasoning as sale_items' product_id index in version 4.
     this.version(6).stores({
       sales: "id, status, created_at, student_id",
+    });
+
+    // Phase 12 offline-first audit: useShopStatus previously read/wrote
+    // shop_status directly against Supabase with no local mirror at all --
+    // the one hook in the app that simply didn't work offline. A real Dexie
+    // table (fixed single row, id always 1) makes it follow the same
+    // local-write-then-sync pattern as everything else.
+    this.version(7).stores({
+      shop_status: "id",
     });
   }
 }

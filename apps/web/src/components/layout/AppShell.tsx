@@ -26,8 +26,8 @@ export function AppShell() {
 
   return (
     <AdminLockProvider>
-      <ShopStatusProvider>
-        <SyncProvider>
+      <SyncProvider>
+        <ShopStatusProvider>
           <CartProvider>
             <div className="flex h-screen w-full bg-background text-foreground">
               <SidebarNav />
@@ -81,8 +81,8 @@ export function AppShell() {
               </main>
             </div>
           </CartProvider>
-        </SyncProvider>
-      </ShopStatusProvider>
+        </ShopStatusProvider>
+      </SyncProvider>
     </AdminLockProvider>
   );
 }

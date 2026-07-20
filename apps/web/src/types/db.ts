@@ -118,6 +118,26 @@ export interface SyncQueueItem {
   created_at: string;
   status: SyncStatus;
   retryCount: number;
+  // Set from the caught error on a failed push attempt, cleared again on the
+  // next successful (or conflict) outcome -- surfaced by the sync badge's
+  // error state and meant for an admin looking at a stuck item, not just
+  // console.error output nobody but a developer ever sees.
+  errorMessage?: string;
+  // Per-item override for MAX_RETRIES (syncService.ts) -- optional and
+  // unused by every current call site, which all get the shared default.
+  // Exists for a future mutation type that might legitimately need a
+  // different retry budget (e.g. give up immediately on something
+  // non-idempotent) without that becoming a reason to change the global
+  // constant for everything else.
+  maxRetries?: number;
+}
+
+// Singleton row (id is always 1) -- mirrors public.shop_status.
+export interface ShopStatus {
+  id: number;
+  is_open: boolean;
+  updated_at: string;
+  updated_by?: string;
 }
 
 export type PrintMode = "browser" | "bluetooth";

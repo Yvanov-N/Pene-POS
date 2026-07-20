@@ -288,13 +288,18 @@
       "badge_one": "{{count}} Conflit",
       "badge_other": "{{count}} Conflits",
       "pinTitle": "Autorisation administrateur requise",
-      "title": "Conflits de stock",
+      "title": "Conflits de synchronisation",
       "loading": "Chargement des conflits...",
       "empty": "Aucun conflit en attente.",
       "resolveAll": "Tout resoudre",
       "lineDescription": "Produit : {{product}} — Stock negatif ({{stock}}) detecte suite a une vente hors-ligne synchronisee avec retard.",
       "adjustToZero": "Regulariser a 0",
-      "forceIgnore": "Forcer / Ignorer"
+      "forceIgnore": "Forcer / Ignorer",
+      "otherStuckTitle": "Autres elements bloques",
+      "otherStatusConflict": "Conflit lors de la synchronisation.",
+      "otherStatusExhausted": "Echec apres {{count}} tentatives.",
+      "retry": "Reessayer",
+      "dismiss": "Ignorer"
     },
     "profile": {
       "title": "Mon profil & comptes lies",
@@ -477,9 +482,12 @@
     "passwordUpdated": "Mot de passe mis a jour. Connexion en cours..."
   },
   "sync": {
-    "online": "En ligne",
-    "syncing": "Synchronisation...",
-    "offline": "Hors ligne",
+    "badgeOnline": "En ligne",
+    "badgeOffline": "Hors ligne",
+    "badgeOfflinePending_one": "{{count}} en attente",
+    "badgeOfflinePending_other": "{{count}} en attente",
+    "badgeError": "Erreur / Conflit",
+    "badgeErrorHint": "Cliquez pour voir les details",
     "toastSuccess_one": "✓ Synchronisation Cloud reussie ({{count}} vente sauvegardee)",
     "toastSuccess_other": "✓ Synchronisation Cloud reussie ({{count}} ventes sauvegardees)",
     "toastConflict": "⚠️ Conflit de stock detecte lors de la synchronisation !"

@@ -1,9 +1,48 @@
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import type { Category, Product, Sale, SaleItem, StudentWallet, SyncAction, SyncQueueItem } from "@/types/db";
+import type {
+  Category,
+  Product,
+  Sale,
+  SaleItem,
+  ShopStatus,
+  StudentWallet,
+  SyncAction,
+  SyncQueueItem,
+} from "@/types/db";
 import type { Database } from "@/types/supabase";
 
-const MAX_RETRIES = 5;
+// ============================================================================
+// Offline-first repository pattern -- the one way any feature in this app
+// reads and writes data. A future module (new table, new action) follows the
+// same 3 steps every existing one already does:
+//   1. Add the table to Dexie's schema (lib/db.ts) -- bump the version only
+//      if you're adding/removing an INDEX, not for a plain new field.
+//   2. Read exclusively via useLiveQuery(() => db.<table>...., []) in
+//      components/hooks. Never a direct supabase.from(...).select(...) to
+//      render UI -- the local table is the single source of truth for reads,
+//      online or offline, so the UI never waits on a network round trip.
+//   3. Write locally first (db.<table>.put/update/delete), then call
+//      enqueueMutation(action, tableName, payload) (or the useOfflineMutation
+//      hook, which just wraps that + triggerManualSync() in one call) and
+//      void triggerManualSync(). Never await a direct supabase.from(...)
+//      .insert/update/delete(...) from a click handler or form submit --
+//      grep this file's own pushGeneric()/pushItem() before adding a new
+//      action type; the odds are the generic INSERT/UPDATE/DELETE path
+//      already handles a plain new table with zero new sync code.
+//
+// The few deliberate exceptions to step 3 in this codebase (documented at
+// each call site, not silently done): supabase.auth.* calls (sign in/out,
+// password/email change, OAuth linking) -- there's no local cache of an auth
+// session to optimistically mutate, and these are rare, deliberate admin
+// actions rather than the high-frequency POS transactional loop this engine
+// exists to protect; Supabase Storage avatar uploads -- file bytes have no
+// local-Dexie-mirror equivalent; and conflictResolver.ts's direct reads,
+// which exist specifically to show an admin the live server truth while
+// resolving a conflict, the one case where "read from network" is correct.
+// ============================================================================
+
+export const MAX_RETRIES = 5;
 
 // Postgres SQLSTATE for a check_violation -- the products_stock_non_negative
 // / student_wallets_balance_non_negative constraints added in migration 2
@@ -97,8 +136,10 @@ async function pushWalletBalanceAdjustment(payload: WalletRechargePayload): Prom
   return "completed";
 }
 
-// Generic fallback for plain INSERT/UPDATE/DELETE actions -- also currently
-// unproduced, kept for forward compatibility with the SyncAction union.
+// Generic handler for plain INSERT/UPDATE/DELETE actions -- this is the path
+// any new table/feature gets for free with zero new sync code (see the
+// repository-pattern note at the top of this file): categories, products,
+// student_wallets, profiles, and shop_status admin CRUD all go through here.
 async function pushGeneric(
   action: SyncAction,
   tableName: string,
@@ -155,29 +196,33 @@ export async function processSyncQueue(): Promise<SyncQueueSummary> {
 
   for (const item of candidates) {
     if (item.id === undefined) continue;
-    if (item.retryCount >= MAX_RETRIES) continue;
+    if (item.retryCount >= (item.maxRetries ?? MAX_RETRIES)) continue;
 
     try {
       const outcome = await pushItem(item);
 
       if (outcome === "conflict") {
-        await db.sync_queue.update(item.id, { status: "conflict_warning" });
+        await db.sync_queue.update(item.id, { status: "conflict_warning", errorMessage: undefined });
         if (item.action === "SALE") {
           const { sale } = item.payload as SalePayload;
           await db.sales.update(sale.id, { status: "conflict_warning" });
         }
         conflicts += 1;
       } else {
-        await db.sync_queue.update(item.id, { status: "completed" });
+        await db.sync_queue.update(item.id, { status: "completed", errorMessage: undefined });
         if (item.action === "SALE") completedSales += 1;
       }
     } catch (error) {
       // One bad item must never stop the loop -- log and let it retry
-      // next cycle, up to MAX_RETRIES.
+      // next cycle, up to max_retries. The message is also stored on the
+      // item itself (not just console.error, which nobody but a developer
+      // ever sees) so the sync badge's error state and a future admin-facing
+      // queue inspector can surface *why* something is stuck.
       console.error("[syncService] failed to push queue item", item.id, error);
       await db.sync_queue.update(item.id, {
         status: "failed",
         retryCount: item.retryCount + 1,
+        errorMessage: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -185,7 +230,7 @@ export async function processSyncQueue(): Promise<SyncQueueSummary> {
   return { completedSales, conflicts };
 }
 
-type PendingIdKind = "product_id" | "wallet_id" | "category_id" | "sale_id" | "profile_id";
+type PendingIdKind = "product_id" | "wallet_id" | "category_id" | "sale_id" | "profile_id" | "shop_status_id";
 
 const PENDING_ID_TABLE: Record<PendingIdKind, string> = {
   product_id: "products",
@@ -193,6 +238,7 @@ const PENDING_ID_TABLE: Record<PendingIdKind, string> = {
   category_id: "categories",
   sale_id: "sales",
   profile_id: "profiles",
+  shop_status_id: "shop_status",
 };
 
 async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
@@ -217,12 +263,18 @@ async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
       item.table_name === PENDING_ID_TABLE[kind]
     ) {
       // The generic INSERT/UPDATE/DELETE path (products/student_wallets admin
-      // CRUD) was previously unused -- SALE/WALLET_RECHARGE were the only
-      // producers this protection accounted for. Without this branch, a
-      // still-retrying product/wallet edit would get silently overwritten by
-      // the very next pull, right after the push that's supposed to persist it.
-      const id = (item.payload as { id?: string }).id;
-      if (id) ids.add(id);
+      // CRUD, shop_status) was previously unused -- SALE/WALLET_RECHARGE were
+      // the only producers this protection accounted for. Without this
+      // branch, a still-retrying product/wallet/shop_status edit would get
+      // silently overwritten by the very next pull, right after the push
+      // that's supposed to persist it.
+      //
+      // String(id): shop_status's payload id is a real number (1, its fixed
+      // primary key), not a uuid string like every other table here -- both
+      // need to land in the same Set<string> so `.has()` lookups against it
+      // work regardless of which shape produced the entry.
+      const id = (item.payload as { id?: string | number }).id;
+      if (id !== undefined) ids.add(String(id));
     }
   }
 
@@ -252,6 +304,7 @@ type SupabaseWalletRow = Database["public"]["Tables"]["student_wallets"]["Row"];
 type SupabaseCategoryRow = Database["public"]["Tables"]["categories"]["Row"];
 type SupabaseSaleRow = Database["public"]["Tables"]["sales"]["Row"];
 type SupabaseSaleItemRow = Database["public"]["Tables"]["sale_items"]["Row"];
+type SupabaseShopStatusRow = Database["public"]["Tables"]["shop_status"]["Row"];
 
 export function mapProductRow(row: SupabaseProductRow): Product {
   return {
@@ -310,18 +363,28 @@ function mapSaleItemRow(row: SupabaseSaleItemRow): SaleItem {
   };
 }
 
+function mapShopStatusRow(row: SupabaseShopStatusRow): ShopStatus {
+  return {
+    id: row.id,
+    is_open: row.is_open,
+    updated_at: row.updated_at,
+    updated_by: row.updated_by ?? undefined,
+  };
+}
+
 // Pulls products/wallets/profiles/sales down into Dexie without clobbering a
 // local row that still has a pending/failed mutation queued against it --
 // the server hasn't seen that change yet, so its version of that specific
 // row is stale relative to ours.
 export async function pullFromSupabase(): Promise<void> {
-  const [pendingProductIds, pendingWalletIds, pendingCategoryIds, pendingSaleIds, pendingProfileIds] =
+  const [pendingProductIds, pendingWalletIds, pendingCategoryIds, pendingSaleIds, pendingProfileIds, pendingShopStatusIds] =
     await Promise.all([
       getPendingIds("product_id"),
       getPendingIds("wallet_id"),
       getPendingIds("category_id"),
       getPendingIds("sale_id"),
       getPendingIds("profile_id"),
+      getPendingIds("shop_status_id"),
     ]);
 
   // Pulled before products so a fresh full-catalog pull has the referenced
@@ -399,5 +462,19 @@ export async function pullFromSupabase(): Promise<void> {
         pin_hash: existing?.pin_hash ?? "",
       });
     }
+  }
+
+  // shop_status: single fixed-id row (id 1) -- see the pending-mutation
+  // guard above, keyed the same way as every other table here despite the
+  // numeric id.
+  const { data: shopStatus, error: shopStatusError } = await supabase
+    .from("shop_status")
+    .select("*")
+    .eq("id", 1)
+    .single();
+  if (shopStatusError) {
+    console.error("[syncService] failed to pull shop_status", shopStatusError);
+  } else if (shopStatus && !pendingShopStatusIds.has(String(shopStatus.id))) {
+    await db.shop_status.put(mapShopStatusRow(shopStatus));
   }
 }

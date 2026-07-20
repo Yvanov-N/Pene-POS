@@ -163,12 +163,14 @@ export function SidebarNav() {
         </button>
       </div>
 
-      {isExpanded && (
-        <div className="mb-3 flex items-center justify-between text-xs text-muted">
-          <span>{lock.isAdminUnlocked ? t("sidebar.modeAdmin") : t("sidebar.modeCashier")}</span>
-          <SyncStatusIndicator />
-        </div>
-      )}
+      {/* Connectivity/sync state stays visible even collapsed (compact mode
+          falls back to just the state emoji) -- it's important enough that
+          it shouldn't disappear behind the expand toggle the way the plain
+          "Mode admin/caissier" label can. */}
+      <div className={`mb-3 flex items-center text-xs text-muted ${isExpanded ? "justify-between" : "justify-center"}`}>
+        {isExpanded && <span>{lock.isAdminUnlocked ? t("sidebar.modeAdmin") : t("sidebar.modeCashier")}</span>}
+        <SyncStatusIndicator compact={!isExpanded} onErrorClick={() => setConflictsPinPending(true)} />
+      </div>
 
       <button
         type="button"

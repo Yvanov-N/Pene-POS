@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { enqueueMutation, mapProductRow } from "@/services/syncService";
-import type { Sale } from "@/types/db";
+import { enqueueMutation, mapProductRow, MAX_RETRIES } from "@/services/syncService";
+import type { Sale, SyncQueueItem } from "@/types/db";
 
 export interface ConflictLine {
   productId: string;
@@ -143,4 +143,50 @@ export async function dismissConflict(queueItemId: number): Promise<void> {
       await db.sales.update(saleId, { status: "completed" });
     }
   }
+}
+
+// Everything above this point (listConflicts/resolveByAdjustingStock/
+// resolveByAcceptingNegativeStock) is SALE-specific: a stock oversell is the
+// one conflict shape with a real, product-aware resolution UI. Any other
+// mutation (a wallet recharge/withdrawal hitting adjust_wallet_balance's
+// insufficient-balance guard, a generic UPDATE hitting a unique/FK
+// violation) can *also* land in sync_queue as 'conflict_warning', or get
+// stuck 'failed' after exhausting its retry budget -- and until now nothing
+// in the app ever surfaced those. dismissConflict above already works for
+// any table (only the SALE branch is sales-specific), it just never had
+// callers for non-SALE items -- these two do.
+export interface StuckSyncItem {
+  id: number;
+  tableName: string;
+  action: string;
+  status: "conflict_warning" | "failed";
+  retryCount: number;
+  errorMessage?: string;
+  createdAt: string;
+}
+
+export async function listOtherStuckItems(): Promise<StuckSyncItem[]> {
+  const all = await db.sync_queue.toArray();
+  return all
+    .filter((item): item is SyncQueueItem & { id: number } => {
+      if (item.id === undefined || item.action === "SALE") return false;
+      if (item.status === "conflict_warning") return true;
+      return item.status === "failed" && item.retryCount >= (item.maxRetries ?? MAX_RETRIES);
+    })
+    .map((item) => ({
+      id: item.id,
+      tableName: item.table_name,
+      action: item.action,
+      status: item.status as "conflict_warning" | "failed",
+      retryCount: item.retryCount,
+      errorMessage: item.errorMessage,
+      createdAt: item.created_at,
+    }));
+}
+
+// Gives a transient failure another chance (a real Supabase hiccup, not a
+// structural conflict) -- resets to 'pending' so the next sync cycle
+// attempts it fresh, same retry budget as any other item from here.
+export async function retryStuckItem(queueItemId: number): Promise<void> {
+  await db.sync_queue.update(queueItemId, { status: "pending", retryCount: 0, errorMessage: undefined });
 }

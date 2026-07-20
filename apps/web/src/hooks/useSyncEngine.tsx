@@ -12,7 +12,7 @@ import { useNetworkStatus } from "./useNetworkStatus";
 import { useToast } from "./useToast";
 import { processSyncQueue, pullFromSupabase } from "@/services/syncService";
 
-const SYNC_INTERVAL_MS = 50000;
+const SYNC_INTERVAL_MS = 30000;
 const LAST_SYNCED_STORAGE_KEY = "pene-pos-last-synced-at";
 // A stock conflict needs a cashier/admin to actually notice and act on it
 // (go resolve it in the conflicts dashboard) -- longer than the default 3s

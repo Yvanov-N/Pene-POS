@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.18.0",
+    "date": "2026-07-20",
+    "changes": [
+      "bulletproof offline-first sync engine, stuck-mutation recovery, and a simplified sync badge"
+    ]
+  },
+  {
     "version": "0.17.0",
     "date": "2026-07-20",
     "changes": [

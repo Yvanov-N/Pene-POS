@@ -1,5 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/lib/supabase";
+import { createContext, useContext, type ReactNode } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db";
+import { enqueueMutation } from "@/services/syncService";
+import { useSyncEngine } from "@/hooks/useSyncEngine";
 import type { Profile } from "@/types/db";
 
 export interface ToggleShopStatusResult {
@@ -12,43 +15,61 @@ interface ShopStatusContextValue {
   toggleShopStatus: (profile: Profile) => Promise<ToggleShopStatusResult>;
 }
 
-// A plain per-component useState/useEffect here (as this used to be) gives
-// every mounted consumer its own independent copy of shopOpen -- SidebarNav
-// is mounted on every route, so toggling from e.g. Settings' ShopStatusCard
-// would flip the DB row but leave the sidebar's own badge showing the old
-// value until a full reload. A Context provider, mounted once in AppShell,
-// is this codebase's established fix for exactly this shape of problem
-// (ToastContext/CartContext/AdminLockContext/SyncEngineContext all do the
-// same thing for their own piece of shared state).
+// Shared by SidebarNav's quick-access toggle and Settings' ShopStatusCard --
+// both need the same current-status read and the same toggle mutation, not
+// two independent copies of this async/stateful logic.
 const ShopStatusContext = createContext<ShopStatusContextValue | null>(null);
 
 export function ShopStatusProvider({ children }: { children: ReactNode }) {
-  const [shopOpen, setShopOpen] = useState<boolean | null>(null);
+  const { triggerManualSync } = useSyncEngine();
 
-  useEffect(() => {
-    void supabase
-      .from("shop_status")
-      .select("is_open")
-      .eq("id", 1)
-      .single()
-      .then(({ data }) => setShopOpen(data?.is_open ?? null));
-  }, []);
+  // Phase 12 offline-first audit: this used to be a plain useState fetched
+  // once via a direct supabase.from("shop_status") call -- the one hook in
+  // the app that read AND wrote straight against Supabase with no local
+  // Dexie mirror, meaning it simply didn't work at all while offline (the
+  // toggle button would just fail, and the status would never even load on
+  // first paint without a live connection). useLiveQuery against the new
+  // shop_status Dexie table (lib/db.ts version 7) means every mounted
+  // consumer renders instantly from local storage and reacts automatically
+  // to either this device's own toggle or a pulled change from another
+  // device, exactly like every other table in the app.
+  const status = useLiveQuery(() => db.shop_status.get(1), []);
+  const shopOpen = status?.is_open ?? null;
 
-  // Only updates shop_status -- the shop_status_notify Postgres trigger
-  // (migration 00003) already POSTs to the notify-shop-status edge function
-  // on every UPDATE to this row, via pg_net, regardless of which client
-  // made the change. Calling the edge function directly here too would
-  // double-send the broadcast email to every student wallet.
+  // Only enqueues a shop_status UPDATE -- the shop_status_notify Postgres
+  // trigger (migration 00003) already POSTs to the notify-shop-status edge
+  // function on every UPDATE to this row, via pg_net, regardless of which
+  // client (or how many sync retries) eventually applies it. Calling the
+  // edge function directly here too would double-send the broadcast email
+  // to every student wallet.
   const toggleShopStatus = async (profile: Profile): Promise<ToggleShopStatusResult> => {
-    const nextOpen = !shopOpen;
-    const { error } = await supabase
-      .from("shop_status")
-      .update({ is_open: nextOpen, updated_by: profile.id, updated_at: new Date().toISOString() })
-      .eq("id", 1);
+    // shopOpen is only null before this device's first successful pull --
+    // toggling from an unknown current value isn't well-defined, so this is
+    // disabled at the call site too (ShopStatusCard/SidebarNav already
+    // disable the button while shopOpen === null).
+    if (shopOpen === null) return { success: false, nextOpen: true };
 
-    if (error) return { success: false, nextOpen };
-    setShopOpen(nextOpen);
-    return { success: true, nextOpen };
+    const nextOpen = !shopOpen;
+    const now = new Date().toISOString();
+
+    try {
+      // put(), not update(): guarantees a full, valid row even in the
+      // (should-be-impossible-per-the-guard-above, but defensive anyway)
+      // case where the local row is somehow missing -- update() on a
+      // nonexistent key is a silent no-op in Dexie, not an error.
+      await db.shop_status.put({ id: 1, is_open: nextOpen, updated_by: profile.id, updated_at: now });
+      await enqueueMutation("UPDATE", "shop_status", {
+        id: 1,
+        is_open: nextOpen,
+        updated_by: profile.id,
+        updated_at: now,
+      });
+      void triggerManualSync();
+      return { success: true, nextOpen };
+    } catch (error) {
+      console.error("[useShopStatus] local write failed", error);
+      return { success: false, nextOpen };
+    }
   };
 
   return (
