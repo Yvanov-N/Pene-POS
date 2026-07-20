@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import type { Product, Sale, SaleItem, StudentWallet, SyncAction, SyncQueueItem } from "@/types/db";
+import type { Category, Product, Sale, SaleItem, StudentWallet, SyncAction, SyncQueueItem } from "@/types/db";
 import type { Database } from "@/types/supabase";
 
 const MAX_RETRIES = 5;
@@ -180,11 +180,13 @@ export async function processSyncQueue(): Promise<SyncQueueSummary> {
   return { completedSales, conflicts };
 }
 
-type PendingIdKind = "product_id" | "wallet_id";
+type PendingIdKind = "product_id" | "wallet_id" | "category_id" | "sale_id";
 
 const PENDING_ID_TABLE: Record<PendingIdKind, string> = {
   product_id: "products",
   wallet_id: "student_wallets",
+  category_id: "categories",
+  sale_id: "sales",
 };
 
 async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
@@ -195,6 +197,9 @@ async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
     if (kind === "product_id" && item.action === "SALE") {
       const { items } = item.payload as SalePayload;
       for (const line of items) ids.add(line.product_id);
+    } else if (kind === "sale_id" && item.action === "SALE") {
+      const { sale } = item.payload as SalePayload;
+      ids.add(sale.id);
     } else if (kind === "wallet_id" && item.action === "WALLET_RECHARGE") {
       const { wallet_id } = item.payload as WalletRechargePayload;
       ids.add(wallet_id);
@@ -235,6 +240,9 @@ export async function cancelPendingSalePush(saleId: string): Promise<void> {
 
 type SupabaseProductRow = Database["public"]["Tables"]["products"]["Row"];
 type SupabaseWalletRow = Database["public"]["Tables"]["student_wallets"]["Row"];
+type SupabaseCategoryRow = Database["public"]["Tables"]["categories"]["Row"];
+type SupabaseSaleRow = Database["public"]["Tables"]["sales"]["Row"];
+type SupabaseSaleItemRow = Database["public"]["Tables"]["sale_items"]["Row"];
 
 export function mapProductRow(row: SupabaseProductRow): Product {
   return {
@@ -243,7 +251,7 @@ export function mapProductRow(row: SupabaseProductRow): Product {
     price: row.price,
     stock: row.stock,
     barcode: row.barcode ?? undefined,
-    category: row.category ?? undefined,
+    category_id: row.category_id ?? undefined,
     image_url: row.image_url ?? undefined,
     emoji: row.emoji ?? undefined,
     expiry_date: row.expiry_date ?? undefined,
@@ -261,15 +269,59 @@ function mapWalletRow(row: SupabaseWalletRow): StudentWallet {
   };
 }
 
-// Pulls products/wallets/profiles down into Dexie without clobbering a
+function mapCategoryRow(row: SupabaseCategoryRow): Category {
+  return {
+    id: row.id,
+    name: row.name,
+    updated_at: row.updated_at,
+  };
+}
+
+function mapSaleRow(row: SupabaseSaleRow): Sale {
+  return {
+    id: row.id,
+    created_at: row.created_at,
+    cashier_id: row.cashier_id,
+    total_amount: row.total_amount,
+    payment_method: row.payment_method,
+    student_id: row.student_id ?? undefined,
+    status: row.status,
+    momo_verification_status: row.momo_verification_status ?? undefined,
+  };
+}
+
+function mapSaleItemRow(row: SupabaseSaleItemRow): SaleItem {
+  return {
+    id: row.id,
+    sale_id: row.sale_id,
+    product_id: row.product_id,
+    quantity: row.quantity,
+    unit_price: row.unit_price,
+  };
+}
+
+// Pulls products/wallets/profiles/sales down into Dexie without clobbering a
 // local row that still has a pending/failed mutation queued against it --
 // the server hasn't seen that change yet, so its version of that specific
 // row is stale relative to ours.
 export async function pullFromSupabase(): Promise<void> {
-  const [pendingProductIds, pendingWalletIds] = await Promise.all([
+  const [pendingProductIds, pendingWalletIds, pendingCategoryIds, pendingSaleIds] = await Promise.all([
     getPendingIds("product_id"),
     getPendingIds("wallet_id"),
+    getPendingIds("category_id"),
+    getPendingIds("sale_id"),
   ]);
+
+  // Pulled before products so a fresh full-catalog pull has the referenced
+  // rows locally first -- not load-bearing (Dexie has no FK enforcement),
+  // just keeps one sync cycle internally consistent.
+  const { data: categories, error: categoriesError } = await supabase.from("categories").select("*");
+  if (categoriesError) {
+    console.error("[syncService] failed to pull categories", categoriesError);
+  } else {
+    const toUpsert = categories.filter((row) => !pendingCategoryIds.has(row.id)).map(mapCategoryRow);
+    if (toUpsert.length > 0) await db.categories.bulkPut(toUpsert);
+  }
 
   const { data: products, error: productsError } = await supabase.from("products").select("*");
   if (productsError) {
@@ -285,6 +337,27 @@ export async function pullFromSupabase(): Promise<void> {
   } else {
     const toUpsert = wallets.filter((row) => !pendingWalletIds.has(row.id)).map(mapWalletRow);
     if (toUpsert.length > 0) await db.student_wallets.bulkPut(toUpsert);
+  }
+
+  // Sales were push-only until the student 360 profile needed a device's
+  // local Dexie to reflect a student's *complete* purchase history, not just
+  // whatever this one terminal happened to ring up itself. sale_items is
+  // filtered by its parent sale's pending-ness (not its own id) -- items are
+  // only ever written atomically with their sale, never independently.
+  const { data: sales, error: salesError } = await supabase.from("sales").select("*");
+  if (salesError) {
+    console.error("[syncService] failed to pull sales", salesError);
+  } else {
+    const toUpsert = sales.filter((row) => !pendingSaleIds.has(row.id)).map(mapSaleRow);
+    if (toUpsert.length > 0) await db.sales.bulkPut(toUpsert);
+  }
+
+  const { data: saleItems, error: saleItemsError } = await supabase.from("sale_items").select("*");
+  if (saleItemsError) {
+    console.error("[syncService] failed to pull sale items", saleItemsError);
+  } else {
+    const toUpsert = saleItems.filter((row) => !pendingSaleIds.has(row.sale_id)).map(mapSaleItemRow);
+    if (toUpsert.length > 0) await db.sale_items.bulkPut(toUpsert);
   }
 
   // profiles: explicit column list only -- pin_code was never included in

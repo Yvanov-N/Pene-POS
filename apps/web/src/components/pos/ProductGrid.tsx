@@ -56,7 +56,7 @@ export function ProductGrid({ searchTerm, category, onProductSelect }: ProductGr
   const products = useLiveQuery(() => db.products.toArray(), []);
 
   const filtered = (products ?? []).filter((product) => {
-    const matchesCategory = category === ALL_CATEGORIES_VALUE || product.category === category;
+    const matchesCategory = category === ALL_CATEGORIES_VALUE || product.category_id === category;
     if (!matchesCategory) return false;
 
     const term = searchTerm.trim().toLowerCase();

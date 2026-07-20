@@ -12,13 +12,19 @@ export interface Profile {
   pin_hash: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  updated_at: string;
+}
+
 export interface Product {
   id: string;
   name: string;
   price: number;
   stock: number;
   barcode?: string;
-  category?: string;
+  category_id?: string;
   image_url?: string;
   emoji?: string;
   expiry_date?: string;
@@ -51,7 +57,11 @@ export interface Sale {
   cashier_id: string;
   total_amount: number;
   payment_method: PaymentMethod;
-  student_wallet_id?: string;
+  // The student this sale is attributed to, for any payment method --
+  // required when payment_method is "student_wallet" (that's whose balance
+  // gets debited), optional/CRM-only attribution otherwise (a cashier can
+  // tag a cash/MoMo sale to a student, or skip it for an anonymous sale).
+  student_id?: string;
   status: SaleStatus;
   momo_verification_status?: MomoVerificationStatus;
 }

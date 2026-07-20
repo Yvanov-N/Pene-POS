@@ -3,8 +3,8 @@ import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { supabase } from "@/lib/supabase";
 import { useAdminLock } from "@/hooks/useAdminLock";
+import { useShopStatus } from "@/hooks/useShopStatus";
 import { useToast } from "@/hooks/useToast";
 import { PinPadModal } from "@/components/pos/PinPadModal";
 import { SyncStatusIndicator } from "@/components/pos/SyncStatusIndicator";
@@ -38,22 +38,13 @@ export function SidebarNav() {
 
   const [conflictsPinPending, setConflictsPinPending] = useState(false);
   const [conflictsOpen, setConflictsOpen] = useState(false);
-  const [shopOpen, setShopOpen] = useState<boolean | null>(null);
   const [shopTogglePending, setShopTogglePending] = useState(false);
+  const { shopOpen, toggleShopStatus } = useShopStatus();
 
   const conflictCount = useLiveQuery(
     () => db.sales.where("status").equals("conflict_warning").count(),
     [],
   );
-
-  useEffect(() => {
-    void supabase
-      .from("shop_status")
-      .select("is_open")
-      .eq("id", 1)
-      .single()
-      .then(({ data }) => setShopOpen(data?.is_open ?? null));
-  }, []);
 
   // No router existed when this was originally built for a push
   // notification's "open the conflicts view" click -- now that one does,
@@ -73,17 +64,12 @@ export function SidebarNav() {
 
   const handleShopToggleSuccess = async (profile: Profile) => {
     setShopTogglePending(false);
-    const nextOpen = !shopOpen;
-    const { error } = await supabase
-      .from("shop_status")
-      .update({ is_open: nextOpen, updated_by: profile.id, updated_at: new Date().toISOString() })
-      .eq("id", 1);
-    if (error) {
+    const result = await toggleShopStatus(profile);
+    if (!result.success) {
       showToast("error", t("sidebar.shopToggleError"));
       return;
     }
-    setShopOpen(nextOpen);
-    showToast("success", nextOpen ? t("sidebar.shopOpenedToast") : t("sidebar.shopClosedToast"));
+    showToast("success", result.nextOpen ? t("sidebar.shopOpenedToast") : t("sidebar.shopClosedToast"));
   };
 
   return (

@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { PAYMENT_BADGE_CLASS } from "@/lib/paymentMethodStyles";
+import logo from "@/assets/logo.png";
 import type { PaymentMethod, SaleStatus } from "@/types/db";
 
 interface ReceiptItem {
@@ -24,6 +25,7 @@ interface ReceiptData {
   totalAmount: number;
   status: SaleStatus;
   cashierName: string | null;
+  studentName: string | null;
   items: ReceiptItem[];
 }
 
@@ -34,6 +36,7 @@ interface PublicReceiptRow {
   total_amount: number;
   status: SaleStatus;
   cashier_name: string | null;
+  student_name: string | null;
   items: { product_name: string | null; quantity: number; unit_price: number }[];
 }
 
@@ -43,9 +46,32 @@ interface PublicReceiptRow {
 // exactly what decides whether to fall back to the public RPC below.
 type LocalLookup = { found: true; data: ReceiptData } | { found: false };
 
+const LOCALE_BY_LANGUAGE: Record<string, string> = { fr: "fr-FR", en: "en-US" };
+
+function shortSaleId(saleId: string): string {
+  return saleId.slice(0, 6).toUpperCase();
+}
+
+function ReceiptSkeleton() {
+  const { t } = useTranslation();
+  return (
+    <div className="animate-pulse">
+      <span className="sr-only">{t("receiptPage.loading")}</span>
+      <div className="mx-auto mb-4 h-6 w-32 rounded bg-surface2" />
+      <div className="mx-auto mb-6 h-3 w-40 rounded bg-surface2" />
+      <div className="flex flex-col gap-2 border-t border-dashed border-border pt-3">
+        <div className="h-3 w-full rounded bg-surface2" />
+        <div className="h-3 w-5/6 rounded bg-surface2" />
+        <div className="h-3 w-4/6 rounded bg-surface2" />
+      </div>
+      <div className="mt-4 h-8 w-full rounded bg-surface2" />
+    </div>
+  );
+}
+
 export function ReceiptPage() {
   const { saleId } = useParams<{ saleId: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showToast } = useToast();
 
   // undefined = not attempted yet, null = attempted and no sale found,
@@ -57,9 +83,10 @@ export function ReceiptPage() {
     const sale = await db.sales.get(saleId);
     if (!sale) return { found: false };
 
-    const [items, cashier, products] = await Promise.all([
+    const [items, cashier, student, products] = await Promise.all([
       db.sale_items.where("sale_id").equals(saleId).toArray(),
       db.profiles.get(sale.cashier_id),
+      sale.student_id ? db.student_wallets.get(sale.student_id) : Promise.resolve(undefined),
       db.products.toArray(),
     ]);
     const productNames = new Map(products.map((p) => [p.id, p.name]));
@@ -73,6 +100,7 @@ export function ReceiptPage() {
         totalAmount: sale.total_amount,
         status: sale.status,
         cashierName: cashier?.full_name ?? null,
+        studentName: student?.student_name ?? null,
         items: items.map((item) => ({
           productName: productNames.get(item.product_id) ?? t("admin.salesHistory.unknownProduct"),
           quantity: item.quantity,
@@ -84,7 +112,13 @@ export function ReceiptPage() {
 
   // Sale isn't in this device's local Dexie -- either someone else's sale,
   // or a genuinely anonymous visitor with no local data at all. Fall back to
-  // the public get_public_receipt RPC (migration 6), which anon can call.
+  // the public get_public_receipt RPC (migration 6, extended in migration 9
+  // for student_name), which anon can call. Deliberately NOT the literal
+  // `supabase.from('sales').select('*, sale_items(*), profiles(*))` this
+  // phase's spec shows: anon has zero table grants on sales/sale_items/
+  // profiles by design (see migration 1) -- that call would return nothing
+  // for exactly the anonymous-visitor case it's meant to handle. The RPC is
+  // the narrow, already-safe exception built for this.
   useEffect(() => {
     if (!saleId || localResult === undefined || localResult.found || remoteReceipt !== undefined) return;
 
@@ -103,6 +137,7 @@ export function ReceiptPage() {
           totalAmount: row.total_amount,
           status: row.status,
           cashierName: row.cashier_name,
+          studentName: row.student_name,
           items: row.items.map((item) => ({
             productName: item.product_name ?? t("admin.salesHistory.unknownProduct"),
             quantity: item.quantity,
@@ -116,14 +151,20 @@ export function ReceiptPage() {
   const isLoading = localResult === undefined || (localResult.found === false && remoteReceipt === undefined);
   const notFound = !isLoading && !receipt;
 
-  const handleShare = async () => {
-    if (!saleId || !receipt) return;
+  const buildShareUrl = () =>
     // The share-receipt edge function (Phase 9.3) -- it detects real humans
     // by User-Agent and 302s them straight to this same /receipt/:saleId
     // route, but gives social scrapers (WhatsApp, Telegram, etc.) populated
     // Open Graph / Twitter Card meta tags instead, so a shared link shows a
-    // rich preview with the actual amount and items in the chat app.
-    const shareUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/share-receipt?id=${saleId}`;
+    // rich preview with the actual amount and items in the chat app. Not
+    // this phase's literal `${window.location.origin}/receipt/${sale.id}`
+    // placeholder -- that's the pre-9.3 stand-in this exact file already
+    // moved on from once the real endpoint existed.
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/share-receipt?id=${saleId}`;
+
+  const handleShare = async () => {
+    if (!saleId || !receipt) return;
+    const shareUrl = buildShareUrl();
 
     if (navigator.share) {
       try {
@@ -149,29 +190,45 @@ export function ReceiptPage() {
     }
   };
 
+  const locale = LOCALE_BY_LANGUAGE[i18n.language] ?? LOCALE_BY_LANGUAGE.fr;
+  const timestamp = receipt
+    ? t("receiptPage.timestampFormat", {
+        date: new Date(receipt.createdAt).toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" }),
+        time: new Date(receipt.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
+      })
+    : "";
+
   return (
     <div className="min-h-screen bg-background p-4 sm:flex sm:items-center sm:justify-center">
-      <div className="mx-auto w-full sm:max-w-[320px]">
-        <CardCustom>
+      <div className="mx-auto w-full sm:max-w-[380px]">
+        <CardCustom className="receipt-card">
           {isLoading ? (
-            <p className="text-sm text-muted">{t("receiptPage.loading")}</p>
+            <ReceiptSkeleton />
           ) : notFound ? (
-            <p className="text-sm text-muted">{t("receiptPage.notFound")}</p>
+            <div className="py-6 text-center">
+              <span className="text-4xl" aria-hidden>
+                🧾
+              </span>
+              <p className="mt-3 text-sm font-semibold text-foreground">{t("receiptPage.notFoundTitle")}</p>
+              <p className="mt-1 text-xs text-muted">{t("receiptPage.notFound")}</p>
+            </div>
           ) : (
             receipt && (
               <>
-                <div className="mb-3 text-center">
+                <div className="mb-3 flex flex-col items-center text-center">
+                  <img src={logo} alt="" className="mb-2 h-8 w-auto object-contain" />
                   <p className="text-sm font-semibold text-foreground">{t("receipt.shopName")}</p>
-                  <p className="text-xs text-muted">{new Date(receipt.createdAt).toLocaleString()}</p>
+                  <p className="text-xs text-muted">{timestamp}</p>
+                  <p className="font-mono text-xs text-muted">#{shortSaleId(receipt.id)}</p>
                 </div>
 
-                <div className="border-t border-dashed border-border pt-3">
+                <div className="flex flex-col gap-1 border-t border-dashed border-border pt-3 font-mono">
                   {receipt.items.map((item, index) => (
-                    <div key={index} className="mb-1 flex justify-between text-xs text-foreground">
-                      <span>
+                    <div key={index} className="flex justify-between text-xs text-foreground">
+                      <span className="truncate pr-2">
                         {item.quantity} x {item.productName}
                       </span>
-                      <span>{formatCurrency(item.quantity * item.unitPrice)}</span>
+                      <span className="shrink-0">{formatCurrency(item.quantity * item.unitPrice)}</span>
                     </div>
                   ))}
                 </div>
@@ -180,12 +237,20 @@ export function ReceiptPage() {
                   <span className={PAYMENT_BADGE_CLASS[receipt.paymentMethod]}>
                     {t(`pos.cart.paymentMethod.${receipt.paymentMethod}`)}
                   </span>
-                  <span className="text-sm font-bold text-foreground">{formatCurrency(receipt.totalAmount)}</span>
+                  <span className="font-mono text-base font-bold text-foreground">
+                    {formatCurrency(receipt.totalAmount)}
+                  </span>
                 </div>
 
                 {receipt.status === "refunded" && (
                   <p className="mt-2 text-center text-xs text-destructive">
                     {t("admin.salesHistory.status.refunded")}
+                  </p>
+                )}
+
+                {receipt.studentName && (
+                  <p className="mt-2 text-center">
+                    <span className="badge-green">{t("receiptPage.studentLabel", { name: receipt.studentName })}</span>
                   </p>
                 )}
 
@@ -195,9 +260,14 @@ export function ReceiptPage() {
                   </p>
                 )}
 
-                <ButtonCustom variant="primary" className="mt-4 w-full" onClick={() => void handleShare()}>
-                  {t("receiptPage.share")}
-                </ButtonCustom>
+                <div className="receipt-actions mt-4 flex gap-2">
+                  <ButtonCustom variant="primary" className="flex-1" onClick={() => void handleShare()}>
+                    {t("receiptPage.share")}
+                  </ButtonCustom>
+                  <ButtonCustom variant="primary" className="flex-1" onClick={() => window.print()}>
+                    {t("receiptPage.print")}
+                  </ButtonCustom>
+                </div>
               </>
             )
           )}

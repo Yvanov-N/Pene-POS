@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLiveQuery } from "dexie-react-hooks";
 import { useCart } from "@/hooks/useCart";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
@@ -7,7 +8,7 @@ import { enqueueMutation } from "@/services/syncService";
 import { printService } from "@/services/hardware/printService";
 import { PinPadModal } from "./PinPadModal";
 import { ButtonCustom } from "@/components/ui/button-custom";
-import type { PaymentMethod, Profile, Sale, SaleItem } from "@/types/db";
+import type { PaymentMethod, Profile, Sale, SaleItem, StudentWallet } from "@/types/db";
 
 const SETTINGS_ID = "default";
 
@@ -35,8 +36,35 @@ export function PosCart() {
   const cart = useCart();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [studentSearchTerm, setStudentSearchTerm] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState<StudentWallet | null>(null);
 
   const isEmpty = cart.items.length === 0;
+  const isWalletPayment = paymentMethod === "student_wallet";
+  const walletInsufficient = isWalletPayment && selectedStudent !== null && selectedStudent.balance < cart.totalAmount;
+  const canCheckout =
+    !isEmpty && !!paymentMethod && (!isWalletPayment || (selectedStudent !== null && !walletInsufficient));
+
+  // Deliberately not wired to useBarcodeScanner/the shared pos:barcode-scan
+  // event the way StudentWalletRechargeCard's search is: that page has no
+  // product scanning happening on it at all, so any scan is unambiguously a
+  // student badge. Here, on the same screen as BarcodeInput, a scan is
+  // *primarily* meant to add a product to the cart -- also feeding it into
+  // this search would make every product scan noisily (and wrongly) filter
+  // the student picker too. Plain typed search only.
+  const studentResults = useLiveQuery(async () => {
+    const term = studentSearchTerm.trim().toLowerCase();
+    if (!term) return [];
+    const all = await db.student_wallets.toArray();
+    return all
+      .filter((w) => w.student_name.toLowerCase().includes(term) || w.badge_code.toLowerCase().includes(term))
+      .slice(0, 6);
+  }, [studentSearchTerm]);
+
+  const selectStudent = (wallet: StudentWallet) => {
+    setSelectedStudent(wallet);
+    setStudentSearchTerm("");
+  };
 
   const completeCheckout = async (profile: Profile) => {
     const saleId = crypto.randomUUID();
@@ -46,11 +74,10 @@ export function PosCart() {
 
     await db.transaction(
       "rw",
-      db.sales,
-      db.sale_items,
-      db.products,
-      db.sync_queue,
-      db.cart_items,
+      // Array form -- Dexie's variadic-table-argument overloads cap out
+      // below the 6 tables this transaction now touches (adding
+      // student_wallets pushed it over that limit).
+      [db.sales, db.sale_items, db.products, db.student_wallets, db.sync_queue, db.cart_items],
       async () => {
         const sale: Sale = {
           id: saleId,
@@ -58,6 +85,7 @@ export function PosCart() {
           cashier_id: profile.id,
           total_amount: cart.totalAmount,
           payment_method: paymentMethod!,
+          student_id: selectedStudent?.id,
           status: "pending_sync",
           // Only Mobile Money sales need a shop-phone SMS checked before
           // they're considered settled -- cash and student_wallet sales
@@ -87,6 +115,22 @@ export function PosCart() {
 
         await enqueueMutation("SALE", "sales", { sale, items: saleItems });
 
+        // Real balance deduction, reusing the exact same adjust_wallet_balance
+        // RPC / WALLET_RECHARGE mutation the recharge flow already uses --
+        // just a negative delta. The server's non-negative balance CHECK
+        // constraint is the real backstop against a race between two devices
+        // spending the same wallet before either has synced; this local
+        // sufficiency check (canCheckout above) just avoids hitting that in
+        // the overwhelmingly common single-device case.
+        if (isWalletPayment && selectedStudent) {
+          const nextBalance = selectedStudent.balance - cart.totalAmount;
+          await db.student_wallets.update(selectedStudent.id, { balance: nextBalance });
+          await enqueueMutation("WALLET_RECHARGE", "student_wallets", {
+            wallet_id: selectedStudent.id,
+            delta: -cart.totalAmount,
+          });
+        }
+
         await db.cart_items.clear();
 
         committedSale = sale;
@@ -95,6 +139,7 @@ export function PosCart() {
     );
 
     setPaymentMethod(null);
+    setSelectedStudent(null);
 
     // Printing is best-effort -- the sale already succeeded, so a printer
     // being unplugged/unpaired must never surface as a checkout failure.
@@ -186,6 +231,64 @@ export function PosCart() {
           ))}
         </div>
 
+        {paymentMethod && (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted">
+              {isWalletPayment ? t("pos.cart.studentRequired") : t("pos.cart.studentOptional")}
+            </span>
+            {selectedStudent ? (
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-border p-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{selectedStudent.student_name}</p>
+                  {isWalletPayment && (
+                    <p className={`text-xs ${walletInsufficient ? "text-destructive" : "text-muted"}`}>
+                      {t("pos.cart.walletBalance", { balance: formatCurrency(selectedStudent.balance) })}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStudent(null)}
+                  className="shrink-0 text-xs text-muted hover:text-foreground"
+                >
+                  {t("pos.cart.removeStudent")}
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={studentSearchTerm}
+                  onChange={(e) => setStudentSearchTerm(e.target.value)}
+                  placeholder={t("pos.cart.studentSearchPlaceholder")}
+                  className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
+                />
+                {studentSearchTerm.trim() && (
+                  <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-border bg-surface shadow-lg">
+                    {studentResults === undefined || studentResults.length === 0 ? (
+                      <li className="px-3 py-2 text-xs text-muted">{t("pos.cart.studentNoResults")}</li>
+                    ) : (
+                      studentResults.map((wallet) => (
+                        <li key={wallet.id}>
+                          <button
+                            type="button"
+                            onClick={() => selectStudent(wallet)}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-surface2"
+                          >
+                            <span className="text-foreground">{wallet.student_name}</span>
+                            <span className="text-muted">{wallet.badge_code}</span>
+                          </button>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+              </div>
+            )}
+            {walletInsufficient && <p className="text-xs text-destructive">{t("pos.cart.walletInsufficient")}</p>}
+          </div>
+        )}
+
         <ButtonCustom
           variant="danger"
           disabled={isEmpty}
@@ -195,11 +298,7 @@ export function PosCart() {
         >
           {t("pos.cart.clear")}
         </ButtonCustom>
-        <ButtonCustom
-          variant="success"
-          disabled={isEmpty || !paymentMethod}
-          onClick={() => setPendingAction("checkout")}
-        >
+        <ButtonCustom variant="success" disabled={!canCheckout} onClick={() => setPendingAction("checkout")}>
           {t("pos.cart.checkout")}
         </ButtonCustom>
       </div>

@@ -36,7 +36,14 @@
         "momo_mtn": "MTN MoMo",
         "momo_orange": "Orange Money",
         "student_wallet": "Student wallet"
-      }
+      },
+      "studentRequired": "Student (required)",
+      "studentOptional": "Student (optional)",
+      "studentSearchPlaceholder": "Search for a student (name or badge)...",
+      "studentNoResults": "No matching student.",
+      "removeStudent": "Remove",
+      "walletBalance": "Balance: {{balance}}",
+      "walletInsufficient": "✕ Insufficient balance on this wallet."
     },
     "pin": {
       "clearTitle": "Authorization required to clear the cart",
@@ -51,9 +58,6 @@
       "pinTitle": "Administrator authorization required",
       "dashboard": "Dashboard",
       "products": "Stock",
-      "students": "Students",
-      "recharge": "Recharge",
-      "momo": "MoMo",
       "salesHistory": "History",
       "settings": "Settings",
       "comingSoon": "Coming soon",
@@ -81,6 +85,26 @@
       "reject": "Reject",
       "confirmedToast": "✓ MoMo transaction confirmed ({{amount}})",
       "rejectedToast": "✕ MoMo transaction rejected, stock restored"
+    },
+    "wallets": {
+      "searchPlaceholder": "Search for a student (name, badge, email)...",
+      "columnBalance": "Balance",
+      "columnTotalSpend": "Total spend",
+      "columnOrders": "Orders",
+      "createSuccessToast": "✓ Student created: {{name}}",
+      "updateSuccessToast": "✓ Student updated: {{name}}",
+      "currentBalance": "Current balance",
+      "tabAnalytics": "Analytics",
+      "tabHistory": "Purchase history",
+      "loading": "Loading...",
+      "lifetimeValue": "LIFETIME VALUE",
+      "averageBasket": "AVERAGE BASKET",
+      "totalTransactions": "TRANSACTIONS",
+      "walletUsage": "WALLET USAGE",
+      "favoriteProducts": "Favorite products",
+      "noPurchases": "No purchases yet.",
+      "unitsPurchased_one": "{{count}} unit purchased",
+      "unitsPurchased_other": "{{count}} units purchased"
     },
     "dashboard": {
       "revenueLabel": "GROSS REVENUE",
@@ -192,7 +216,30 @@
       "deleteSuccessToast": "🗑️ Product deleted from the catalog",
       "deleteBlockedInCart": "✕ Can't delete: this product is in the active cart.",
       "deleteBlockedHasSales": "✕ Can't delete: this product has already been sold.",
-      "scanBarcode": "Scan with scanner"
+      "scanBarcode": "Scan with scanner",
+      "categoryNone": "Uncategorized"
+    },
+    "categories": {
+      "title": "Category management",
+      "manageButton": "Manage categories",
+      "addPlaceholder": "New category...",
+      "add": "Add",
+      "addSuccessToast": "✓ Category created: {{name}}",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "renameSuccessToast": "✓ Category renamed: {{name}}",
+      "delete": "Delete",
+      "deletePinTitle": "Admin authorization required to delete this category",
+      "deleteSuccessToast": "🗑️ Category deleted",
+      "deleteSuccessReassigned_one": "🗑️ Category deleted. {{count}} product moved to \"Uncategorized\".",
+      "deleteSuccessReassigned_other": "🗑️ Category deleted. {{count}} products moved to \"Uncategorized\".",
+      "empty": "No categories yet.",
+      "loading": "Loading...",
+      "errorNameRequired": "Name is required.",
+      "errorNameDuplicate": "This category already exists.",
+      "productCount_one": "{{count}} product",
+      "productCount_other": "{{count}} products"
     },
     "students": {
       "title": "Students",
@@ -231,6 +278,7 @@
     "settings": {
       "title": "Settings",
       "pinTitle": "Administrator authorization required",
+      "printerCardTitle": "Printing",
       "printModeLabel": "Default print mode",
       "printMode": {
         "browser": "Browser",
@@ -238,11 +286,26 @@
       },
       "bluetoothSection": "Bluetooth thermal printer",
       "bluetoothConnected": "Connected",
+      "bluetoothConnectedName": "Connected: {{name}}",
       "bluetoothDisconnected": "Not connected",
       "pairBluetooth": "Pair a Bluetooth thermal printer",
       "disconnectBluetooth": "Disconnect",
       "bluetoothUnsupported": "Web Bluetooth isn't supported by this browser.",
       "bluetoothPairError": "Couldn't pair the printer. Please try again.",
+      "scannerCardTitle": "Barcode scanner",
+      "disconnectScanner": "Disconnect",
+      "scannerTestLabel": "Test area",
+      "scannerTestPlaceholder": "Scan or type a code, then confirm...",
+      "scannerTestHint": "Scan a barcode (hardware or keyboard-emulation) or type one and press Enter to confirm the scanner is being detected.",
+      "scannerTestResult": "Last code detected: {{code}} ({{time}})",
+      "notificationCardTitle": "System alerts",
+      "pushPermissionLabel": "Browser permission",
+      "pushPermission": {
+        "granted": "Granted",
+        "denied": "Denied",
+        "default": "Not requested"
+      },
+      "pushExplanation": "Get a push alert on this device when stock runs low or a product is close to expiring.",
       "pushSection": "System alerts",
       "pushEnabled": "Enabled on this device",
       "pushDisabled": "Disabled on this device",
@@ -250,7 +313,12 @@
       "disablePush": "Disable system alerts",
       "pushUnsupported": "Notifications aren't supported by this browser.",
       "pushMisconfigured": "Notifications aren't configured for this environment.",
-      "pushError": "Couldn't enable alerts. Please try again."
+      "pushError": "Couldn't enable alerts. Please try again.",
+      "shopStatusCardTitle": "Shop status",
+      "shopOpenBig": "🟢 SHOP OPEN",
+      "shopCloseBig": "🔴 SHOP CLOSED",
+      "shopStatusUpdatedToast": "✓ Status updated and emails sent to students",
+      "shopStatusError": "✕ Couldn't update shop status"
     },
     "routeGuard": {
       "locked": "This section is locked. Enter the admin PIN to continue.",
@@ -274,12 +342,16 @@
   },
   "receiptPage": {
     "loading": "Loading receipt...",
-    "notFound": "Receipt not found.",
-    "share": "Share receipt",
+    "notFoundTitle": "Receipt not found",
+    "notFound": "This link doesn't match any known receipt.",
+    "share": "Share",
+    "print": "Print / PDF",
     "shareTitle": "Cite Shop receipt",
     "shareText": "Here's your Cite Shop purchase receipt for {{amount}}",
     "linkCopiedToast": "✓ Receipt link copied to clipboard",
-    "shareError": "✕ Couldn't share the receipt"
+    "shareError": "✕ Couldn't share the receipt",
+    "studentLabel": "Customer / Student: {{name}}",
+    "timestampFormat": "{{date}} at {{time}}"
   },
   "receipt": {
     "shopName": "Cite Shop",

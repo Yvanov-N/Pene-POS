@@ -6,12 +6,12 @@ import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
 import { getRangeForFilter, type CustomRange } from "@/lib/dateHelpers";
-import { PAYMENT_BADGE_CLASS } from "@/lib/paymentMethodStyles";
+import { PAYMENT_BADGE_CLASS, STATUS_BADGE_CLASS } from "@/lib/paymentMethodStyles";
 import { printService } from "@/services/hardware/printService";
 import { voidSale, type VoidSaleFailureReason } from "@/services/refundService";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
-import type { PaymentMethod, Profile, Sale, SaleStatus } from "@/types/db";
+import type { PaymentMethod, Profile, Sale } from "@/types/db";
 
 const SETTINGS_ID = "default";
 const SALES_LIMIT = 200;
@@ -25,13 +25,6 @@ type StatusFilter = (typeof STATUS_FILTERS)[number];
 // concept of), not the dashboard's 7/30-day rollups.
 const DATE_FILTERS = ["all", "today", "yesterday", "custom"] as const;
 type DateFilter = (typeof DATE_FILTERS)[number];
-
-const STATUS_BADGE_CLASS: Record<SaleStatus, string> = {
-  completed: "badge-green",
-  pending_sync: "badge-amber",
-  conflict_warning: "badge-red",
-  refunded: "badge-red",
-};
 
 const VOID_ERROR_KEY = {
   "not-authorized": "admin.salesHistory.voidErrorNotAuthorized",

@@ -11,6 +11,7 @@ import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { ProductFilters } from "@/components/pos/ProductFilters";
 import { ProductFormDrawer } from "@/components/admin/products/ProductFormDrawer";
+import { CategoryManagerModal } from "@/components/admin/products/CategoryManagerModal";
 import type { Product } from "@/types/db";
 
 type SortKey = "name" | "price" | "stock";
@@ -38,9 +39,14 @@ export function ProductsPage() {
   const { triggerManualSync } = useSyncEngine();
 
   // "name"/"price"/"stock" aren't part of the Dexie schema's index list (id,
-  // barcode, category, expiry_date, updated_at only) -- orderBy() throws at
-  // runtime for unindexed fields, so filtering/sorting happens in memory.
+  // barcode, category_id, expiry_date, updated_at only) -- orderBy() throws
+  // at runtime for unindexed fields, so filtering/sorting happens in memory.
   const products = useLiveQuery(() => db.products.toArray(), []);
+  const categories = useLiveQuery(() => db.categories.toArray(), []);
+  const categoryNameById = useMemo(
+    () => new Map((categories ?? []).map((category) => [category.id, category.name])),
+    [categories],
+  );
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORIES_VALUE);
@@ -49,13 +55,14 @@ export function ProductsPage() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
 
   const visibleProducts = useMemo(() => {
     if (!products) return undefined;
     const term = searchTerm.trim().toLowerCase();
 
     const filtered = products.filter((product) => {
-      if (activeCategory !== ALL_CATEGORIES_VALUE && product.category !== activeCategory) return false;
+      if (activeCategory !== ALL_CATEGORIES_VALUE && product.category_id !== activeCategory) return false;
       if (!term) return true;
       return product.name.toLowerCase().includes(term) || (product.barcode ?? "").toLowerCase().includes(term);
     });
@@ -122,9 +129,14 @@ export function ProductsPage() {
       <CardCustom
         title={t("admin.products.title")}
         header={
-          <ButtonCustom variant="primary" size="sm" onClick={openCreateDrawer}>
-            {t("admin.products.add")}
-          </ButtonCustom>
+          <div className="flex gap-2">
+            <ButtonCustom variant="primary" size="sm" onClick={() => setCategoryManagerOpen(true)}>
+              {t("admin.categories.manageButton")}
+            </ButtonCustom>
+            <ButtonCustom variant="primary" size="sm" onClick={openCreateDrawer}>
+              {t("admin.products.add")}
+            </ButtonCustom>
+          </div>
         }
       >
         <ProductFilters
@@ -182,7 +194,11 @@ export function ProductsPage() {
                         <td className="py-2 pr-3 font-medium text-foreground">{product.name}</td>
                         <td className="py-2 pr-3 text-muted">{product.barcode ?? "—"}</td>
                         <td className="py-2 pr-3">
-                          {product.category ? <span className="badge-blue">{product.category}</span> : "—"}
+                          {product.category_id && categoryNameById.get(product.category_id) ? (
+                            <span className="badge-blue">{categoryNameById.get(product.category_id)}</span>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="py-2 pr-3 text-foreground">{formatCurrency(product.price)}</td>
                         <td className="py-2 pr-3">
@@ -230,6 +246,7 @@ export function ProductsPage() {
       </CardCustom>
 
       {drawerOpen && <ProductFormDrawer product={editingProduct} onClose={() => setDrawerOpen(false)} />}
+      {categoryManagerOpen && <CategoryManagerModal onClose={() => setCategoryManagerOpen(false)} />}
     </div>
   );
 }

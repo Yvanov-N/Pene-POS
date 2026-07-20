@@ -113,6 +113,10 @@ class PrintService {
     return this.characteristic !== null && (this.device?.gatt?.connected ?? false);
   }
 
+  getBluetoothPrinterName(): string | null {
+    return this.isBluetoothPrinterConnected() ? (this.device?.name ?? null) : null;
+  }
+
   async connectBluetoothPrinter(): Promise<void> {
     if (!this.isBluetoothSupported()) {
       throw new Error("web-bluetooth-unsupported");

@@ -49,8 +49,8 @@ export async function voidSale(saleId: string, adminId: string): Promise<VoidSal
           }
         }
 
-        if (sale.payment_method === "student_wallet" && sale.student_wallet_id) {
-          const wallet = await db.student_wallets.get(sale.student_wallet_id);
+        if (sale.payment_method === "student_wallet" && sale.student_id) {
+          const wallet = await db.student_wallets.get(sale.student_id);
           if (wallet) {
             const nextBalance = wallet.balance + sale.total_amount;
             await db.student_wallets.update(wallet.id, { balance: nextBalance });

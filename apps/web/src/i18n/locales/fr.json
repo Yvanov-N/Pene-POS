@@ -36,7 +36,14 @@
         "momo_mtn": "MTN MoMo",
         "momo_orange": "Orange Money",
         "student_wallet": "Portefeuille etudiant"
-      }
+      },
+      "studentRequired": "Etudiant (requis)",
+      "studentOptional": "Etudiant (optionnel)",
+      "studentSearchPlaceholder": "Rechercher un etudiant (nom ou badge)...",
+      "studentNoResults": "Aucun etudiant correspondant.",
+      "removeStudent": "Retirer",
+      "walletBalance": "Solde : {{balance}}",
+      "walletInsufficient": "✕ Solde insuffisant pour ce portefeuille."
     },
     "pin": {
       "clearTitle": "Autorisation requise pour vider le panier",
@@ -51,9 +58,6 @@
       "pinTitle": "Autorisation administrateur requise",
       "dashboard": "Tableau de bord",
       "products": "Stocks",
-      "students": "Etudiants",
-      "recharge": "Recharge",
-      "momo": "MoMo",
       "salesHistory": "Historique",
       "settings": "Parametres",
       "comingSoon": "Bientot disponible",
@@ -81,6 +85,26 @@
       "reject": "Rejeter",
       "confirmedToast": "✓ Transaction MoMo confirmee ({{amount}})",
       "rejectedToast": "✕ Transaction MoMo rejetee, stock restaure"
+    },
+    "wallets": {
+      "searchPlaceholder": "Rechercher un etudiant (nom, badge, e-mail)...",
+      "columnBalance": "Solde",
+      "columnTotalSpend": "Depense totale",
+      "columnOrders": "Commandes",
+      "createSuccessToast": "✓ Etudiant cree : {{name}}",
+      "updateSuccessToast": "✓ Etudiant mis a jour : {{name}}",
+      "currentBalance": "Solde actuel",
+      "tabAnalytics": "Analyses",
+      "tabHistory": "Historique d'achats",
+      "loading": "Chargement...",
+      "lifetimeValue": "VALEUR CLIENT",
+      "averageBasket": "PANIER MOYEN",
+      "totalTransactions": "TRANSACTIONS",
+      "walletUsage": "USAGE PORTEFEUILLE",
+      "favoriteProducts": "Produits favoris",
+      "noPurchases": "Aucun achat pour le moment.",
+      "unitsPurchased_one": "{{count}} unite achetee",
+      "unitsPurchased_other": "{{count}} unites achetees"
     },
     "dashboard": {
       "revenueLabel": "CHIFFRE D'AFFAIRES",
@@ -192,7 +216,30 @@
       "deleteSuccessToast": "🗑️ Produit supprime du catalogue",
       "deleteBlockedInCart": "✕ Impossible de supprimer : ce produit est dans le panier en cours.",
       "deleteBlockedHasSales": "✕ Impossible de supprimer : ce produit a deja ete vendu.",
-      "scanBarcode": "Scanner douchette"
+      "scanBarcode": "Scanner douchette",
+      "categoryNone": "Non classe"
+    },
+    "categories": {
+      "title": "Gestion des categories",
+      "manageButton": "Gerer les categories",
+      "addPlaceholder": "Nouvelle categorie...",
+      "add": "Ajouter",
+      "addSuccessToast": "✓ Categorie creee : {{name}}",
+      "edit": "Modifier",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "renameSuccessToast": "✓ Categorie renommee : {{name}}",
+      "delete": "Supprimer",
+      "deletePinTitle": "Autorisation Admin requise pour supprimer cette categorie",
+      "deleteSuccessToast": "🗑️ Categorie supprimee",
+      "deleteSuccessReassigned_one": "🗑️ Categorie supprimee. {{count}} produit reclasse en \"Non classe\".",
+      "deleteSuccessReassigned_other": "🗑️ Categorie supprimee. {{count}} produits reclasses en \"Non classe\".",
+      "empty": "Aucune categorie pour le moment.",
+      "loading": "Chargement...",
+      "errorNameRequired": "Le nom est requis.",
+      "errorNameDuplicate": "Cette categorie existe deja.",
+      "productCount_one": "{{count}} produit",
+      "productCount_other": "{{count}} produits"
     },
     "students": {
       "title": "Etudiants",
@@ -231,6 +278,7 @@
     "settings": {
       "title": "Parametres",
       "pinTitle": "Autorisation administrateur requise",
+      "printerCardTitle": "Impression",
       "printModeLabel": "Mode d'impression par defaut",
       "printMode": {
         "browser": "Navigateur",
@@ -238,11 +286,26 @@
       },
       "bluetoothSection": "Imprimante thermique Bluetooth",
       "bluetoothConnected": "Connectee",
+      "bluetoothConnectedName": "Connectee : {{name}}",
       "bluetoothDisconnected": "Non connectee",
       "pairBluetooth": "Jumeler une imprimante thermique Bluetooth",
       "disconnectBluetooth": "Deconnecter",
       "bluetoothUnsupported": "Web Bluetooth n'est pas pris en charge par ce navigateur.",
       "bluetoothPairError": "Impossible de jumeler l'imprimante. Veuillez reessayer.",
+      "scannerCardTitle": "Douchette / Scanner",
+      "disconnectScanner": "Deconnecter",
+      "scannerTestLabel": "Zone de test",
+      "scannerTestPlaceholder": "Scannez ou saisissez un code puis validez...",
+      "scannerTestHint": "Scannez un code-barres (materiel ou clavier) ou saisissez-en un et appuyez sur Entree pour verifier que la douchette est bien detectee.",
+      "scannerTestResult": "Dernier code detecte : {{code}} ({{time}})",
+      "notificationCardTitle": "Alertes systeme",
+      "pushPermissionLabel": "Autorisation du navigateur",
+      "pushPermission": {
+        "granted": "Accordee",
+        "denied": "Refusee",
+        "default": "Non demandee"
+      },
+      "pushExplanation": "Recevez une alerte push sur cet appareil en cas de stock faible ou de produit proche de la peremption.",
       "pushSection": "Alertes systeme",
       "pushEnabled": "Activees sur cet appareil",
       "pushDisabled": "Desactivees sur cet appareil",
@@ -250,7 +313,12 @@
       "disablePush": "Desactiver les alertes systeme",
       "pushUnsupported": "Les notifications ne sont pas prises en charge par ce navigateur.",
       "pushMisconfigured": "Les notifications ne sont pas configurees pour cet environnement.",
-      "pushError": "Impossible d'activer les alertes. Veuillez reessayer."
+      "pushError": "Impossible d'activer les alertes. Veuillez reessayer.",
+      "shopStatusCardTitle": "Statut de la boutique",
+      "shopOpenBig": "🟢 BOUTIQUE OUVERTE",
+      "shopCloseBig": "🔴 BOUTIQUE FERMEE",
+      "shopStatusUpdatedToast": "✓ Statut mis a jour et e-mails envoyes aux etudiants",
+      "shopStatusError": "✕ Impossible de mettre a jour le statut de la boutique"
     },
     "routeGuard": {
       "locked": "Cette section est verrouillee. Saisissez le code PIN administrateur pour continuer.",
@@ -274,12 +342,16 @@
   },
   "receiptPage": {
     "loading": "Chargement du recu...",
-    "notFound": "Recu introuvable.",
-    "share": "Partager le recu",
+    "notFoundTitle": "Recu introuvable",
+    "notFound": "Ce lien ne correspond a aucun recu connu.",
+    "share": "Partager",
+    "print": "Imprimer / PDF",
     "shareTitle": "Recu Cite Shop",
     "shareText": "Voici votre recu d'achat Cite Shop de {{amount}}",
     "linkCopiedToast": "✓ Lien du recu copie dans le presse-papier",
-    "shareError": "✕ Impossible de partager le recu"
+    "shareError": "✕ Impossible de partager le recu",
+    "studentLabel": "Client / Etudiant : {{name}}",
+    "timestampFormat": "{{date}} a {{time}}"
   },
   "receipt": {
     "shopName": "Cite Shop",

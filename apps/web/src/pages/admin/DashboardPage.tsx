@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { supabase } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/currency";
 import { useDashboardAnalytics } from "@/hooks/useDashboardAnalytics";
+import { useShopStatus } from "@/hooks/useShopStatus";
 import type { CustomRange, TimeRangeFilter } from "@/hooks/useDashboardAnalytics";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
@@ -35,7 +35,13 @@ export function DashboardPage() {
   const { t } = useTranslation();
   const [rangeFilter, setRangeFilter] = useState<TimeRangeFilter>("today");
   const [customRange, setCustomRange] = useState<CustomRange>({ start: "", end: "" });
-  const [shopOpen, setShopOpen] = useState<boolean | null>(null);
+  // Read-only display only here -- toggling shop status is SidebarNav's /
+  // ShopStatusCard's job. Shares the ShopStatusProvider context (mounted
+  // once in AppShell) rather than its own fetch, so this badge can't drift
+  // out of sync with a toggle made from either of those -- the exact bug
+  // this replaced (this page's own useState/useEffect kept showing the
+  // status as of its own mount, missing any later toggle from elsewhere).
+  const { shopOpen } = useShopStatus();
 
   const effectiveCustomRange = useMemo<CustomRange | undefined>(
     () => (rangeFilter === "custom" && customRange.start && customRange.end ? customRange : undefined),
@@ -43,16 +49,6 @@ export function DashboardPage() {
   );
 
   const analytics = useDashboardAnalytics(rangeFilter, effectiveCustomRange);
-
-  // Read-only display only -- toggling shop status is SidebarNav's job.
-  useEffect(() => {
-    void supabase
-      .from("shop_status")
-      .select("is_open")
-      .eq("id", 1)
-      .single()
-      .then(({ data }) => setShopOpen(data?.is_open ?? null));
-  }, []);
 
   const handleExportCsv = () => {
     const rangeLabel = t(`admin.dashboard.range.${rangeFilter}`);

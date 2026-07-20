@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { enqueueMutation } from "@/services/syncService";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
@@ -13,7 +14,7 @@ interface FormState {
   name: string;
   price: string;
   stock: string;
-  category: string;
+  category_id: string;
   barcode: string;
   emoji: string;
   image_url: string;
@@ -24,7 +25,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   price: "",
   stock: "",
-  category: "",
+  category_id: "",
   barcode: "",
   emoji: "",
   image_url: "",
@@ -36,7 +37,7 @@ function productToForm(product: Product): FormState {
     name: product.name,
     price: String(product.price),
     stock: String(product.stock),
-    category: product.category ?? "",
+    category_id: product.category_id ?? "",
     barcode: product.barcode ?? "",
     emoji: product.emoji ?? "",
     image_url: product.image_url ?? "",
@@ -66,6 +67,8 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
   // check before either had written anything, and the second write would
   // then flag the first's own just-created row as a "duplicate".
   const savingRef = useRef(false);
+
+  const categories = useLiveQuery(() => db.categories.orderBy("name").toArray(), []);
 
   // Safe to mount directly here (unlike StudentWalletRechargeCard's
   // window-event workaround from before routing existed): AppShell's routes
@@ -121,7 +124,7 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
         name,
         price,
         stock,
-        category: form.category.trim() || undefined,
+        category_id: form.category_id || undefined,
         barcode: barcode || undefined,
         emoji: form.emoji.trim() || undefined,
         image_url: form.image_url.trim() || undefined,
@@ -187,12 +190,18 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
 
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-muted">{t("admin.products.fieldCategory")}</span>
-            <input
-              type="text"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
+            <select
+              value={form.category_id}
+              onChange={(e) => setForm({ ...form, category_id: e.target.value })}
               className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
-            />
+            >
+              <option value="">{t("admin.products.categoryNone")}</option>
+              {(categories ?? []).map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="flex flex-col gap-1 text-sm">

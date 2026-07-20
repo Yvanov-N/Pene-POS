@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type {
+  Category,
   Product,
   CartItem,
   Sale,
@@ -11,6 +12,7 @@ import type {
 } from "@/types/db";
 
 export class PosDatabase extends Dexie {
+  categories!: Table<Category, string>;
   products!: Table<Product, string>;
   cart_items!: Table<CartItem, string>;
   sales!: Table<Sale, string>;
@@ -47,6 +49,27 @@ export class PosDatabase extends Dexie {
     // builds the new index over existing rows, no data migration needed.
     this.version(4).stores({
       sale_items: "id, sale_id, product_id",
+    });
+
+    // Product categories become a real entity (categories table) instead of
+    // a free-text string on Product -- products now index category_id
+    // instead of category. No async .upgrade() data migration: an existing
+    // local product simply falls back to "no category" until the next
+    // pullFromSupabase() restores it from the server's authoritative,
+    // migration-backfilled category_id. Generating a matching local
+    // category id independently here would never line up with the id the
+    // server's own backfill picks for the same name.
+    this.version(5).stores({
+      categories: "id, name",
+      products: "id, barcode, category_id, expiry_date, updated_at",
+    });
+
+    // Adds a student_id index to sales -- the student directory/profile
+    // drawer needs "every sale linked to this student" (lifetime spend,
+    // order count, purchase history) without a full table scan, the same
+    // reasoning as sale_items' product_id index in version 4.
+    this.version(6).stores({
+      sales: "id, status, created_at, student_id",
     });
   }
 }

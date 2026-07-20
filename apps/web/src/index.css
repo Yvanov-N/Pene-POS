@@ -370,3 +370,35 @@
     transform: translateX(8px);
   }
 }
+
+/* ReceiptPage's print/PDF-download action -- hides everything on the page
+   except the .receipt-card itself, and re-anchors it to the top of the
+   printed page. Forces a white/black paper look regardless of the on-screen
+   theme (a dark-mode receipt would otherwise waste ink and read poorly on
+   paper). .receipt-actions (the Share/Print buttons) never prints, since
+   they're only meaningful on screen. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .receipt-card,
+  .receipt-card * {
+    visibility: visible;
+  }
+
+  .receipt-card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white !important;
+    color: black !important;
+    box-shadow: none;
+    border: none;
+  }
+
+  .receipt-actions {
+    display: none !important;
+  }
+}

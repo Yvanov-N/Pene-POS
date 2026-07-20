@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.15.0",
+    "date": "2026-07-20",
+    "changes": [
+      "category management, student wallet checkout, receipt polish, and hardware settings page"
+    ]
+  },
+  {
     "version": "0.14.0",
     "date": "2026-07-18",
     "changes": [

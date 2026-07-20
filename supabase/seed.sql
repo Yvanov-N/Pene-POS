@@ -36,6 +36,22 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
+-- Demo product categories, matching the fixed ids in
+-- apps/web/src/lib/seedLocalCategories.ts (its own local-only Dexie seed).
+-- Must exist before the products insert below, which references these ids
+-- via category_id.
+-- ----------------------------------------------------------------------------
+insert into public.categories (id, name)
+values
+  ('00000000-0000-0000-0000-000000000201', 'Boissons'),
+  ('00000000-0000-0000-0000-000000000202', 'Snacks'),
+  ('00000000-0000-0000-0000-000000000203', 'Laiterie'),
+  ('00000000-0000-0000-0000-000000000204', 'Recharge'),
+  ('00000000-0000-0000-0000-000000000205', 'Epicerie'),
+  ('00000000-0000-0000-0000-000000000206', 'Hygiene')
+on conflict (id) do nothing;
+
+-- ----------------------------------------------------------------------------
 -- Demo product catalog, matching the fixed ids in
 -- apps/web/src/lib/seedLocalProducts.ts (its own local-only Dexie seed).
 -- These ids must stay aligned: the local seed is what a fresh POS actually
@@ -44,15 +60,15 @@ end $$;
 -- sale referencing it permanently fail to sync (23503, retried and then
 -- silently stuck at status "failed" -- the bug this seed block fixes).
 -- ----------------------------------------------------------------------------
-insert into public.products (id, name, price, stock, barcode, category, emoji, expiry_date)
+insert into public.products (id, name, price, stock, barcode, category_id, emoji, expiry_date)
 values
-  ('00000000-0000-0000-0000-000000000101', 'Coca-Cola 33cl', 500, 40, '6001234567890', 'Boissons', '🥤', null),
-  ('00000000-0000-0000-0000-000000000102', 'Eau minerale 50cl', 300, 60, '6001234567891', 'Boissons', '💧', null),
-  ('00000000-0000-0000-0000-000000000103', 'Chips Plantain', 400, 25, '6001234567892', 'Snacks', '🍟', null),
-  ('00000000-0000-0000-0000-000000000104', 'Biscuits Choco', 350, 2, '6001234567893', 'Snacks', '🍪', null),
-  ('00000000-0000-0000-0000-000000000105', 'Yaourt Nature', 450, 15, '6001234567894', 'Laiterie', '🥛', now() + interval '3 days'),
-  ('00000000-0000-0000-0000-000000000106', 'Fromage Fondu', 600, 10, '6001234567895', 'Laiterie', '🧀', null),
-  ('00000000-0000-0000-0000-000000000107', 'Recharge MoMo 1000F', 1000, 999, '6001234567896', 'Recharge', '💳', null),
-  ('00000000-0000-0000-0000-000000000108', 'Sardine Boite', 550, 12, '6001234567897', 'Epicerie', '🐟', null),
-  ('00000000-0000-0000-0000-000000000109', 'Savon', 250, 0, '6001234567898', 'Hygiene', '🧼', null)
+  ('00000000-0000-0000-0000-000000000101', 'Coca-Cola 33cl', 500, 40, '6001234567890', '00000000-0000-0000-0000-000000000201', '🥤', null),
+  ('00000000-0000-0000-0000-000000000102', 'Eau minerale 50cl', 300, 60, '6001234567891', '00000000-0000-0000-0000-000000000201', '💧', null),
+  ('00000000-0000-0000-0000-000000000103', 'Chips Plantain', 400, 25, '6001234567892', '00000000-0000-0000-0000-000000000202', '🍟', null),
+  ('00000000-0000-0000-0000-000000000104', 'Biscuits Choco', 350, 2, '6001234567893', '00000000-0000-0000-0000-000000000202', '🍪', null),
+  ('00000000-0000-0000-0000-000000000105', 'Yaourt Nature', 450, 15, '6001234567894', '00000000-0000-0000-0000-000000000203', '🥛', now() + interval '3 days'),
+  ('00000000-0000-0000-0000-000000000106', 'Fromage Fondu', 600, 10, '6001234567895', '00000000-0000-0000-0000-000000000203', '🧀', null),
+  ('00000000-0000-0000-0000-000000000107', 'Recharge MoMo 1000F', 1000, 999, '6001234567896', '00000000-0000-0000-0000-000000000204', '💳', null),
+  ('00000000-0000-0000-0000-000000000108', 'Sardine Boite', 550, 12, '6001234567897', '00000000-0000-0000-0000-000000000205', '🐟', null),
+  ('00000000-0000-0000-0000-000000000109', 'Savon', 250, 0, '6001234567898', '00000000-0000-0000-0000-000000000206', '🧼', null)
 on conflict (id) do nothing;

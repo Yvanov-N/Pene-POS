@@ -18,13 +18,8 @@ export function ProductFilters({
 }: ProductFiltersProps) {
   const { t } = useTranslation();
 
-  const categories = useLiveQuery(async () => {
-    const products = await db.products.toArray();
-    const unique = new Set(
-      products.map((product) => product.category).filter((category): category is string => Boolean(category)),
-    );
-    return [ALL_CATEGORIES_VALUE, ...Array.from(unique).sort()];
-  }, []);
+  const categories = useLiveQuery(() => db.categories.orderBy("name").toArray(), []);
+  const pillOptions = [{ id: ALL_CATEGORIES_VALUE, name: t("pos.filters.allCategory") }, ...(categories ?? [])];
 
   return (
     <div className="flex flex-col gap-2">
@@ -36,21 +31,20 @@ export function ProductFilters({
         className="w-full rounded-lg border border-border bg-surface2 px-4 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-accent"
       />
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {(categories ?? [ALL_CATEGORIES_VALUE]).map((category) => {
-          const isActive = category === activeCategory;
-          const label = category === ALL_CATEGORIES_VALUE ? t("pos.filters.allCategory") : category;
+        {pillOptions.map((option) => {
+          const isActive = option.id === activeCategory;
           return (
             <button
-              key={category}
+              key={option.id}
               type="button"
-              onClick={() => onCategoryChange(category)}
+              onClick={() => onCategoryChange(option.id)}
               className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
                 isActive
                   ? "border-accent bg-accent text-accent-foreground"
                   : "border-border bg-surface2 text-muted hover:text-foreground"
               }`}
             >
-              {label}
+              {option.name}
             </button>
           );
         })}
