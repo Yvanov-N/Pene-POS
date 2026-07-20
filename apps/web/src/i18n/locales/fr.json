@@ -43,10 +43,13 @@
       "studentNoResults": "Aucun etudiant correspondant.",
       "removeStudent": "Retirer",
       "walletBalance": "Solde : {{balance}}",
-      "walletInsufficient": "✕ Solde insuffisant pour ce portefeuille."
+      "walletInsufficient": "✕ Solde insuffisant pour ce portefeuille.",
+      "itemsBadge_one": "{{count}} article",
+      "itemsBadge_other": "{{count}} articles",
+      "viewCart": "Voir le panier",
+      "hideCart": "Masquer le panier"
     },
     "pin": {
-      "clearTitle": "Autorisation requise pour vider le panier",
       "checkoutTitle": "Identifiez-vous pour encaisser",
       "incorrect": "Code PIN incorrect",
       "close": "Fermer"
@@ -368,7 +371,9 @@
     "expiryLabel": "Date d'expiration du lot (optionnel)",
     "validate": "Valider le reapprovisionnement",
     "successToast": "✓ Stock mis a jour : {{name}} (+{{quantity}} unites)",
-    "productGoneError": "✕ Ce produit n'existe plus."
+    "productGoneError": "✕ Ce produit n'existe plus.",
+    "unknownBarcodeToast": "⚠️ Produit inconnu. Veuillez le creer dans le catalogue d'abord.",
+    "goToCatalog": "Aller au catalogue"
   },
   "auth": {
     "title": "Connexion",

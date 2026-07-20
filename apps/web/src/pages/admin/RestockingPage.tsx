@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import type { TFunction } from "i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
@@ -9,7 +10,7 @@ import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
-import { BarcodeInput } from "@/components/pos/BarcodeInput";
+import { BarcodeInput, type BarcodeInputHandle } from "@/components/pos/BarcodeInput";
 import type { Product } from "@/types/db";
 
 const QUICK_ADD_AMOUNTS = [10, 24, 50, 100] as const;
@@ -30,12 +31,23 @@ export function RestockingPage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { triggerManualSync } = useSyncEngine();
+  const navigate = useNavigate();
 
   const [selected, setSelected] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(0);
   const [expiryInput, setExpiryInput] = useState("");
   const [nameSearch, setNameSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const barcodeInputRef = useRef<BarcodeInputHandle>(null);
+
+  const handleUnknownBarcode = () => {
+    showToast(
+      "warning",
+      t("restocking.unknownBarcodeToast"),
+      6000,
+      { label: t("restocking.goToCatalog"), onClick: () => navigate("/admin/products") },
+    );
+  };
 
   const nameMatches = useLiveQuery(async () => {
     const term = nameSearch.trim().toLowerCase();
@@ -79,6 +91,13 @@ export function RestockingPage() {
       setSelected(null);
       setQuantity(0);
       setExpiryInput("");
+      // Ready for the next box immediately -- BarcodeInput itself only
+      // refocuses on its own scan events, not on this page's own submit
+      // action, so without this the manager would have to click back into
+      // the field before the next scan is picked up as text input focus
+      // (background keyboard-emulation detection still works either way,
+      // but hardware HID/serial + the visual caret shouldn't require it).
+      barcodeInputRef.current?.focus();
     } finally {
       setSubmitting(false);
     }
@@ -88,7 +107,7 @@ export function RestockingPage() {
     <div className="mx-auto max-w-2xl p-4">
       <CardCustom title={t("restocking.title")}>
         <div className="flex flex-col gap-4">
-          <BarcodeInput onProductSelect={selectProduct} />
+          <BarcodeInput ref={barcodeInputRef} onProductSelect={selectProduct} onNotFound={handleUnknownBarcode} />
 
           <div className="relative">
             <input

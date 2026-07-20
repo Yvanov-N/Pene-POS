@@ -43,10 +43,13 @@
       "studentNoResults": "No matching student.",
       "removeStudent": "Remove",
       "walletBalance": "Balance: {{balance}}",
-      "walletInsufficient": "✕ Insufficient balance on this wallet."
+      "walletInsufficient": "✕ Insufficient balance on this wallet.",
+      "itemsBadge_one": "{{count}} item",
+      "itemsBadge_other": "{{count}} items",
+      "viewCart": "View cart",
+      "hideCart": "Hide cart"
     },
     "pin": {
-      "clearTitle": "Authorization required to clear the cart",
       "checkoutTitle": "Identify yourself to check out",
       "incorrect": "Incorrect PIN",
       "close": "Close"
@@ -368,7 +371,9 @@
     "expiryLabel": "Batch expiry date (optional)",
     "validate": "Confirm restocking",
     "successToast": "✓ Stock updated: {{name}} (+{{quantity}} units)",
-    "productGoneError": "✕ This product no longer exists."
+    "productGoneError": "✕ This product no longer exists.",
+    "unknownBarcodeToast": "⚠️ Unknown product. Please create it in the catalog first.",
+    "goToCatalog": "Go to catalog"
   },
   "auth": {
     "title": "Sign in",

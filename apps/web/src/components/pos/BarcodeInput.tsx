@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { db } from "@/lib/db";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
@@ -8,17 +8,34 @@ import type { Product } from "@/types/db";
 
 interface BarcodeInputProps {
   onProductSelect: (product: Product) => void;
+  // RestockingPage wants a different not-found story (amber toast + a "go
+  // create it" CTA into the catalog) than POS checkout (a cashier can't act
+  // on that CTA mid-sale) -- when supplied, this replaces the default red
+  // "unknown barcode" toast entirely for this instance rather than firing
+  // both.
+  onNotFound?: (code: string) => void;
+}
+
+export interface BarcodeInputHandle {
+  focus: () => void;
 }
 
 const NOT_FOUND_MESSAGE_MS = 1500;
 
-export function BarcodeInput({ onProductSelect }: BarcodeInputProps) {
+export const BarcodeInput = forwardRef<BarcodeInputHandle, BarcodeInputProps>(function BarcodeInput(
+  { onProductSelect, onNotFound },
+  ref,
+) {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [value, setValue] = useState("");
   const [notFound, setNotFound] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const notFoundTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus(),
+  }));
 
   const lookupAndSelect = async (rawCode: string) => {
     const code = rawCode.trim();
@@ -32,7 +49,11 @@ export function BarcodeInput({ onProductSelect }: BarcodeInputProps) {
       onProductSelect(product);
     } else {
       setNotFound(true);
-      showToast("error", t("pos.barcode.notFoundToast"));
+      if (onNotFound) {
+        onNotFound(code);
+      } else {
+        showToast("error", t("pos.barcode.notFoundToast"));
+      }
       clearTimeout(notFoundTimeoutRef.current);
       notFoundTimeoutRef.current = setTimeout(() => setNotFound(false), NOT_FOUND_MESSAGE_MS);
     }
@@ -95,4 +116,4 @@ export function BarcodeInput({ onProductSelect }: BarcodeInputProps) {
       {notFound && <span className="text-sm text-destructive">{t("pos.barcode.notFound")}</span>}
     </div>
   );
-}
+});

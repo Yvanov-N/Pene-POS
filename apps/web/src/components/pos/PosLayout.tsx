@@ -3,8 +3,10 @@ import { BarcodeInput } from "./BarcodeInput";
 import { ProductFilters } from "./ProductFilters";
 import { ProductGrid } from "./ProductGrid";
 import { PosCart } from "./PosCart";
+import { MobileCartSheet } from "./MobileCartSheet";
 import { ReceiptPrintHost } from "./ReceiptPrintHost";
 import { useCart } from "@/hooks/useCart";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
 
 // Providers (AdminLockProvider/SyncProvider/CartProvider) and the local-seed
@@ -17,10 +19,18 @@ export function PosLayout() {
   const cart = useCart();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORIES_VALUE);
+  // Matches Tailwind's own `md` breakpoint (768px, unmodified in this repo's
+  // tailwind.config.ts) so the JS-mounted cart component and the CSS layout
+  // around it flip at the exact same width. Deciding via JS (not just CSS
+  // hidden/flex on both PosCart and MobileCartSheet) matters here: each owns
+  // its own usePosCheckout() instance, and two mounted at once would desync
+  // from each other the moment either one's payment method/student selection
+  // changed -- see usePosCheckout.ts.
+  const isDesktopCart = useMediaQuery("(min-width: 768px)");
 
   return (
     <div className="pos-layout flex h-full w-full bg-background text-foreground">
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto border-r border-border p-4">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 pb-44 md:border-r md:border-border md:pb-4">
         <BarcodeInput onProductSelect={cart.addItem} />
         <ProductFilters
           searchTerm={searchTerm}
@@ -31,7 +41,7 @@ export function PosLayout() {
         <ProductGrid searchTerm={searchTerm} category={activeCategory} onProductSelect={cart.addItem} />
       </div>
 
-      <PosCart />
+      {isDesktopCart ? <PosCart /> : <MobileCartSheet />}
 
       <ReceiptPrintHost />
     </div>

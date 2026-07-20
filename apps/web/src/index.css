@@ -145,6 +145,15 @@
     box-shadow: 0 4px 12px hsl(0 0% 0% / 0.15);
   }
 
+  .toast-warning {
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--amber) / 0.4);
+    background-color: hsl(var(--amber) / 0.08);
+    color: hsl(var(--amber));
+    padding: 0.75rem 1rem;
+    box-shadow: 0 4px 12px hsl(0 0% 0% / 0.15);
+  }
+
   /* Dedicated positioning for the Phase 6.2 toast engine -- deliberately
      separate from .toast-viewport (used only by the PWA update banner, at
      bottom:1rem/z-index:100) so the two float independently and neither

@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
 
-export type ToastVariant = "success" | "error";
+export type ToastVariant = "success" | "error" | "warning";
+
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 
 export interface ToastRecord {
   id: string;
   variant: ToastVariant;
   message: string;
   durationMs: number;
+  action?: ToastAction;
 }
 
 interface ToastContainerProps {
@@ -17,11 +23,13 @@ interface ToastContainerProps {
 const VARIANT_CLASSES: Record<ToastVariant, string> = {
   success: "toast-success",
   error: "toast-error",
+  warning: "toast-warning",
 };
 
 const VARIANT_ICON: Record<ToastVariant, string> = {
   success: "✓",
   error: "✕",
+  warning: "⚠️",
 };
 
 // Exit is animated in JS (not pure CSS) because unmounting removes the DOM
@@ -58,6 +66,18 @@ function ToastItem({ toast, onDismiss }: { toast: ToastRecord; onDismiss: (id: s
     >
       <span aria-hidden>{VARIANT_ICON[toast.variant]}</span>
       <span className="flex-1">{toast.message}</span>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action?.onClick();
+            setVisible(false);
+          }}
+          className="shrink-0 whitespace-nowrap rounded-md border border-current px-2 py-1 text-xs font-semibold text-current hover:bg-current/10"
+        >
+          {toast.action.label}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => setVisible(false)}

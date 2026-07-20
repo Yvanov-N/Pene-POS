@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.16.0",
+    "date": "2026-07-20",
+    "changes": [
+      "responsive mobile POS cart, frictionless checkout, and restocking unknown-barcode CTA"
+    ]
+  },
+  {
     "version": "0.15.0",
     "date": "2026-07-20",
     "changes": [
