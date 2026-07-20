@@ -3,6 +3,7 @@
 // trigger context as {type, table, schema, record, old_record}. This is a
 // real Supabase mechanism, not a custom payload shape this function invents.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { configureVapid, sendToSubscriptions } from "../_shared/webpush.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -50,14 +51,6 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: "method-not-allowed" }), { status: 405 });
   }
 
-  if (!RESEND_API_KEY) {
-    console.error("[notify-shop-status] RESEND_API_KEY is not configured");
-    return new Response(JSON.stringify({ error: "email-not-configured" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
   let payload: ShopStatusWebhookPayload;
   try {
     payload = await req.json();
@@ -71,6 +64,30 @@ Deno.serve(async (req: Request) => {
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  // Two independent broadcasts off the same event -- students get an email
+  // (they have no app installed to push to), staff get a push (an inbox
+  // they may not check between shifts isn't useful for "the shop just
+  // opened"). Neither's failure/misconfiguration should block the other.
+  const emailSent = await notifyStudentsByEmail(supabase, isOpen);
+  const { sent: pushSent, pruned: pushPruned } = await notifyStaffByPush(supabase, isOpen);
+
+  return new Response(JSON.stringify({ emailSent, pushSent, pushPruned }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+});
+
+async function notifyStudentsByEmail(
+  // deno-lint-ignore no-explicit-any
+  supabase: ReturnType<typeof createClient<any>>,
+  isOpen: boolean,
+): Promise<number> {
+  if (!RESEND_API_KEY) {
+    console.warn("[notify-shop-status] RESEND_API_KEY is not configured -- skipping student email");
+    return 0;
+  }
+
   const { data: wallets, error } = await supabase
     .from("student_wallets")
     .select("email")
@@ -79,19 +96,14 @@ Deno.serve(async (req: Request) => {
 
   if (error) {
     console.error("[notify-shop-status] failed to load student emails", error);
-    return new Response(JSON.stringify({ error: "query-failed" }), { status: 500 });
+    return 0;
   }
 
   const recipients = (wallets ?? [])
-    .map((row) => row.email)
-    .filter((email): email is string => Boolean(email));
+    .map((row: { email: string | null }) => row.email)
+    .filter((email: string | null): email is string => Boolean(email));
 
-  if (recipients.length === 0) {
-    return new Response(JSON.stringify({ sent: 0 }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  if (recipients.length === 0) return 0;
 
   const { subject, html } = buildEmail(isOpen);
 
@@ -115,11 +127,38 @@ Deno.serve(async (req: Request) => {
   if (!resendResponse.ok) {
     const detail = await resendResponse.text();
     console.error("[notify-shop-status] Resend request failed", resendResponse.status, detail);
-    return new Response(JSON.stringify({ error: "resend-failed" }), { status: 502 });
+    return 0;
   }
 
-  return new Response(JSON.stringify({ sent: recipients.length }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
+  return recipients.length;
+}
+
+async function notifyStaffByPush(
+  // deno-lint-ignore no-explicit-any
+  supabase: ReturnType<typeof createClient<any>>,
+  isOpen: boolean,
+): Promise<{ sent: number; pruned: number }> {
+  if (!configureVapid()) {
+    console.warn("[notify-shop-status] VAPID keys are not configured -- skipping staff push");
+    return { sent: 0, pruned: 0 };
+  }
+
+  // No role filter -- both admin and cashier act on shop open/close (a
+  // cashier clocking in needs to know just as much as an admin does), unlike
+  // inventory-alerts which is admin-only restocking/collections work.
+  const { data: subscriptions, error } = await supabase
+    .from("push_subscriptions")
+    .select("endpoint, p256dh, auth");
+
+  if (error) {
+    console.error("[notify-shop-status] failed to query staff subscriptions", error);
+    return { sent: 0, pruned: 0 };
+  }
+
+  return sendToSubscriptions(supabase, subscriptions ?? [], {
+    title: isOpen ? "Boutique ouverte" : "Boutique fermee",
+    body: isOpen ? "La boutique vient d'ouvrir." : "La boutique vient de fermer.",
+    url: "/",
+    tag: "shop-status",
   });
-});
+}

@@ -37,17 +37,29 @@ interface PushPayload {
   title: string;
   body: string;
   icon?: string;
+  badge?: string;
   url?: string;
+  tag?: string;
+  requireInteraction?: boolean;
 }
 
+// Shown verbatim if the push payload isn't valid JSON at all -- deliberately
+// NOT event.data.text(), which would surface whatever bytes actually failed
+// to parse (could be truncated, binary, or from a misbehaving sender) as if
+// it were a real message.
+const FALLBACK_PAYLOAD: PushPayload = {
+  title: "Cite Shop",
+  body: "Nouveau message operationnel Cite Shop",
+};
+
 self.addEventListener("push", (event: PushEvent) => {
-  let payload: PushPayload = { title: "Pene POS", body: "" };
+  let payload: PushPayload = FALLBACK_PAYLOAD;
 
   if (event.data) {
     try {
-      payload = { ...payload, ...event.data.json() };
+      payload = { ...FALLBACK_PAYLOAD, ...event.data.json() };
     } catch {
-      payload.body = event.data.text();
+      payload = FALLBACK_PAYLOAD;
     }
   }
 
@@ -55,6 +67,12 @@ self.addEventListener("push", (event: PushEvent) => {
     self.registration.showNotification(payload.title, {
       body: payload.body,
       icon: payload.icon ?? "/pwa-192x192.png",
+      badge: payload.badge ?? "/pwa-192x192.png",
+      // Sharing a tag collapses same-category alerts (e.g. every hourly
+      // low-stock check) into one notification instead of stacking a new
+      // one each time -- undefined is fine too (browser just never collapses).
+      tag: payload.tag,
+      requireInteraction: payload.requireInteraction ?? false,
       data: { url: payload.url ?? "/" },
     }),
   );

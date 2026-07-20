@@ -1,10 +1,5 @@
-// Hand-authored to mirror supabase/migrations/00001_initial_schema.sql,
-// 00002_relax_sync_rls.sql, 00003_push_subscriptions.sql,
-// 00004_momo_verification.sql, 00005_sale_refund_status.sql,
-// 00006_public_receipt_rpc.sql, 00007_product_categories.sql,
-// 00008_student_sale_attribution.sql, 00009_public_receipt_student_name.sql,
-// 00010_profile_identity_and_wallet_debt.sql, and
-// 00011_avatar_storage_and_account_email_sync.sql.
+// Hand-authored to mirror supabase/migrations/00001_initial_schema.sql through
+// 00013_push_subscription_metadata.sql.
 // Regenerate from the real database once it's stable:
 //   supabase gen types typescript --local > src/types/supabase.ts
 
@@ -177,7 +172,9 @@ export interface Database {
           endpoint: string;
           p256dh: string;
           auth: string;
+          device_label: string | null;
           created_at: string;
+          last_used_at: string;
         };
         Insert: {
           id?: string;
@@ -185,7 +182,9 @@ export interface Database {
           endpoint: string;
           p256dh: string;
           auth: string;
+          device_label?: string | null;
           created_at?: string;
+          last_used_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Insert"]>;
         Relationships: [];

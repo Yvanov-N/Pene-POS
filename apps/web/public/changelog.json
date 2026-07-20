@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.21.0",
+    "date": "2026-07-20",
+    "changes": [
+      "reliable Web Push delivery -- dead-endpoint pruning, generic dispatcher, and a diagnostic tester"
+    ]
+  },
+  {
     "version": "0.20.0",
     "date": "2026-07-20",
     "changes": [

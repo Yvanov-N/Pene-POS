@@ -21,6 +21,35 @@ export function isPushSupported(): boolean {
   );
 }
 
+function isIosDevice(): boolean {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+// iOS Safari only exposes the Push API at all once the site has been added
+// to the Home Screen (running in its own standalone window, not a browser
+// tab) -- `Notification`/`PushManager` are simply undefined otherwise, which
+// isPushSupported() alone can't distinguish from "this browser never
+// supports push" (desktop Firefox pre-2016, say). navigator.standalone is
+// iOS Safari's own (non-standard) property for this; display-mode is the
+// portable equivalent every other installed-PWA context sets.
+function isStandaloneDisplay(): boolean {
+  return (
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+export type PushPermissionStatus = NotificationPermission | "unsupported" | "ios-install-required";
+
+// The richer status NotificationSettingsCard actually needs to explain
+// *why* push isn't available -- "denied" and "you haven't installed this as
+// an app yet" call for two completely different instructions to the admin.
+export function checkPermission(): PushPermissionStatus {
+  if (isIosDevice() && !isStandaloneDisplay()) return "ios-install-required";
+  if (!isPushSupported()) return "unsupported";
+  return Notification.permission;
+}
+
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!isPushSupported()) return "denied";
   return Notification.requestPermission();
@@ -65,10 +94,26 @@ export async function subscribeToPush(vapidPublicKey: string): Promise<void> {
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
+      // Not identity, just a hint for a future "N devices linked" admin ever
+      // wants to tell apart -- re-subscribing on the same browser overwrites
+      // it with the same value anyway (onConflict: user_id,endpoint below).
+      device_label: navigator.userAgent,
+      last_used_at: new Date().toISOString(),
     },
     { onConflict: "user_id,endpoint" },
   );
   if (error) throw error;
+}
+
+// Powers NotificationSettingsCard's "N appareils lies" line -- distinct from
+// isPushSubscribed() above, which only ever answers for *this* browser.
+export async function getSubscriptionCount(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("push_subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if (error) throw error;
+  return count ?? 0;
 }
 
 export async function unsubscribeFromPush(): Promise<void> {
