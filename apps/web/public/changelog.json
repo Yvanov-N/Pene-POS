@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.19.0",
+    "date": "2026-07-20",
+    "changes": [
+      "interactive undo toast engine and app-wide Lucide iconography with a collapsible/mobile-aware sidebar"
+    ]
+  },
+  {
     "version": "0.18.0",
     "date": "2026-07-20",
     "changes": [

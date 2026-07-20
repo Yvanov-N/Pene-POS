@@ -1,15 +1,22 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslation } from "react-i18next";
+import { Wifi, WifiOff, AlertTriangle, type LucideIcon } from "lucide-react";
 import { db } from "@/lib/db";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { MAX_RETRIES } from "@/services/syncService";
 
 type Tone = "online" | "offline" | "error";
 
-const TONE_ICON: Record<Tone, string> = {
-  online: "🟢",
-  offline: "🟡",
-  error: "🔴",
+const TONE_ICON: Record<Tone, LucideIcon> = {
+  online: Wifi,
+  offline: WifiOff,
+  error: AlertTriangle,
+};
+
+const TONE_COLOR: Record<Tone, string> = {
+  online: "text-success",
+  offline: "text-warning",
+  error: "text-destructive",
 };
 
 interface SyncStatusIndicatorProps {
@@ -64,9 +71,10 @@ export function SyncStatusIndicator({ compact = false, onErrorClick }: SyncStatu
           : t("sync.badgeOffline")
         : t("sync.badgeOnline");
 
+  const ToneIcon = TONE_ICON[tone];
   const content = (
     <>
-      <span aria-hidden>{TONE_ICON[tone]}</span>
+      <ToneIcon className={`h-4 w-4 shrink-0 ${TONE_COLOR[tone]}`} aria-hidden />
       {!compact && <span className="truncate">{label}</span>}
     </>
   );

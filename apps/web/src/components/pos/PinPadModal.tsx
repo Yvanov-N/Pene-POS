@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
 import { db } from "@/lib/db";
 import { hashPin } from "@/lib/hashPin";
 import type { Profile } from "@/types/db";
@@ -73,7 +74,7 @@ export function PinPadModal({ title, onSuccess, onClose, requiredRole }: PinPadM
             className="text-muted hover:text-foreground"
             aria-label={t("pos.pin.close")}
           >
-            ✕
+            <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
 

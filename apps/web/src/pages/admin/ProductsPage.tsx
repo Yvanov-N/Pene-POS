@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { db } from "@/lib/db";
 import { enqueueMutation } from "@/services/syncService";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
@@ -83,7 +84,11 @@ export function ProductsPage() {
     }
   };
 
-  const sortIndicator = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
+  const sortIndicator = (key: SortKey) => {
+    if (sortKey !== key) return null;
+    const Icon = sortDir === "asc" ? ChevronUp : ChevronDown;
+    return <Icon className="ml-0.5 inline h-3 w-3" aria-hidden />;
+  };
 
   const openCreateDrawer = () => {
     setEditingProduct(null);

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
+import { X } from "lucide-react";
 import { db } from "@/lib/db";
 import { enqueueMutation } from "@/services/syncService";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
@@ -147,7 +148,7 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
             className="text-muted hover:text-foreground"
             aria-label={t("pos.pin.close")}
           >
-            ✕
+            <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
 

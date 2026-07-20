@@ -1,5 +1,6 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { CircleUserRound, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { enqueueMutation } from "@/services/syncService";
@@ -138,7 +139,7 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
             className="text-muted hover:text-foreground"
             aria-label={t("pos.pin.close")}
           >
-            ✕
+            <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
 
@@ -146,11 +147,8 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
           {previewUrl ? (
             <img src={previewUrl} alt="" className="h-20 w-20 rounded-full object-cover" />
           ) : (
-            <span
-              className="flex h-20 w-20 items-center justify-center rounded-full bg-surface2 text-3xl"
-              aria-hidden
-            >
-              👤
+            <span className="flex h-20 w-20 items-center justify-center rounded-full bg-surface2" aria-hidden>
+              <CircleUserRound className="h-10 w-10 text-muted" />
             </span>
           )}
         </div>

@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
@@ -257,7 +258,11 @@ export function SalesHistoryPage() {
                             aria-label={t("admin.salesHistory.itemsTitle")}
                             className="text-muted hover:text-foreground"
                           >
-                            {isExpanded ? "▾" : "▸"}
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4" aria-hidden />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" aria-hidden />
+                            )}
                           </button>
                         </td>
                         <td className="py-2 pr-3 text-muted">{new Date(sale.created_at).toLocaleString()}</td>

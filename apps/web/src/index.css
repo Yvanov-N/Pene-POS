@@ -127,43 +127,61 @@
     box-shadow: 0 4px 12px hsl(0 0% 0% / 0.15);
   }
 
+  /* Phase 13: solid, high-contrast toast cards -- no transparency, so text
+     stays readable stacked over a colorful product grid. Each variant is
+     the same solid --surface card, distinguished only by a thick left
+     accent border + icon color (never by a tinted background), which is
+     what makes them legible in both themes without per-variant dark-mode
+     overrides. */
+  .toast-error,
+  .toast-success,
+  .toast-warning,
+  .toast-info {
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--border));
+    border-left-width: 4px;
+    background-color: hsl(var(--surface));
+    color: hsl(var(--text));
+    padding: 0.75rem 1rem;
+    box-shadow:
+      0 10px 25px hsl(0 0% 0% / 0.2),
+      0 4px 10px hsl(0 0% 0% / 0.12);
+  }
+
+  /* --toast-accent drives both the icon and the progress bar, so each
+     variant only has to declare its color once. */
   .toast-error {
-    border-radius: var(--radius);
-    border: 1px solid hsl(var(--red) / 0.4);
-    background-color: hsl(var(--red) / 0.08);
-    color: hsl(var(--red));
-    padding: 0.75rem 1rem;
-    box-shadow: 0 4px 12px hsl(0 0% 0% / 0.15);
+    --toast-accent: hsl(var(--red));
+    border-left-color: var(--toast-accent);
   }
-
   .toast-success {
-    border-radius: var(--radius);
-    border: 1px solid hsl(var(--green) / 0.4);
-    background-color: hsl(var(--green) / 0.08);
-    color: hsl(var(--green));
-    padding: 0.75rem 1rem;
-    box-shadow: 0 4px 12px hsl(0 0% 0% / 0.15);
+    --toast-accent: hsl(var(--green));
+    border-left-color: var(--toast-accent);
   }
-
   .toast-warning {
-    border-radius: var(--radius);
-    border: 1px solid hsl(var(--amber) / 0.4);
-    background-color: hsl(var(--amber) / 0.08);
-    color: hsl(var(--amber));
-    padding: 0.75rem 1rem;
-    box-shadow: 0 4px 12px hsl(0 0% 0% / 0.15);
+    --toast-accent: hsl(var(--amber));
+    border-left-color: var(--toast-accent);
+  }
+  .toast-info {
+    --toast-accent: hsl(var(--blue));
+    border-left-color: var(--toast-accent);
+  }
+  .toast-icon {
+    color: var(--toast-accent);
   }
 
-  /* Dedicated positioning for the Phase 6.2 toast engine -- deliberately
-     separate from .toast-viewport (used only by the PWA update banner, at
-     bottom:1rem/z-index:100) so the two float independently and neither
-     phase's positioning drifts when the other changes. pointer-events is
-     none on the empty stack area so it never blocks clicks on the POS UI
-     underneath, but auto on each toast so its own close button still works. */
+  /* Dedicated positioning for the Phase 6.2 toast engine (moved bottom-left
+     in Phase 13 so it never overlaps the checkout drawer/cart on the right)
+     -- deliberately separate from .toast-viewport (used only by the PWA
+     update banner, at bottom:1rem/z-index:100) so the two float
+     independently and neither phase's positioning drifts when the other
+     changes. pointer-events is none on the empty stack area so it never
+     blocks clicks on the POS UI underneath, but auto on each toast so its
+     own buttons still work. */
   .toast-stack {
     position: fixed;
     bottom: 24px;
-    right: 24px;
+    left: 24px;
     z-index: 200;
     display: flex;
     width: 100%;
@@ -180,6 +198,34 @@
 
   .toast-stack > * {
     pointer-events: auto;
+  }
+
+  .toast-progress-track {
+    margin-top: 0.5rem;
+    height: 3px;
+    width: 100%;
+    border-radius: 999px;
+    background-color: hsl(var(--border));
+    overflow: hidden;
+  }
+
+  .toast-progress-bar {
+    height: 100%;
+    width: 100%;
+    background-color: var(--toast-accent, hsl(var(--muted)));
+    transform-origin: left;
+    animation-name: toast-progress-shrink;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+
+  @keyframes toast-progress-shrink {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
   }
 
   .admin-nav {

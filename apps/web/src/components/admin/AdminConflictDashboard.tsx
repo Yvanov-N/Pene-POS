@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
 import {
   listConflicts,
   listOtherStuckItems,
@@ -65,7 +66,7 @@ export function AdminConflictDashboard({ onClose }: AdminConflictDashboardProps)
             className="text-muted hover:text-foreground"
             aria-label={t("pos.pin.close")}
           >
-            ✕
+            <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
 

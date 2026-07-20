@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
+import { GraduationCap, Wallet, ShoppingCart, Receipt, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { enqueueMutation } from "@/services/syncService";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
@@ -196,8 +197,8 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
       <div className="relative flex h-full w-full max-w-2xl flex-col overflow-y-auto bg-surface p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface2 text-2xl" aria-hidden>
-              🎓
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface2" aria-hidden>
+              <GraduationCap className="h-6 w-6 text-muted" />
             </span>
             <div className="min-w-0">
               <h2 className="truncate text-lg font-semibold text-foreground">{wallet.student_name}</h2>
@@ -207,7 +208,7 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
             </div>
           </div>
           <button type="button" onClick={onClose} className="shrink-0 text-muted hover:text-foreground" aria-label={t("pos.pin.close")}>
-            ✕
+            <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
 
@@ -313,10 +314,10 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
         ) : tab === "analytics" ? (
           <div className="flex flex-col gap-4">
             <div className="stat-grid">
-              <StatCard icon="💰" label={t("admin.wallets.lifetimeValue")} value={profile.lifetimeValue} formatValue={formatCurrency} />
-              <StatCard icon="🛒" label={t("admin.wallets.averageBasket")} value={profile.averageBasket} formatValue={formatCurrency} />
-              <StatCard icon="🧾" label={t("admin.wallets.totalTransactions")} value={profile.totalTransactions} />
-              <StatCard icon="🎓" label={t("admin.wallets.walletUsage")} value={profile.walletUsagePct} formatValue={(v) => `${v}%`} />
+              <StatCard icon={<Wallet className="h-5 w-5" />} label={t("admin.wallets.lifetimeValue")} value={profile.lifetimeValue} formatValue={formatCurrency} />
+              <StatCard icon={<ShoppingCart className="h-5 w-5" />} label={t("admin.wallets.averageBasket")} value={profile.averageBasket} formatValue={formatCurrency} />
+              <StatCard icon={<Receipt className="h-5 w-5" />} label={t("admin.wallets.totalTransactions")} value={profile.totalTransactions} />
+              <StatCard icon={<GraduationCap className="h-5 w-5" />} label={t("admin.wallets.walletUsage")} value={profile.walletUsagePct} formatValue={(v) => `${v}%`} />
             </div>
 
             <div>

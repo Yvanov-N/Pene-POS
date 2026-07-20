@@ -29,7 +29,12 @@ export function AppShell() {
       <SyncProvider>
         <ShopStatusProvider>
           <CartProvider>
-            <div className="flex h-screen w-full bg-background text-foreground">
+            {/* flex-col on mobile: SidebarNav renders a slim in-flow top bar
+                there (not a fixed overlay), so it has to sit above <main> in
+                the stack rather than beside it -- flex-row (side-by-side
+                rail) only kicks in at md+, matching SidebarNav's own
+                isDesktop breakpoint exactly. */}
+            <div className="flex h-screen w-full flex-col bg-background text-foreground md:flex-row">
               <SidebarNav />
               <main className="min-w-0 flex-1 overflow-y-auto">
                 <Routes>

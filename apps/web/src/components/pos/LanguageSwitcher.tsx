@@ -7,7 +7,14 @@ import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import type { PreferredLanguage } from "@/types/db";
 
-export function LanguageSwitcher() {
+interface LanguageSwitcherProps {
+  // The collapsed sidebar rail forbids any side-by-side layout (see
+  // SidebarNav) -- FR/EN would otherwise sit in a row too wide for a 64px
+  // rail, so this stacks them instead of shrinking past legibility.
+  stacked?: boolean;
+}
+
+export function LanguageSwitcher({ stacked = false }: LanguageSwitcherProps) {
   const { t, i18n } = useTranslation();
   const { triggerManualSync } = useSyncEngine();
   const profile = useCurrentProfile();
@@ -38,7 +45,7 @@ export function LanguageSwitcher() {
   };
 
   return (
-    <div className="flex gap-1">
+    <div className={`flex gap-1 ${stacked ? "flex-col" : ""}`}>
       {SUPPORTED_LANGUAGES.map((lang) => {
         const isActive = i18n.resolvedLanguage === lang;
         return (

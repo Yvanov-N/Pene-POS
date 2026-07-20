@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { Lock } from "lucide-react";
 import { useAdminLock } from "@/hooks/useAdminLock";
 import { PinPadModal } from "@/components/pos/PinPadModal";
 import { ButtonCustom } from "@/components/ui/button-custom";
@@ -25,9 +26,7 @@ export function AdminRouteGuard({ children }: AdminRouteGuardProps) {
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-      <span className="text-4xl" aria-hidden>
-        🔒
-      </span>
+      <Lock className="h-10 w-10 text-muted" aria-hidden />
       <p className="text-sm text-muted">{t("admin.routeGuard.locked")}</p>
       <ButtonCustom variant="primary" onClick={() => setPinPending(true)}>
         {t("admin.routeGuard.unlock")}

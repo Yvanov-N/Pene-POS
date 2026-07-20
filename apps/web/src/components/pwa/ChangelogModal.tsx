@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
 import type { VersionInfo } from "@/types/version";
 
 interface ChangelogModalProps {
@@ -25,7 +26,7 @@ export function ChangelogModal({ info, onClose }: ChangelogModalProps) {
             className="text-muted hover:text-foreground"
             aria-label={t("update.changelog.close")}
           >
-            ✕
+            <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
         {formattedDate && <p className="mb-3 text-xs text-muted">{formattedDate}</p>}

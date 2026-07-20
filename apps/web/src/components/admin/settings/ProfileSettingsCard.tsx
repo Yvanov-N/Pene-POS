@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { UserIdentity } from "@supabase/supabase-js";
+import { CircleUserRound } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { enqueueMutation } from "@/services/syncService";
@@ -225,8 +226,8 @@ export function ProfileSettingsCard() {
           {profile.avatar_url ? (
             <img src={profile.avatar_url} alt="" className="h-14 w-14 rounded-full object-cover" />
           ) : (
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface2 text-2xl" aria-hidden>
-              👤
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface2" aria-hidden>
+              <CircleUserRound className="h-8 w-8 text-muted" />
             </span>
           )}
           <div className="min-w-0 flex-1">

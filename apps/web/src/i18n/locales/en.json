@@ -7,7 +7,7 @@
       "connectedSerial": "Connected via serial port",
       "keyboardMode": "Standard keyboard mode",
       "pairScanner": "Pair a scanner",
-      "notFoundToast": "✕ Barcode not found in the local database."
+      "notFoundToast": "Barcode not found in the local database."
     },
     "filters": {
       "searchPlaceholder": "Search a product or barcode...",
@@ -29,8 +29,12 @@
       "remove": "Remove",
       "clear": "Clear cart",
       "checkout": "Checkout",
-      "addedToast": "✓ {{name}} added to cart (x1)",
-      "outOfStockError": "✕ Error: Out of stock for {{name}}!",
+      "addedToast": "{{name}} added to cart (x1)",
+      "outOfStockError": "Error: Out of stock for {{name}}!",
+      "undo": "Undo",
+      "clearedToast_one": "Cart cleared — {{count}} item removed",
+      "clearedToast_other": "Cart cleared — {{count}} items removed",
+      "restoredToast": "Cart restored",
       "paymentMethod": {
         "cash": "Cash",
         "momo_mtn": "MTN MoMo",
@@ -43,7 +47,7 @@
       "studentNoResults": "No matching student.",
       "removeStudent": "Remove",
       "walletBalance": "Balance: {{balance}}",
-      "walletInsufficient": "✕ Insufficient balance on this wallet.",
+      "walletInsufficient": "Insufficient balance on this wallet.",
       "itemsBadge_one": "{{count}} item",
       "itemsBadge_other": "{{count}} items",
       "viewCart": "View cart",
@@ -67,7 +71,7 @@
       "lockNow": "Lock admin session"
     },
     "lock": {
-      "autoLockedToast": "🔒 Admin session locked due to inactivity"
+      "autoLockedToast": "Admin session locked due to inactivity"
     },
     "recharge": {
       "title": "Student wallet recharge",
@@ -78,7 +82,7 @@
       "amountLabel": "Amount to recharge (FCFA)",
       "confirm": "Confirm recharge",
       "errorAmountInvalid": "Amount must be a positive number.",
-      "toastSuccess": "✓ Recharge of {{amount}} completed for {{name}}"
+      "toastSuccess": "Recharge of {{amount}} completed for {{name}}"
     },
     "withdrawal": {
       "title": "Cash withdrawal",
@@ -86,8 +90,8 @@
       "confirm": "Withdraw cash",
       "pinTitle": "Admin authorization required for this withdrawal",
       "errorAmountInvalid": "Amount must be a positive number.",
-      "errorInsufficientBalance": "✕ Amount exceeds the available balance.",
-      "toastSuccess": "✓ Withdrawal confirmed: -{{amount}} handed to {{name}}"
+      "errorInsufficientBalance": "Amount exceeds the available balance.",
+      "toastSuccess": "Withdrawal confirmed: -{{amount}} handed to {{name}}"
     },
     "momo": {
       "title": "Mobile Money verification",
@@ -95,8 +99,8 @@
       "empty": "No pending Mobile Money transactions.",
       "confirm": "Confirm SMS",
       "reject": "Reject",
-      "confirmedToast": "✓ MoMo transaction confirmed ({{amount}})",
-      "rejectedToast": "✕ MoMo transaction rejected, stock restored"
+      "confirmedToast": "MoMo transaction confirmed ({{amount}})",
+      "rejectedToast": "MoMo transaction rejected, stock restored"
     },
     "wallets": {
       "searchPlaceholder": "Search for a student (name, badge, email)...",
@@ -104,9 +108,10 @@
       "columnEmailOptIn": "Shop emails",
       "columnTotalSpend": "Total spend",
       "columnOrders": "Orders",
-      "emailOptToggleToast": "✓ Email preference updated for {{name}}",
-      "createSuccessToast": "✓ Student created: {{name}}",
-      "updateSuccessToast": "✓ Student updated: {{name}}",
+      "emailOptToggleToast": "Email preference updated for {{name}}",
+      "undo": "Undo",
+      "createSuccessToast": "Student created: {{name}}",
+      "updateSuccessToast": "Student updated: {{name}}",
       "currentBalance": "Current balance",
       "tabAnalytics": "Analytics",
       "tabHistory": "Purchase history",
@@ -181,20 +186,20 @@
       "itemsTitle": "Items",
       "unknownProduct": "Deleted product",
       "reprint": "Reprint",
-      "reprintToast": "✓ Receipt printing started",
-      "reprintError": "✕ Printing failed",
+      "reprintToast": "Receipt printing started",
+      "reprintError": "Printing failed",
       "share": "🔗 Share",
       "shareTitle": "Cite Shop receipt",
       "shareText": "Purchase receipt #{{id}} - {{amount}}",
-      "shareLinkCopiedToast": "✓ Receipt link copied for WhatsApp/Telegram",
-      "shareError": "✕ Couldn't share the receipt",
+      "shareLinkCopiedToast": "Receipt link copied for WhatsApp/Telegram",
+      "shareError": "Couldn't share the receipt",
       "void": "Void / Refund",
       "voidPinTitle": "Admin authorization required to void this sale",
-      "voidSuccessToast": "✓ Sale voided — stock and wallet restored",
-      "voidErrorNotAuthorized": "✕ Not authorized",
-      "voidErrorNotFound": "✕ Sale not found",
-      "voidErrorAlreadyRefunded": "✕ This sale was already voided",
-      "voidErrorGeneric": "✕ Void failed",
+      "voidSuccessToast": "Sale voided — stock and wallet restored",
+      "voidErrorNotAuthorized": "Not authorized",
+      "voidErrorNotFound": "Sale not found",
+      "voidErrorAlreadyRefunded": "This sale was already voided",
+      "voidErrorGeneric": "Void failed",
       "columnDate": "Date",
       "columnSaleId": "Sale #",
       "columnCashier": "Cashier",
@@ -233,10 +238,10 @@
       "errorStockInvalid": "Stock must be a positive whole number.",
       "errorBarcodeDuplicate": "This barcode is already used by another product.",
       "deletePinTitle": "Admin authorization required to delete this product",
-      "savedToast": "✓ Product saved to the catalog",
+      "savedToast": "Product saved to the catalog",
       "deleteSuccessToast": "🗑️ Product deleted from the catalog",
-      "deleteBlockedInCart": "✕ Can't delete: this product is in the active cart.",
-      "deleteBlockedHasSales": "✕ Can't delete: this product has already been sold.",
+      "deleteBlockedInCart": "Can't delete: this product is in the active cart.",
+      "deleteBlockedHasSales": "Can't delete: this product has already been sold.",
       "scanBarcode": "Scan with scanner",
       "categoryNone": "Uncategorized"
     },
@@ -245,11 +250,11 @@
       "manageButton": "Manage categories",
       "addPlaceholder": "New category...",
       "add": "Add",
-      "addSuccessToast": "✓ Category created: {{name}}",
+      "addSuccessToast": "Category created: {{name}}",
       "edit": "Edit",
       "save": "Save",
       "cancel": "Cancel",
-      "renameSuccessToast": "✓ Category renamed: {{name}}",
+      "renameSuccessToast": "Category renamed: {{name}}",
       "delete": "Delete",
       "deletePinTitle": "Admin authorization required to delete this category",
       "deleteSuccessToast": "🗑️ Category deleted",
@@ -314,29 +319,29 @@
       "avatarUploadedPriorityHint": "An imported photo is already set and takes priority. Remove it first to use this URL instead.",
       "avatarDelete": "Delete photo",
       "avatarSave": "Save",
-      "avatarSaveSuccessToast": "✓ Profile photo updated",
+      "avatarSaveSuccessToast": "Profile photo updated",
       "avatarDeleteSuccessToast": "🗑️ Profile photo removed",
-      "avatarTypeError": "✕ Please choose an image file.",
-      "avatarSizeError": "✕ Image must be under 2 MB.",
-      "avatarUploadError": "✕ Couldn't upload the photo. Please try again.",
+      "avatarTypeError": "Please choose an image file.",
+      "avatarSizeError": "Image must be under 2 MB.",
+      "avatarUploadError": "Couldn't upload the photo. Please try again.",
       "errorFirstNameRequired": "First name is required.",
       "errorEmailRequired": "Email is required.",
       "save": "Save",
-      "saveSuccessToast": "✓ Profile updated",
+      "saveSuccessToast": "Profile updated",
       "accountSection": "Account & security",
       "accountPinTitle": "Admin authorization required",
       "fieldAccountEmail": "Login email address",
       "updateEmail": "Update email",
-      "emailUpdatePendingToast": "✓ Confirmation email sent",
+      "emailUpdatePendingToast": "Confirmation email sent",
       "emailUpdatePendingNote": "A confirmation email was sent to {{email}}. The change takes effect once confirmed.",
-      "emailUpdateError": "✕ Couldn't update the email. Please try again.",
+      "emailUpdateError": "Couldn't update the email. Please try again.",
       "fieldNewPassword": "New password",
       "fieldConfirmPassword": "Confirm password",
       "updatePassword": "Update password",
       "passwordTooShort": "Password must be at least {{count}} characters.",
       "passwordMismatch": "Passwords don't match.",
-      "passwordUpdateError": "✕ Couldn't update the password. Please try again.",
-      "passwordUpdateSuccessToast": "✓ Password updated",
+      "passwordUpdateError": "Couldn't update the password. Please try again.",
+      "passwordUpdateSuccessToast": "Password updated",
       "oauthSection": "Linked accounts",
       "oauth": {
         "google": "Google",
@@ -347,7 +352,7 @@
         "apple": "Link my Apple account"
       },
       "oauthLinked": "Linked",
-      "oauthError": "✕ Couldn't link this account. Check that this provider is configured."
+      "oauthError": "Couldn't link this account. Check that this provider is configured."
     },
     "settings": {
       "title": "Settings",
@@ -391,8 +396,8 @@
       "shopStatusCardTitle": "Shop status",
       "shopOpenBig": "🟢 SHOP OPEN",
       "shopCloseBig": "🔴 SHOP CLOSED",
-      "shopStatusUpdatedToast": "✓ Status updated and emails sent to students",
-      "shopStatusError": "✕ Couldn't update shop status"
+      "shopStatusUpdatedToast": "Status updated and emails sent to students",
+      "shopStatusError": "Couldn't update shop status"
     },
     "routeGuard": {
       "locked": "This section is locked. Enter the admin PIN to continue.",
@@ -410,9 +415,9 @@
     "shopOpen": "Shop open",
     "shopClosed": "Shop closed",
     "shopTogglePinTitle": "Authorization required to change shop status",
-    "shopOpenedToast": "✓ Shop marked as open",
-    "shopClosedToast": "✓ Shop marked as closed",
-    "shopToggleError": "✕ Couldn't update shop status",
+    "shopOpenedToast": "Shop marked as open",
+    "shopClosedToast": "Shop marked as closed",
+    "shopToggleError": "Couldn't update shop status",
     "identityLoading": "Loading...",
     "signOut": "Sign out",
     "roleBadge": {
@@ -420,7 +425,9 @@
       "cashier": "Cashier"
     },
     "collapse": "Collapse menu",
-    "expand": "Expand menu"
+    "expand": "Expand menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "receiptPage": {
     "loading": "Loading receipt...",
@@ -430,8 +437,8 @@
     "print": "Print / PDF",
     "shareTitle": "Cite Shop receipt",
     "shareText": "Here's your Cite Shop purchase receipt for {{amount}}",
-    "linkCopiedToast": "✓ Receipt link copied to clipboard",
-    "shareError": "✕ Couldn't share the receipt",
+    "linkCopiedToast": "Receipt link copied to clipboard",
+    "shareError": "Couldn't share the receipt",
     "studentLabel": "Customer / Student: {{name}}",
     "timestampFormat": "{{date}} at {{time}}"
   },
@@ -449,9 +456,9 @@
     "quantityLabel": "Delivered quantity",
     "expiryLabel": "Batch expiry date (optional)",
     "validate": "Confirm restocking",
-    "successToast": "✓ Stock updated: {{name}} (+{{quantity}} units)",
-    "productGoneError": "✕ This product no longer exists.",
-    "unknownBarcodeToast": "⚠️ Unknown product. Please create it in the catalog first.",
+    "successToast": "Stock updated: {{name}} (+{{quantity}} units)",
+    "productGoneError": "This product no longer exists.",
+    "unknownBarcodeToast": "Unknown product. Please create it in the catalog first.",
     "goToCatalog": "Go to catalog"
   },
   "auth": {
@@ -488,9 +495,9 @@
     "badgeOfflinePending_other": "{{count}} pending",
     "badgeError": "Error / Conflict",
     "badgeErrorHint": "Click to see details",
-    "toastSuccess_one": "✓ Cloud sync successful ({{count}} sale saved)",
-    "toastSuccess_other": "✓ Cloud sync successful ({{count}} sales saved)",
-    "toastConflict": "⚠️ Stock conflict detected during synchronization!"
+    "toastSuccess_one": "Cloud sync successful ({{count}} sale saved)",
+    "toastSuccess_other": "Cloud sync successful ({{count}} sales saved)",
+    "toastConflict": "Stock conflict detected during synchronization!"
   },
   "update": {
     "toast": {

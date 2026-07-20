@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
+import { X } from "lucide-react";
 import { db } from "@/lib/db";
 import { enqueueMutation } from "@/services/syncService";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
@@ -110,12 +111,20 @@ export function StudentWalletsPage() {
     setFormOpen(true);
   };
 
-  const handleToggleEmailOptIn = async (wallet: StudentWallet) => {
-    const nextValue = !wallet.email_opt_in;
-    await db.student_wallets.update(wallet.id, { email_opt_in: nextValue });
-    await enqueueMutation("UPDATE", "student_wallets", { id: wallet.id, email_opt_in: nextValue });
+  const setEmailOptIn = async (walletId: string, value: boolean) => {
+    await db.student_wallets.update(walletId, { email_opt_in: value });
+    await enqueueMutation("UPDATE", "student_wallets", { id: walletId, email_opt_in: value });
     void triggerManualSync();
-    showToast("success", t("admin.wallets.emailOptToggleToast", { name: wallet.student_name }));
+  };
+
+  const handleToggleEmailOptIn = async (wallet: StudentWallet) => {
+    const previousValue = wallet.email_opt_in;
+    const nextValue = !previousValue;
+    await setEmailOptIn(wallet.id, nextValue);
+    showToast("success", t("admin.wallets.emailOptToggleToast", { name: wallet.student_name }), undefined, {
+      label: t("admin.wallets.undo"),
+      onClick: () => void setEmailOptIn(wallet.id, previousValue),
+    });
   };
 
   const openEditForm = (wallet: StudentWallet) => {
@@ -280,7 +289,7 @@ export function StudentWalletsPage() {
                 {editingId ? t("admin.students.editTitle") : t("admin.students.addTitle")}
               </h2>
               <button type="button" onClick={() => setFormOpen(false)} className="text-muted hover:text-foreground" aria-label={t("pos.pin.close")}>
-                ✕
+                <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
 

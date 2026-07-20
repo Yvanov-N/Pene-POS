@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Banknote, Smartphone, GraduationCap, X, Trash2, ChevronUp, ChevronDown, type LucideIcon } from "lucide-react";
 import { usePosCheckout, PAYMENT_METHODS } from "@/hooks/usePosCheckout";
 import { formatCurrency } from "@/lib/currency";
 import { PinPadModal } from "./PinPadModal";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import type { PaymentMethod } from "@/types/db";
 
-const PAYMENT_ICON: Record<PaymentMethod, string> = {
-  cash: "💵",
-  momo_mtn: "📱",
-  momo_orange: "🟠",
-  student_wallet: "🎓",
+const PAYMENT_ICON: Record<PaymentMethod, LucideIcon> = {
+  cash: Banknote,
+  momo_mtn: Smartphone,
+  momo_orange: Smartphone,
+  student_wallet: GraduationCap,
 };
 
 function CartLineVisual({ image_url, emoji }: { image_url?: string; emoji?: string }) {
@@ -99,9 +100,9 @@ export function MobileCartSheet() {
                     type="button"
                     onClick={() => cart.removeItem(item.product_id)}
                     aria-label={t("pos.cart.remove")}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive text-sm text-destructive-foreground hover:opacity-90"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive text-destructive-foreground hover:opacity-90"
                   >
-                    ✕
+                    <X className="h-4 w-4" aria-hidden />
                   </button>
                 </li>
               ))}
@@ -183,30 +184,33 @@ export function MobileCartSheet() {
           <span className="flex items-center gap-2 text-xs font-medium text-foreground">
             <span className="badge-blue">{t("pos.cart.itemsBadge", { count: cart.totalItems })}</span>
             <span className="font-semibold">{formatCurrency(cart.totalAmount)}</span>
-            <span className="text-muted" aria-hidden>
-              {expanded ? "▾" : "▴"}
-            </span>
+            {expanded ? (
+              <ChevronDown className="h-3.5 w-3.5 text-muted" aria-hidden />
+            ) : (
+              <ChevronUp className="h-3.5 w-3.5 text-muted" aria-hidden />
+            )}
           </span>
         </button>
 
         <div className="mb-2 grid grid-cols-4 gap-1.5">
-          {PAYMENT_METHODS.map((method) => (
-            <button
-              key={method}
-              type="button"
-              onClick={() => setPaymentMethod(method)}
-              className={`flex min-w-0 flex-col items-center gap-0.5 rounded-lg border px-1 py-1.5 text-[10px] font-medium leading-tight transition-colors ${
-                paymentMethod === method
-                  ? "border-accent bg-accent text-accent-foreground"
-                  : "border-border bg-surface2 text-muted hover:text-foreground"
-              }`}
-            >
-              <span aria-hidden className="text-base leading-none">
-                {PAYMENT_ICON[method]}
-              </span>
-              <span className="w-full truncate text-center">{t(`pos.cart.paymentMethod.${method}`)}</span>
-            </button>
-          ))}
+          {PAYMENT_METHODS.map((method) => {
+            const Icon = PAYMENT_ICON[method];
+            return (
+              <button
+                key={method}
+                type="button"
+                onClick={() => setPaymentMethod(method)}
+                className={`flex min-w-0 flex-col items-center gap-0.5 rounded-lg border px-1 py-1.5 text-[10px] font-medium leading-tight transition-colors ${
+                  paymentMethod === method
+                    ? "border-accent bg-accent text-accent-foreground"
+                    : "border-border bg-surface2 text-muted hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4" aria-hidden />
+                <span className="w-full truncate text-center">{t(`pos.cart.paymentMethod.${method}`)}</span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex items-center gap-2 pb-1">
@@ -216,9 +220,9 @@ export function MobileCartSheet() {
             onClick={() => cart.clearCart()}
             disabled={isEmpty}
             aria-label={t("pos.cart.clear")}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface2 text-lg text-destructive disabled:opacity-40"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface2 text-destructive disabled:opacity-40"
           >
-            🗑️
+            <Trash2 className="h-5 w-5" aria-hidden />
           </button>
           <ButtonCustom
             variant="success"

@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
+import { Wallet, Receipt, ShoppingCart, GraduationCap, AlertTriangle } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { useDashboardAnalytics } from "@/hooks/useDashboardAnalytics";
@@ -162,34 +163,34 @@ export function DashboardPage() {
         ) : (
           <>
             <StatCard
-              icon="💰"
+              icon={<Wallet className="h-6 w-6" />}
               label={t("admin.dashboard.revenueLabel")}
               value={analytics.grossRevenue}
               formatValue={formatCurrency}
               sub={revenueChangeNode}
             />
             <StatCard
-              icon="🧾"
+              icon={<Receipt className="h-6 w-6" />}
               label={t("admin.dashboard.transactionsLabel")}
               value={analytics.totalTransactions}
               sub={t("admin.dashboard.transactionsSubRange")}
             />
             <StatCard
-              icon="🛒"
+              icon={<ShoppingCart className="h-6 w-6" />}
               label={t("admin.dashboard.averageCartLabel")}
               value={analytics.averageCart}
               formatValue={formatCurrency}
               sub={t("admin.dashboard.averageCartSub")}
             />
             <StatCard
-              icon="🎓"
+              icon={<GraduationCap className="h-6 w-6" />}
               label={t("admin.dashboard.walletRechargesLabel")}
               value={analytics.totalWalletRecharges}
               formatValue={formatCurrency}
               sub={t("admin.dashboard.walletRechargesSub")}
             />
             <StatCard
-              icon="⚠️"
+              icon={<AlertTriangle className="h-6 w-6" />}
               label={t("admin.dashboard.studentDebtLabel")}
               value={totalStudentDebt ?? 0}
               formatValue={formatCurrency}

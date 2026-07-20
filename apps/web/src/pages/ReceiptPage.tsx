@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
+import { Receipt as ReceiptIcon, Share2, Printer } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/useToast";
@@ -206,9 +207,7 @@ export function ReceiptPage() {
             <ReceiptSkeleton />
           ) : notFound ? (
             <div className="py-6 text-center">
-              <span className="text-4xl" aria-hidden>
-                🧾
-              </span>
+              <ReceiptIcon className="mx-auto h-10 w-10 text-muted" aria-hidden />
               <p className="mt-3 text-sm font-semibold text-foreground">{t("receiptPage.notFoundTitle")}</p>
               <p className="mt-1 text-xs text-muted">{t("receiptPage.notFound")}</p>
             </div>
@@ -262,9 +261,11 @@ export function ReceiptPage() {
 
                 <div className="receipt-actions mt-4 flex gap-2">
                   <ButtonCustom variant="primary" className="flex-1" onClick={() => void handleShare()}>
+                    <Share2 className="h-4 w-4" aria-hidden />
                     {t("receiptPage.share")}
                   </ButtonCustom>
                   <ButtonCustom variant="primary" className="flex-1" onClick={() => window.print()}>
+                    <Printer className="h-4 w-4" aria-hidden />
                     {t("receiptPage.print")}
                   </ButtonCustom>
                 </div>

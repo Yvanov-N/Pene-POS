@@ -1,6 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { AlertTriangle } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
@@ -38,7 +39,15 @@ export function CriticalDebtWidget() {
   if (debtors !== undefined && debtors.length === 0) return null;
 
   return (
-    <CardCustom title={`⚠️ ${t("admin.dashboard.criticalDebtTitle")}`} className="border-destructive">
+    <CardCustom
+      title={
+        <span className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden />
+          {t("admin.dashboard.criticalDebtTitle")}
+        </span>
+      }
+      className="border-destructive"
+    >
       <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
         {debtors === undefined ? (
           <p className="text-sm text-muted">{t("admin.dashboard.loading")}</p>
@@ -50,9 +59,7 @@ export function CriticalDebtWidget() {
             >
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5 truncate font-medium text-foreground">
-                  <span className="animate-pulse" aria-hidden>
-                    🔴
-                  </span>
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-destructive animate-pulse" aria-hidden />
                   {wallet.student_name}
                 </p>
                 <p className="text-xs text-muted">{wallet.badge_code}</p>

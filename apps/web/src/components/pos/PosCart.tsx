@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
 import { usePosCheckout, PAYMENT_METHODS } from "@/hooks/usePosCheckout";
 import { formatCurrency } from "@/lib/currency";
 import { PinPadModal } from "./PinPadModal";
@@ -81,9 +82,9 @@ export function PosCart() {
                   type="button"
                   onClick={() => cart.removeItem(item.product_id)}
                   aria-label={t("pos.cart.remove")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-destructive text-sm text-destructive-foreground hover:opacity-90"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-destructive text-destructive-foreground hover:opacity-90"
                 >
-                  ✕
+                  <X className="h-4 w-4" aria-hidden />
                 </button>
               </li>
             ))}

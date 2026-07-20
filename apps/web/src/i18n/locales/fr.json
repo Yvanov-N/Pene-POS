@@ -7,7 +7,7 @@
       "connectedSerial": "Connecte via port serie",
       "keyboardMode": "Mode clavier standard",
       "pairScanner": "Associer une douchette",
-      "notFoundToast": "✕ Code-barres inconnu dans la base locale."
+      "notFoundToast": "Code-barres inconnu dans la base locale."
     },
     "filters": {
       "searchPlaceholder": "Rechercher un produit ou un code-barres...",
@@ -29,8 +29,12 @@
       "remove": "Retirer",
       "clear": "Vider le panier",
       "checkout": "Encaisser",
-      "addedToast": "✓ {{name}} ajoute au panier (x1)",
-      "outOfStockError": "✕ Erreur : Stock epuise pour {{name}} !",
+      "addedToast": "{{name}} ajoute au panier (x1)",
+      "outOfStockError": "Erreur : Stock epuise pour {{name}} !",
+      "undo": "Annuler",
+      "clearedToast_one": "Panier vide — {{count}} article retire",
+      "clearedToast_other": "Panier vide — {{count}} articles retires",
+      "restoredToast": "Panier restaure",
       "paymentMethod": {
         "cash": "Especes",
         "momo_mtn": "MTN MoMo",
@@ -43,7 +47,7 @@
       "studentNoResults": "Aucun etudiant correspondant.",
       "removeStudent": "Retirer",
       "walletBalance": "Solde : {{balance}}",
-      "walletInsufficient": "✕ Solde insuffisant pour ce portefeuille.",
+      "walletInsufficient": "Solde insuffisant pour ce portefeuille.",
       "itemsBadge_one": "{{count}} article",
       "itemsBadge_other": "{{count}} articles",
       "viewCart": "Voir le panier",
@@ -67,7 +71,7 @@
       "lockNow": "Verrouiller la session admin"
     },
     "lock": {
-      "autoLockedToast": "🔒 Session Admin verrouillee par inactivite"
+      "autoLockedToast": "Session Admin verrouillee par inactivite"
     },
     "recharge": {
       "title": "Recharge portefeuille etudiant",
@@ -78,7 +82,7 @@
       "amountLabel": "Montant a recharger (FCFA)",
       "confirm": "Valider la recharge",
       "errorAmountInvalid": "Le montant doit etre un nombre positif.",
-      "toastSuccess": "✓ Recharge de {{amount}} effectuee pour {{name}}"
+      "toastSuccess": "Recharge de {{amount}} effectuee pour {{name}}"
     },
     "withdrawal": {
       "title": "Retrait d'especes",
@@ -86,8 +90,8 @@
       "confirm": "Retirer de l'argent",
       "pinTitle": "Autorisation Admin requise pour ce retrait",
       "errorAmountInvalid": "Le montant doit etre un nombre positif.",
-      "errorInsufficientBalance": "✕ Le montant depasse le solde disponible.",
-      "toastSuccess": "✓ Retrait valide : -{{amount}} remis a {{name}}"
+      "errorInsufficientBalance": "Le montant depasse le solde disponible.",
+      "toastSuccess": "Retrait valide : -{{amount}} remis a {{name}}"
     },
     "momo": {
       "title": "Verification Mobile Money",
@@ -95,8 +99,8 @@
       "empty": "Aucune transaction Mobile Money en attente.",
       "confirm": "Confirmer SMS",
       "reject": "Rejeter",
-      "confirmedToast": "✓ Transaction MoMo confirmee ({{amount}})",
-      "rejectedToast": "✕ Transaction MoMo rejetee, stock restaure"
+      "confirmedToast": "Transaction MoMo confirmee ({{amount}})",
+      "rejectedToast": "Transaction MoMo rejetee, stock restaure"
     },
     "wallets": {
       "searchPlaceholder": "Rechercher un etudiant (nom, badge, e-mail)...",
@@ -104,9 +108,10 @@
       "columnEmailOptIn": "E-mails Boutique",
       "columnTotalSpend": "Depense totale",
       "columnOrders": "Commandes",
-      "emailOptToggleToast": "✓ Preference e-mail mise a jour pour {{name}}",
-      "createSuccessToast": "✓ Etudiant cree : {{name}}",
-      "updateSuccessToast": "✓ Etudiant mis a jour : {{name}}",
+      "emailOptToggleToast": "Preference e-mail mise a jour pour {{name}}",
+      "undo": "Annuler",
+      "createSuccessToast": "Etudiant cree : {{name}}",
+      "updateSuccessToast": "Etudiant mis a jour : {{name}}",
       "currentBalance": "Solde actuel",
       "tabAnalytics": "Analyses",
       "tabHistory": "Historique d'achats",
@@ -181,20 +186,20 @@
       "itemsTitle": "Articles",
       "unknownProduct": "Produit supprime",
       "reprint": "Reimprimer",
-      "reprintToast": "✓ Impression du ticket lancee",
-      "reprintError": "✕ Echec de l'impression",
+      "reprintToast": "Impression du ticket lancee",
+      "reprintError": "Echec de l'impression",
       "share": "🔗 Partager",
       "shareTitle": "Recu Cite Shop",
       "shareText": "Recu d'achat #{{id}} - {{amount}}",
-      "shareLinkCopiedToast": "✓ Lien du recu copie pour WhatsApp/Telegram",
-      "shareError": "✕ Impossible de partager le recu",
+      "shareLinkCopiedToast": "Lien du recu copie pour WhatsApp/Telegram",
+      "shareError": "Impossible de partager le recu",
       "void": "Annuler / Rembourser",
       "voidPinTitle": "Autorisation Admin requise pour annuler cette vente",
-      "voidSuccessToast": "✓ Vente annulee — Stocks et portefeuille restaures",
-      "voidErrorNotAuthorized": "✕ Autorisation refusee",
-      "voidErrorNotFound": "✕ Vente introuvable",
-      "voidErrorAlreadyRefunded": "✕ Cette vente a deja ete annulee",
-      "voidErrorGeneric": "✕ Echec de l'annulation",
+      "voidSuccessToast": "Vente annulee — Stocks et portefeuille restaures",
+      "voidErrorNotAuthorized": "Autorisation refusee",
+      "voidErrorNotFound": "Vente introuvable",
+      "voidErrorAlreadyRefunded": "Cette vente a deja ete annulee",
+      "voidErrorGeneric": "Echec de l'annulation",
       "columnDate": "Date",
       "columnSaleId": "N° Vente",
       "columnCashier": "Caissier",
@@ -233,10 +238,10 @@
       "errorStockInvalid": "Le stock doit etre un nombre entier positif.",
       "errorBarcodeDuplicate": "Ce code-barres est deja utilise par un autre produit.",
       "deletePinTitle": "Autorisation Admin requise pour supprimer ce produit",
-      "savedToast": "✓ Produit enregistre dans le catalogue",
+      "savedToast": "Produit enregistre dans le catalogue",
       "deleteSuccessToast": "🗑️ Produit supprime du catalogue",
-      "deleteBlockedInCart": "✕ Impossible de supprimer : ce produit est dans le panier en cours.",
-      "deleteBlockedHasSales": "✕ Impossible de supprimer : ce produit a deja ete vendu.",
+      "deleteBlockedInCart": "Impossible de supprimer : ce produit est dans le panier en cours.",
+      "deleteBlockedHasSales": "Impossible de supprimer : ce produit a deja ete vendu.",
       "scanBarcode": "Scanner douchette",
       "categoryNone": "Non classe"
     },
@@ -245,11 +250,11 @@
       "manageButton": "Gerer les categories",
       "addPlaceholder": "Nouvelle categorie...",
       "add": "Ajouter",
-      "addSuccessToast": "✓ Categorie creee : {{name}}",
+      "addSuccessToast": "Categorie creee : {{name}}",
       "edit": "Modifier",
       "save": "Enregistrer",
       "cancel": "Annuler",
-      "renameSuccessToast": "✓ Categorie renommee : {{name}}",
+      "renameSuccessToast": "Categorie renommee : {{name}}",
       "delete": "Supprimer",
       "deletePinTitle": "Autorisation Admin requise pour supprimer cette categorie",
       "deleteSuccessToast": "🗑️ Categorie supprimee",
@@ -314,29 +319,29 @@
       "avatarUploadedPriorityHint": "Une photo importee est deja definie et sera utilisee en priorite. Supprimez-la pour utiliser cette URL a la place.",
       "avatarDelete": "Supprimer la photo",
       "avatarSave": "Enregistrer",
-      "avatarSaveSuccessToast": "✓ Photo de profil mise a jour",
+      "avatarSaveSuccessToast": "Photo de profil mise a jour",
       "avatarDeleteSuccessToast": "🗑️ Photo de profil supprimee",
-      "avatarTypeError": "✕ Veuillez choisir un fichier image.",
-      "avatarSizeError": "✕ L'image ne doit pas depasser 2 Mo.",
-      "avatarUploadError": "✕ Impossible d'envoyer la photo. Veuillez reessayer.",
+      "avatarTypeError": "Veuillez choisir un fichier image.",
+      "avatarSizeError": "L'image ne doit pas depasser 2 Mo.",
+      "avatarUploadError": "Impossible d'envoyer la photo. Veuillez reessayer.",
       "errorFirstNameRequired": "Le prenom est requis.",
       "errorEmailRequired": "L'e-mail est requis.",
       "save": "Enregistrer",
-      "saveSuccessToast": "✓ Profil mis a jour",
+      "saveSuccessToast": "Profil mis a jour",
       "accountSection": "Compte & securite",
       "accountPinTitle": "Autorisation Admin requise",
       "fieldAccountEmail": "Adresse e-mail de connexion",
       "updateEmail": "Mettre a jour l'e-mail",
-      "emailUpdatePendingToast": "✓ E-mail de confirmation envoye",
+      "emailUpdatePendingToast": "E-mail de confirmation envoye",
       "emailUpdatePendingNote": "Un e-mail de confirmation a ete envoye a {{email}}. Le changement prendra effet une fois confirme.",
-      "emailUpdateError": "✕ Impossible de mettre a jour l'e-mail. Veuillez reessayer.",
+      "emailUpdateError": "Impossible de mettre a jour l'e-mail. Veuillez reessayer.",
       "fieldNewPassword": "Nouveau mot de passe",
       "fieldConfirmPassword": "Confirmer le mot de passe",
       "updatePassword": "Mettre a jour le mot de passe",
       "passwordTooShort": "Le mot de passe doit contenir au moins {{count}} caracteres.",
       "passwordMismatch": "Les mots de passe ne correspondent pas.",
-      "passwordUpdateError": "✕ Impossible de mettre a jour le mot de passe. Veuillez reessayer.",
-      "passwordUpdateSuccessToast": "✓ Mot de passe mis a jour",
+      "passwordUpdateError": "Impossible de mettre a jour le mot de passe. Veuillez reessayer.",
+      "passwordUpdateSuccessToast": "Mot de passe mis a jour",
       "oauthSection": "Comptes lies",
       "oauth": {
         "google": "Google",
@@ -347,7 +352,7 @@
         "apple": "Lier mon compte Apple"
       },
       "oauthLinked": "Lie",
-      "oauthError": "✕ Impossible de lier ce compte. Verifiez que ce fournisseur est configure."
+      "oauthError": "Impossible de lier ce compte. Verifiez que ce fournisseur est configure."
     },
     "settings": {
       "title": "Parametres",
@@ -391,8 +396,8 @@
       "shopStatusCardTitle": "Statut de la boutique",
       "shopOpenBig": "🟢 BOUTIQUE OUVERTE",
       "shopCloseBig": "🔴 BOUTIQUE FERMEE",
-      "shopStatusUpdatedToast": "✓ Statut mis a jour et e-mails envoyes aux etudiants",
-      "shopStatusError": "✕ Impossible de mettre a jour le statut de la boutique"
+      "shopStatusUpdatedToast": "Statut mis a jour et e-mails envoyes aux etudiants",
+      "shopStatusError": "Impossible de mettre a jour le statut de la boutique"
     },
     "routeGuard": {
       "locked": "Cette section est verrouillee. Saisissez le code PIN administrateur pour continuer.",
@@ -410,9 +415,9 @@
     "shopOpen": "Boutique ouverte",
     "shopClosed": "Boutique fermee",
     "shopTogglePinTitle": "Autorisation requise pour changer le statut de la boutique",
-    "shopOpenedToast": "✓ Boutique marquee comme ouverte",
-    "shopClosedToast": "✓ Boutique marquee comme fermee",
-    "shopToggleError": "✕ Impossible de mettre a jour le statut de la boutique",
+    "shopOpenedToast": "Boutique marquee comme ouverte",
+    "shopClosedToast": "Boutique marquee comme fermee",
+    "shopToggleError": "Impossible de mettre a jour le statut de la boutique",
     "identityLoading": "Chargement...",
     "signOut": "Se deconnecter",
     "roleBadge": {
@@ -420,7 +425,9 @@
       "cashier": "Caissier"
     },
     "collapse": "Reduire le menu",
-    "expand": "Agrandir le menu"
+    "expand": "Agrandir le menu",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu"
   },
   "receiptPage": {
     "loading": "Chargement du recu...",
@@ -430,8 +437,8 @@
     "print": "Imprimer / PDF",
     "shareTitle": "Recu Cite Shop",
     "shareText": "Voici votre recu d'achat Cite Shop de {{amount}}",
-    "linkCopiedToast": "✓ Lien du recu copie dans le presse-papier",
-    "shareError": "✕ Impossible de partager le recu",
+    "linkCopiedToast": "Lien du recu copie dans le presse-papier",
+    "shareError": "Impossible de partager le recu",
     "studentLabel": "Client / Etudiant : {{name}}",
     "timestampFormat": "{{date}} a {{time}}"
   },
@@ -449,9 +456,9 @@
     "quantityLabel": "Quantite livree",
     "expiryLabel": "Date d'expiration du lot (optionnel)",
     "validate": "Valider le reapprovisionnement",
-    "successToast": "✓ Stock mis a jour : {{name}} (+{{quantity}} unites)",
-    "productGoneError": "✕ Ce produit n'existe plus.",
-    "unknownBarcodeToast": "⚠️ Produit inconnu. Veuillez le creer dans le catalogue d'abord.",
+    "successToast": "Stock mis a jour : {{name}} (+{{quantity}} unites)",
+    "productGoneError": "Ce produit n'existe plus.",
+    "unknownBarcodeToast": "Produit inconnu. Veuillez le creer dans le catalogue d'abord.",
     "goToCatalog": "Aller au catalogue"
   },
   "auth": {
@@ -488,9 +495,9 @@
     "badgeOfflinePending_other": "{{count}} en attente",
     "badgeError": "Erreur / Conflit",
     "badgeErrorHint": "Cliquez pour voir les details",
-    "toastSuccess_one": "✓ Synchronisation Cloud reussie ({{count}} vente sauvegardee)",
-    "toastSuccess_other": "✓ Synchronisation Cloud reussie ({{count}} ventes sauvegardees)",
-    "toastConflict": "⚠️ Conflit de stock detecte lors de la synchronisation !"
+    "toastSuccess_one": "Synchronisation Cloud reussie ({{count}} vente sauvegardee)",
+    "toastSuccess_other": "Synchronisation Cloud reussie ({{count}} ventes sauvegardees)",
+    "toastConflict": "Conflit de stock detecte lors de la synchronisation !"
   },
   "update": {
     "toast": {

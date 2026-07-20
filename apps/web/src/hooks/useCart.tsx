@@ -23,13 +23,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const { showToast } = useToast();
 
+  // Shared by addItem's "Annuler" action and the plain -1 button: both are
+  // "take one unit off this line, dropping it entirely once it hits zero".
+  const decrementItem = useCallback((productId: string) => {
+    void (async () => {
+      const existing = await db.cart_items.get(productId);
+      if (!existing) return;
+      if (existing.quantity <= 1) {
+        await db.cart_items.delete(productId);
+      } else {
+        await db.cart_items.update(productId, { quantity: existing.quantity - 1 });
+      }
+    })();
+  }, []);
+
   const addItem = useCallback(
     (product: Product) => {
       if (product.stock === 0) {
         showToast("error", t("pos.cart.outOfStockError", { name: product.name }));
         return;
       }
-      showToast("success", t("pos.cart.addedToast", { name: product.name }));
+      showToast("success", t("pos.cart.addedToast", { name: product.name }), undefined, {
+        label: t("pos.cart.undo"),
+        onClick: () => decrementItem(product.id),
+      });
       void (async () => {
         const existing = await db.cart_items.get(product.id);
         if (existing) {
@@ -48,29 +65,45 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
       })();
     },
-    [t, showToast],
+    [t, showToast, decrementItem],
   );
 
   const removeItem = useCallback((productId: string) => {
     void db.cart_items.delete(productId);
   }, []);
 
-  const updateQuantity = useCallback((productId: string, delta: number) => {
-    void (async () => {
-      const existing = await db.cart_items.get(productId);
-      if (!existing) return;
-      const nextQuantity = existing.quantity + delta;
-      if (nextQuantity <= 0) {
-        await db.cart_items.delete(productId);
-      } else {
-        await db.cart_items.update(productId, { quantity: nextQuantity });
+  const updateQuantity = useCallback(
+    (productId: string, delta: number) => {
+      if (delta < 0) {
+        decrementItem(productId);
+        return;
       }
-    })();
-  }, []);
+      void (async () => {
+        const existing = await db.cart_items.get(productId);
+        if (!existing) return;
+        await db.cart_items.update(productId, { quantity: existing.quantity + delta });
+      })();
+    },
+    [decrementItem],
+  );
 
   const clearCart = useCallback(() => {
-    void db.cart_items.clear();
-  }, []);
+    void (async () => {
+      const previousItems = await db.cart_items.toArray();
+      if (previousItems.length === 0) return;
+      await db.cart_items.clear();
+      const totalUnits = previousItems.reduce((sum, item) => sum + item.quantity, 0);
+      showToast("info", t("pos.cart.clearedToast", { count: totalUnits }), undefined, {
+        label: t("pos.cart.undo"),
+        onClick: () => {
+          void (async () => {
+            await db.cart_items.bulkPut(previousItems);
+            showToast("success", t("pos.cart.restoredToast"));
+          })();
+        },
+      });
+    })();
+  }, [t, showToast]);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.price, 0);

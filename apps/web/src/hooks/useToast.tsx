@@ -3,7 +3,7 @@ import { ToastContainer, type ToastAction, type ToastRecord, type ToastVariant }
 
 export type { ToastVariant, ToastAction };
 
-const DEFAULT_DURATION_MS = 3000;
+const DEFAULT_DURATION_MS = 6000;
 
 interface ToastContextValue {
   showToast: (variant: ToastVariant, message: string, durationMs?: number, action?: ToastAction) => void;
