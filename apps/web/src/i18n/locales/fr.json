@@ -80,6 +80,15 @@
       "errorAmountInvalid": "Le montant doit etre un nombre positif.",
       "toastSuccess": "✓ Recharge de {{amount}} effectuee pour {{name}}"
     },
+    "withdrawal": {
+      "title": "Retrait d'especes",
+      "amountLabel": "Montant a retirer (FCFA)",
+      "confirm": "Retirer de l'argent",
+      "pinTitle": "Autorisation Admin requise pour ce retrait",
+      "errorAmountInvalid": "Le montant doit etre un nombre positif.",
+      "errorInsufficientBalance": "✕ Le montant depasse le solde disponible.",
+      "toastSuccess": "✓ Retrait valide : -{{amount}} remis a {{name}}"
+    },
     "momo": {
       "title": "Verification Mobile Money",
       "loading": "Chargement des transactions...",
@@ -92,8 +101,10 @@
     "wallets": {
       "searchPlaceholder": "Rechercher un etudiant (nom, badge, e-mail)...",
       "columnBalance": "Solde",
+      "columnEmailOptIn": "E-mails Boutique",
       "columnTotalSpend": "Depense totale",
       "columnOrders": "Commandes",
+      "emailOptToggleToast": "✓ Preference e-mail mise a jour pour {{name}}",
       "createSuccessToast": "✓ Etudiant cree : {{name}}",
       "updateSuccessToast": "✓ Etudiant mis a jour : {{name}}",
       "currentBalance": "Solde actuel",
@@ -119,6 +130,13 @@
       "averageCartSub": "Depense moyenne par etudiant",
       "walletRechargesLabel": "RECHARGES WALLET",
       "walletRechargesSub": "Volume de recharges portefeuille etudiant",
+      "studentDebtLabel": "DETTES ETUDIANTS",
+      "studentDebtSub": "Solde negatif total du aux boutiques",
+      "criticalDebtTitle": "Dettes critiques (≥ 5 000 FCFA)",
+      "contactStudent": "Contacter / Relancer",
+      "noEmailOnFile": "Aucun e-mail enregistre pour cet etudiant",
+      "debtReminderSubject": "Rappel : solde du a Cite Shop",
+      "debtReminderBody": "Bonjour {{name}},\n\nVotre portefeuille Cite Shop presente un solde du de {{amount}}. Merci de regulariser votre situation aupres de la boutique.\n\nCordialement,\nCite Shop",
       "range": {
         "today": "Aujourd'hui",
         "yesterday": "Hier",
@@ -278,6 +296,54 @@
       "adjustToZero": "Regulariser a 0",
       "forceIgnore": "Forcer / Ignorer"
     },
+    "profile": {
+      "title": "Mon profil & comptes lies",
+      "loading": "Chargement du profil...",
+      "fieldFirstName": "Prenom",
+      "fieldLastName": "Nom",
+      "avatarChange": "Changer la photo",
+      "avatarModalTitle": "Photo de profil",
+      "avatarImportButton": "Importer depuis l'ordinateur",
+      "avatarOr": "ou",
+      "avatarUrlPlaceholder": "Coller une URL d'image...",
+      "avatarUploadedPriorityHint": "Une photo importee est deja definie et sera utilisee en priorite. Supprimez-la pour utiliser cette URL a la place.",
+      "avatarDelete": "Supprimer la photo",
+      "avatarSave": "Enregistrer",
+      "avatarSaveSuccessToast": "✓ Photo de profil mise a jour",
+      "avatarDeleteSuccessToast": "🗑️ Photo de profil supprimee",
+      "avatarTypeError": "✕ Veuillez choisir un fichier image.",
+      "avatarSizeError": "✕ L'image ne doit pas depasser 2 Mo.",
+      "avatarUploadError": "✕ Impossible d'envoyer la photo. Veuillez reessayer.",
+      "errorFirstNameRequired": "Le prenom est requis.",
+      "errorEmailRequired": "L'e-mail est requis.",
+      "save": "Enregistrer",
+      "saveSuccessToast": "✓ Profil mis a jour",
+      "accountSection": "Compte & securite",
+      "accountPinTitle": "Autorisation Admin requise",
+      "fieldAccountEmail": "Adresse e-mail de connexion",
+      "updateEmail": "Mettre a jour l'e-mail",
+      "emailUpdatePendingToast": "✓ E-mail de confirmation envoye",
+      "emailUpdatePendingNote": "Un e-mail de confirmation a ete envoye a {{email}}. Le changement prendra effet une fois confirme.",
+      "emailUpdateError": "✕ Impossible de mettre a jour l'e-mail. Veuillez reessayer.",
+      "fieldNewPassword": "Nouveau mot de passe",
+      "fieldConfirmPassword": "Confirmer le mot de passe",
+      "updatePassword": "Mettre a jour le mot de passe",
+      "passwordTooShort": "Le mot de passe doit contenir au moins {{count}} caracteres.",
+      "passwordMismatch": "Les mots de passe ne correspondent pas.",
+      "passwordUpdateError": "✕ Impossible de mettre a jour le mot de passe. Veuillez reessayer.",
+      "passwordUpdateSuccessToast": "✓ Mot de passe mis a jour",
+      "oauthSection": "Comptes lies",
+      "oauth": {
+        "google": "Google",
+        "apple": "Apple"
+      },
+      "oauthLink": {
+        "google": "Lier mon compte Google",
+        "apple": "Lier mon compte Apple"
+      },
+      "oauthLinked": "Lie",
+      "oauthError": "✕ Impossible de lier ce compte. Verifiez que ce fournisseur est configure."
+    },
     "settings": {
       "title": "Parametres",
       "pinTitle": "Autorisation administrateur requise",
@@ -341,7 +407,15 @@
     "shopTogglePinTitle": "Autorisation requise pour changer le statut de la boutique",
     "shopOpenedToast": "✓ Boutique marquee comme ouverte",
     "shopClosedToast": "✓ Boutique marquee comme fermee",
-    "shopToggleError": "✕ Impossible de mettre a jour le statut de la boutique"
+    "shopToggleError": "✕ Impossible de mettre a jour le statut de la boutique",
+    "identityLoading": "Chargement...",
+    "signOut": "Se deconnecter",
+    "roleBadge": {
+      "admin": "Admin",
+      "cashier": "Caissier"
+    },
+    "collapse": "Reduire le menu",
+    "expand": "Agrandir le menu"
   },
   "receiptPage": {
     "loading": "Chargement du recu...",

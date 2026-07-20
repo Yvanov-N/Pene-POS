@@ -10,7 +10,7 @@ import { printService } from "@/services/hardware/printService";
 import { PAYMENT_BADGE_CLASS, STATUS_BADGE_CLASS } from "@/lib/paymentMethodStyles";
 import { StatCard } from "@/components/admin/StatCard";
 import { ButtonCustom } from "@/components/ui/button-custom";
-import type { Sale, StudentWallet } from "@/types/db";
+import type { Profile, Sale, StudentWallet } from "@/types/db";
 
 const SETTINGS_ID = "default";
 const QUICK_ADD_AMOUNTS = [1000, 2000, 5000] as const;
@@ -44,6 +44,12 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
   // see ProductFormDrawer.tsx's savingRef) -- here that would mean crediting
   // the wallet twice for one entered amount, not just a confusing error.
   const rechargingRef = useRef(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
+  // Same double-debit hazard as rechargingRef above, mirrored for the
+  // opposite direction.
+  const withdrawingRef = useRef(false);
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [reprintingId, setReprintingId] = useState<string | null>(null);
 
@@ -129,6 +135,46 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
     }
   };
 
+  // profile is only populated when requiresAdminPin actually gated this
+  // click (ButtonCustom resolves it via its own PinPadModal, requiredRole
+  // "admin") -- a cashier's PIN never reaches this handler at all.
+  const handleWithdraw = async (profile?: Profile) => {
+    if (!profile || withdrawingRef.current) return;
+    withdrawingRef.current = true;
+    setWithdrawing(true);
+
+    try {
+      const amount = Number(withdrawAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setWithdrawError(t("admin.withdrawal.errorAmountInvalid"));
+        return;
+      }
+      // Client-side cap mirrors what adjust_wallet_balance now enforces
+      // server-side too (migration 00010) -- checked here first so the
+      // cashier gets an immediate, specific message instead of waiting on a
+      // round trip / sync cycle to discover the same thing as a conflict.
+      if (amount > wallet.balance) {
+        setWithdrawError(t("admin.withdrawal.errorInsufficientBalance"));
+        return;
+      }
+      setWithdrawError(null);
+
+      const nextBalance = wallet.balance - amount;
+      await db.student_wallets.update(wallet.id, { balance: nextBalance });
+      await enqueueMutation("WALLET_WITHDRAWAL", "student_wallets", { wallet_id: wallet.id, delta: -amount });
+      void triggerManualSync();
+
+      showToast(
+        "success",
+        t("admin.withdrawal.toastSuccess", { amount: formatCurrency(amount), name: wallet.student_name }),
+      );
+      setWithdrawAmount("");
+    } finally {
+      withdrawingRef.current = false;
+      setWithdrawing(false);
+    }
+  };
+
   const handleReprint = async (sale: Sale) => {
     setReprintingId(sale.id);
     try {
@@ -167,7 +213,11 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
 
         <div className="mb-4 rounded-lg border border-border p-4">
           <p className="text-xs text-muted">{t("admin.wallets.currentBalance")}</p>
-          <p className={`text-2xl font-bold ${wallet.balance > 0 ? "text-success" : "text-foreground"}`}>
+          <p
+            className={`text-2xl font-bold ${
+              wallet.balance > 0 ? "text-success" : wallet.balance < 0 ? "text-destructive" : "text-foreground"
+            }`}
+          >
             {formatCurrency(wallet.balance)}
           </p>
 
@@ -200,6 +250,37 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
             </div>
             {rechargeError && <p className="text-xs text-destructive">{rechargeError}</p>}
           </div>
+
+          {/* Withdrawal only ever appears once there's actual cash to hand
+              back -- the business rule is balance > 0, not "always offer
+              it and reject on submit". */}
+          {wallet.balance > 0 && (
+            <div className="mt-3 border-t border-border pt-3">
+              <p className="mb-2 text-xs font-medium text-muted">{t("admin.withdrawal.title")}</p>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max={wallet.balance}
+                  step="1"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder={t("admin.withdrawal.amountLabel")}
+                  className="flex-1 rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
+                />
+                <ButtonCustom
+                  variant="danger"
+                  isLoading={withdrawing}
+                  requiresAdminPin
+                  pinModalTitle={t("admin.withdrawal.pinTitle")}
+                  onClick={handleWithdraw}
+                >
+                  {t("admin.withdrawal.confirm")}
+                </ButtonCustom>
+              </div>
+              {withdrawError && <p className="mt-1 text-xs text-destructive">{withdrawError}</p>}
+            </div>
+          )}
         </div>
 
         <div className="mb-4 flex gap-2">

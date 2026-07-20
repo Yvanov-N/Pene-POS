@@ -1,5 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { useDashboardAnalytics } from "@/hooks/useDashboardAnalytics";
 import { useShopStatus } from "@/hooks/useShopStatus";
@@ -13,12 +15,13 @@ import {
   ExpiryWarningWidget,
   SyncConflictStatusBar,
 } from "@/components/admin/dashboard/OperationalWidgets";
+import { CriticalDebtWidget } from "@/components/admin/dashboard/CriticalDebtWidget";
 
 const TIME_RANGE_FILTERS: TimeRangeFilter[] = ["today", "yesterday", "last7days", "last30days", "custom"];
 
-function StatCardSkeleton() {
+function StatCardSkeleton({ className }: { className?: string }) {
   return (
-    <div className="stat-card animate-pulse">
+    <div className={`stat-card animate-pulse${className ? ` ${className}` : ""}`}>
       <div className="h-3 w-24 rounded bg-surface2" />
       <div className="mt-3 h-8 w-32 rounded bg-surface2" />
       <div className="mt-2 h-3 w-28 rounded bg-surface2" />
@@ -50,6 +53,17 @@ export function DashboardPage() {
 
   const analytics = useDashboardAnalytics(rangeFilter, effectiveCustomRange);
 
+  // Current-state snapshot, not scoped to rangeFilter like the rest of
+  // `analytics` -- total debt owed right now isn't a "how much happened this
+  // week" metric, so it deliberately doesn't live inside useDashboardAnalytics.
+  const totalStudentDebt = useLiveQuery(
+    () =>
+      db.student_wallets
+        .toArray()
+        .then((wallets) => wallets.filter((w) => w.balance < 0).reduce((sum, w) => sum + w.balance, 0)),
+    [],
+  );
+
   const handleExportCsv = () => {
     const rangeLabel = t(`admin.dashboard.range.${rangeFilter}`);
     const rows: string[][] = [
@@ -61,6 +75,7 @@ export function DashboardPage() {
       [t("admin.dashboard.transactionsLabel"), String(analytics.totalTransactions)],
       [t("admin.dashboard.averageCartLabel"), String(analytics.averageCart)],
       [t("admin.dashboard.walletRechargesLabel"), String(analytics.totalWalletRecharges)],
+      [t("admin.dashboard.studentDebtLabel"), String(totalStudentDebt ?? 0)],
       [],
       [t("admin.dashboard.exportTopProductsHeader"), "Quantite", "Chiffre d'affaires"],
       ...analytics.topProducts.map((product) => [product.name, String(product.quantitySold), String(product.revenue)]),
@@ -142,6 +157,7 @@ export function DashboardPage() {
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
+            <StatCardSkeleton className="lg:col-span-4" />
           </>
         ) : (
           <>
@@ -172,9 +188,20 @@ export function DashboardPage() {
               formatValue={formatCurrency}
               sub={t("admin.dashboard.walletRechargesSub")}
             />
+            <StatCard
+              icon="⚠️"
+              label={t("admin.dashboard.studentDebtLabel")}
+              value={totalStudentDebt ?? 0}
+              formatValue={formatCurrency}
+              valueClassName="text-destructive"
+              sub={t("admin.dashboard.studentDebtSub")}
+              className="lg:col-span-4"
+            />
           </>
         )}
       </div>
+
+      <CriticalDebtWidget />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CardCustom title={t("admin.dashboard.revenueChartTitle")}>

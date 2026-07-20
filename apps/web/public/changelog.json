@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.17.0",
+    "date": "2026-07-20",
+    "changes": [
+      "staff identity & account settings, wallet debt tracking, and collapsible sidebar"
+    ]
+  },
+  {
     "version": "0.16.0",
     "date": "2026-07-20",
     "changes": [

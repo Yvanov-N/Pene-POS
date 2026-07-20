@@ -12,6 +12,13 @@ interface StatCardProps {
   formatValue?: (value: number) => string;
   sub?: ReactNode;
   icon?: ReactNode;
+  // Appended to the root .stat-card div -- e.g. a debt KPI spanning the full
+  // grid width to read as visually distinct from the revenue-style cards
+  // beside it, rather than just another same-shaped tile.
+  className?: string;
+  // Overrides .stat-value's default color (e.g. red for a debt total) --
+  // appended, not replacing, so stat-value's size/weight are always kept.
+  valueClassName?: string;
 }
 
 function defaultFormatValue(value: number): string {
@@ -52,18 +59,26 @@ function useAnimatedNumber(target: number): number {
   return display;
 }
 
-export function StatCard({ label, value, formatValue = defaultFormatValue, sub, icon }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  formatValue = defaultFormatValue,
+  sub,
+  icon,
+  className,
+  valueClassName,
+}: StatCardProps) {
   const animatedValue = useAnimatedNumber(value);
 
   return (
-    <div className="stat-card">
+    <div className={`stat-card${className ? ` ${className}` : ""}`}>
       {icon && (
         <span className="absolute right-4 top-4 text-xl opacity-70" aria-hidden>
           {icon}
         </span>
       )}
       <p className="stat-label">{label}</p>
-      <p className="stat-value mt-1">{formatValue(animatedValue)}</p>
+      <p className={`stat-value mt-1${valueClassName ? ` ${valueClassName}` : ""}`}>{formatValue(animatedValue)}</p>
       {sub && <p className="stat-sub mt-1">{sub}</p>}
     </div>
   );

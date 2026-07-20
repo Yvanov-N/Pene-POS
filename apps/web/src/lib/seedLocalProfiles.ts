@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { hashPin } from "@/lib/hashPin";
+import { computeFullName } from "@/types/db";
 
 // Mock local cashier/admin profiles for testing the PIN pad before Phase 3
 // designs the real sync path (see the note on Profile in @/types/db).
@@ -50,14 +51,20 @@ async function seedLocalProfilesInternal(): Promise<void> {
     {
       id: REAL_SEEDED_ADMIN_ID,
       email: "admin@penepos.dev",
-      full_name: "Dev Admin",
+      first_name: "Dev",
+      last_name: "Admin",
+      full_name: computeFullName("Dev", "Admin"),
+      preferred_language: "fr",
       role: "admin",
       pin_hash: await hashPin("1234"),
     },
     {
       id: crypto.randomUUID(),
       email: "cashier@penepos.test",
-      full_name: "Cashier Demo",
+      first_name: "Cashier",
+      last_name: "Demo",
+      full_name: computeFullName("Cashier", "Demo"),
+      preferred_language: "fr",
       role: "cashier",
       pin_hash: await hashPin("5678"),
     },

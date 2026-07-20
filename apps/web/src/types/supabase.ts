@@ -2,8 +2,9 @@
 // 00002_relax_sync_rls.sql, 00003_push_subscriptions.sql,
 // 00004_momo_verification.sql, 00005_sale_refund_status.sql,
 // 00006_public_receipt_rpc.sql, 00007_product_categories.sql,
-// 00008_student_sale_attribution.sql, and
-// 00009_public_receipt_student_name.sql.
+// 00008_student_sale_attribution.sql, 00009_public_receipt_student_name.sql,
+// 00010_profile_identity_and_wallet_debt.sql, and
+// 00011_avatar_storage_and_account_email_sync.sql.
 // Regenerate from the real database once it's stable:
 //   supabase gen types typescript --local > src/types/supabase.ts
 
@@ -13,6 +14,7 @@ export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "momo_mtn" | "momo_orange" | "student_wallet";
 export type SaleStatus = "completed" | "pending_sync" | "conflict_warning" | "refunded";
 export type MomoVerificationStatus = "pending" | "confirmed" | "rejected";
+export type PreferredLanguage = "fr" | "en";
 
 export interface Database {
   public: {
@@ -21,7 +23,13 @@ export interface Database {
         Row: {
           id: string;
           email: string;
+          // Generated always as trim(first_name || ' ' || last_name) --
+          // never sent in an Insert/Update, only ever read back.
           full_name: string;
+          first_name: string;
+          last_name: string;
+          avatar_url: string | null;
+          preferred_language: PreferredLanguage;
           role: UserRole;
           pin_code: string;
           created_at: string;
@@ -30,7 +38,10 @@ export interface Database {
         Insert: {
           id: string;
           email: string;
-          full_name: string;
+          first_name?: string;
+          last_name?: string;
+          avatar_url?: string | null;
+          preferred_language?: PreferredLanguage;
           role: UserRole;
           pin_code: string;
           created_at?: string;
@@ -130,6 +141,7 @@ export interface Database {
           badge_code: string;
           balance: number;
           email: string | null;
+          email_opt_in: boolean;
         };
         Insert: {
           id?: string;
@@ -137,6 +149,7 @@ export interface Database {
           badge_code: string;
           balance?: number;
           email?: string | null;
+          email_opt_in?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["student_wallets"]["Insert"]>;
         Relationships: [];

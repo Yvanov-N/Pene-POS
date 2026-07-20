@@ -30,8 +30,10 @@ begin
       now(), now()
     );
 
-    insert into public.profiles (id, email, full_name, role, pin_code)
-    values (dev_admin_id, 'admin@penepos.dev', 'Dev Admin', 'admin', crypt('1234', gen_salt('bf')));
+    -- full_name is a generated column (migration 00010, first_name || ' ' ||
+    -- last_name) -- inserting into it directly is rejected by Postgres.
+    insert into public.profiles (id, email, first_name, last_name, role, pin_code)
+    values (dev_admin_id, 'admin@penepos.dev', 'Dev', 'Admin', 'admin', crypt('1234', gen_salt('bf')));
   end if;
 end $$;
 

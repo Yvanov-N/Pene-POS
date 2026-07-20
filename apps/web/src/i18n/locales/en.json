@@ -80,6 +80,15 @@
       "errorAmountInvalid": "Amount must be a positive number.",
       "toastSuccess": "✓ Recharge of {{amount}} completed for {{name}}"
     },
+    "withdrawal": {
+      "title": "Cash withdrawal",
+      "amountLabel": "Amount to withdraw (FCFA)",
+      "confirm": "Withdraw cash",
+      "pinTitle": "Admin authorization required for this withdrawal",
+      "errorAmountInvalid": "Amount must be a positive number.",
+      "errorInsufficientBalance": "✕ Amount exceeds the available balance.",
+      "toastSuccess": "✓ Withdrawal confirmed: -{{amount}} handed to {{name}}"
+    },
     "momo": {
       "title": "Mobile Money verification",
       "loading": "Loading transactions...",
@@ -92,8 +101,10 @@
     "wallets": {
       "searchPlaceholder": "Search for a student (name, badge, email)...",
       "columnBalance": "Balance",
+      "columnEmailOptIn": "Shop emails",
       "columnTotalSpend": "Total spend",
       "columnOrders": "Orders",
+      "emailOptToggleToast": "✓ Email preference updated for {{name}}",
       "createSuccessToast": "✓ Student created: {{name}}",
       "updateSuccessToast": "✓ Student updated: {{name}}",
       "currentBalance": "Current balance",
@@ -119,6 +130,13 @@
       "averageCartSub": "Average spend per student",
       "walletRechargesLabel": "WALLET RECHARGES",
       "walletRechargesSub": "Student wallet top-up volume",
+      "studentDebtLabel": "STUDENT DEBT",
+      "studentDebtSub": "Total negative balance owed to the shop",
+      "criticalDebtTitle": "Critical debt (≥ 5,000 FCFA)",
+      "contactStudent": "Contact / Follow up",
+      "noEmailOnFile": "No email on file for this student",
+      "debtReminderSubject": "Reminder: balance owed to Cite Shop",
+      "debtReminderBody": "Hello {{name}},\n\nYour Cite Shop wallet currently shows a balance owed of {{amount}}. Please settle this with the shop at your earliest convenience.\n\nThanks,\nCite Shop",
       "range": {
         "today": "Today",
         "yesterday": "Yesterday",
@@ -278,6 +296,54 @@
       "adjustToZero": "Adjust to 0",
       "forceIgnore": "Force / Ignore"
     },
+    "profile": {
+      "title": "My profile & linked accounts",
+      "loading": "Loading profile...",
+      "fieldFirstName": "First name",
+      "fieldLastName": "Last name",
+      "avatarChange": "Change photo",
+      "avatarModalTitle": "Profile photo",
+      "avatarImportButton": "Import from computer",
+      "avatarOr": "or",
+      "avatarUrlPlaceholder": "Paste an image URL...",
+      "avatarUploadedPriorityHint": "An imported photo is already set and takes priority. Remove it first to use this URL instead.",
+      "avatarDelete": "Delete photo",
+      "avatarSave": "Save",
+      "avatarSaveSuccessToast": "✓ Profile photo updated",
+      "avatarDeleteSuccessToast": "🗑️ Profile photo removed",
+      "avatarTypeError": "✕ Please choose an image file.",
+      "avatarSizeError": "✕ Image must be under 2 MB.",
+      "avatarUploadError": "✕ Couldn't upload the photo. Please try again.",
+      "errorFirstNameRequired": "First name is required.",
+      "errorEmailRequired": "Email is required.",
+      "save": "Save",
+      "saveSuccessToast": "✓ Profile updated",
+      "accountSection": "Account & security",
+      "accountPinTitle": "Admin authorization required",
+      "fieldAccountEmail": "Login email address",
+      "updateEmail": "Update email",
+      "emailUpdatePendingToast": "✓ Confirmation email sent",
+      "emailUpdatePendingNote": "A confirmation email was sent to {{email}}. The change takes effect once confirmed.",
+      "emailUpdateError": "✕ Couldn't update the email. Please try again.",
+      "fieldNewPassword": "New password",
+      "fieldConfirmPassword": "Confirm password",
+      "updatePassword": "Update password",
+      "passwordTooShort": "Password must be at least {{count}} characters.",
+      "passwordMismatch": "Passwords don't match.",
+      "passwordUpdateError": "✕ Couldn't update the password. Please try again.",
+      "passwordUpdateSuccessToast": "✓ Password updated",
+      "oauthSection": "Linked accounts",
+      "oauth": {
+        "google": "Google",
+        "apple": "Apple"
+      },
+      "oauthLink": {
+        "google": "Link my Google account",
+        "apple": "Link my Apple account"
+      },
+      "oauthLinked": "Linked",
+      "oauthError": "✕ Couldn't link this account. Check that this provider is configured."
+    },
     "settings": {
       "title": "Settings",
       "pinTitle": "Administrator authorization required",
@@ -341,7 +407,15 @@
     "shopTogglePinTitle": "Authorization required to change shop status",
     "shopOpenedToast": "✓ Shop marked as open",
     "shopClosedToast": "✓ Shop marked as closed",
-    "shopToggleError": "✕ Couldn't update shop status"
+    "shopToggleError": "✕ Couldn't update shop status",
+    "identityLoading": "Loading...",
+    "signOut": "Sign out",
+    "roleBadge": {
+      "admin": "Admin",
+      "cashier": "Cashier"
+    },
+    "collapse": "Collapse menu",
+    "expand": "Expand menu"
   },
   "receiptPage": {
     "loading": "Loading receipt...",

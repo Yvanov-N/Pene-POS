@@ -10,6 +10,7 @@ import { MoMoVerificationCard } from "@/components/admin/MoMoVerificationCard";
 import { StudentProfileDrawer } from "@/components/admin/wallets/StudentProfileDrawer";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
+import { Switch } from "@/components/ui/switch";
 import type { Sale, StudentWallet } from "@/types/db";
 
 // Same revenue-relevance rule duplicated in useDashboardAnalytics.ts and
@@ -109,6 +110,14 @@ export function StudentWalletsPage() {
     setFormOpen(true);
   };
 
+  const handleToggleEmailOptIn = async (wallet: StudentWallet) => {
+    const nextValue = !wallet.email_opt_in;
+    await db.student_wallets.update(wallet.id, { email_opt_in: nextValue });
+    await enqueueMutation("UPDATE", "student_wallets", { id: wallet.id, email_opt_in: nextValue });
+    void triggerManualSync();
+    showToast("success", t("admin.wallets.emailOptToggleToast", { name: wallet.student_name }));
+  };
+
   const openEditForm = (wallet: StudentWallet) => {
     setEditingId(wallet.id);
     setForm(walletToForm(wallet));
@@ -145,6 +154,12 @@ export function StudentWalletsPage() {
         return;
       }
 
+      // Preserve the existing email_opt_in preference on edit -- this form
+      // has no field for it (the directory table's own Switch column owns
+      // that), so without this, editing a name/balance would silently reset
+      // a student's opt-out back to true every time.
+      const existing = editingId ? await db.student_wallets.get(editingId) : undefined;
+
       setFormError(null);
       const wallet: StudentWallet = {
         id: editingId ?? crypto.randomUUID(),
@@ -152,6 +167,7 @@ export function StudentWalletsPage() {
         badge_code: badgeCode,
         balance,
         email: form.email.trim(),
+        email_opt_in: existing?.email_opt_in ?? true,
       };
 
       await db.student_wallets.put(wallet);
@@ -196,6 +212,7 @@ export function StudentWalletsPage() {
                   <th className="py-2 pr-3">{t("admin.students.fieldName")}</th>
                   <th className="py-2 pr-3">{t("admin.students.fieldBadge")}</th>
                   <th className="py-2 pr-3">{t("admin.students.fieldEmail")}</th>
+                  <th className="py-2 pr-3">{t("admin.wallets.columnEmailOptIn")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnBalance")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnTotalSpend")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnOrders")}</th>
@@ -214,7 +231,16 @@ export function StudentWalletsPage() {
                       <td className="py-2 pr-3 font-medium text-foreground">{student.student_name}</td>
                       <td className="py-2 pr-3 text-muted">{student.badge_code}</td>
                       <td className="py-2 pr-3 text-muted">{student.email || "—"}</td>
-                      <td className={`py-2 pr-3 font-medium ${student.balance > 0 ? "text-success" : "text-foreground"}`}>
+                      <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
+                        <Switch
+                          checked={student.email_opt_in}
+                          onChange={() => void handleToggleEmailOptIn(student)}
+                          aria-label={t("admin.wallets.columnEmailOptIn")}
+                        />
+                      </td>
+                      <td
+                        className={`py-2 pr-3 font-medium ${student.balance > 0 ? "text-success" : student.balance < 0 ? "text-destructive" : "text-foreground"}`}
+                      >
                         {formatCurrency(student.balance)}
                       </td>
                       <td className="py-2 pr-3 text-foreground">{formatCurrency(stats?.totalSpend ?? 0)}</td>

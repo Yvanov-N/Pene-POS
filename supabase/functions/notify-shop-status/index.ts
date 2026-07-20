@@ -74,7 +74,8 @@ Deno.serve(async (req: Request) => {
   const { data: wallets, error } = await supabase
     .from("student_wallets")
     .select("email")
-    .not("email", "is", null);
+    .not("email", "is", null)
+    .eq("email_opt_in", true);
 
   if (error) {
     console.error("[notify-shop-status] failed to load student emails", error);

@@ -78,10 +78,14 @@ async function pushSale(payload: SalePayload): Promise<QueueOutcome> {
   return "completed";
 }
 
-// Nothing in the app produces a WALLET_RECHARGE mutation yet (no recharge
-// UI exists) -- implemented for the SyncAction contract's sake, untested
-// live.
-async function pushWalletRecharge(payload: WalletRechargePayload): Promise<QueueOutcome> {
+// Shared by WALLET_RECHARGE (admin top-up, refund credit-back, wallet-payment
+// checkout debit via a negative delta) and WALLET_WITHDRAWAL (student cash
+// withdrawal, also a negative delta) -- both are the exact same server-side
+// operation, just enqueued under a different action label so the dashboard
+// can eventually tell "money the shop added/reversed" apart from "cash the
+// shop physically paid out", something totalWalletRecharges' own comment
+// already flags as impossible to distinguish today for WALLET_RECHARGE alone.
+async function pushWalletBalanceAdjustment(payload: WalletRechargePayload): Promise<QueueOutcome> {
   const { error } = await supabase.rpc("adjust_wallet_balance", {
     p_wallet_id: payload.wallet_id,
     p_delta: payload.delta,
@@ -132,7 +136,8 @@ async function pushItem(item: SyncQueueItem): Promise<QueueOutcome> {
     case "SALE":
       return pushSale(item.payload as SalePayload);
     case "WALLET_RECHARGE":
-      return pushWalletRecharge(item.payload as WalletRechargePayload);
+    case "WALLET_WITHDRAWAL":
+      return pushWalletBalanceAdjustment(item.payload as WalletRechargePayload);
     default:
       return pushGeneric(item.action, item.table_name, item.payload);
   }
@@ -180,13 +185,14 @@ export async function processSyncQueue(): Promise<SyncQueueSummary> {
   return { completedSales, conflicts };
 }
 
-type PendingIdKind = "product_id" | "wallet_id" | "category_id" | "sale_id";
+type PendingIdKind = "product_id" | "wallet_id" | "category_id" | "sale_id" | "profile_id";
 
 const PENDING_ID_TABLE: Record<PendingIdKind, string> = {
   product_id: "products",
   wallet_id: "student_wallets",
   category_id: "categories",
   sale_id: "sales",
+  profile_id: "profiles",
 };
 
 async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
@@ -200,7 +206,10 @@ async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
     } else if (kind === "sale_id" && item.action === "SALE") {
       const { sale } = item.payload as SalePayload;
       ids.add(sale.id);
-    } else if (kind === "wallet_id" && item.action === "WALLET_RECHARGE") {
+    } else if (
+      kind === "wallet_id" &&
+      (item.action === "WALLET_RECHARGE" || item.action === "WALLET_WITHDRAWAL")
+    ) {
       const { wallet_id } = item.payload as WalletRechargePayload;
       ids.add(wallet_id);
     } else if (
@@ -266,6 +275,7 @@ function mapWalletRow(row: SupabaseWalletRow): StudentWallet {
     badge_code: row.badge_code,
     balance: row.balance,
     email: row.email ?? "",
+    email_opt_in: row.email_opt_in,
   };
 }
 
@@ -305,12 +315,14 @@ function mapSaleItemRow(row: SupabaseSaleItemRow): SaleItem {
 // the server hasn't seen that change yet, so its version of that specific
 // row is stale relative to ours.
 export async function pullFromSupabase(): Promise<void> {
-  const [pendingProductIds, pendingWalletIds, pendingCategoryIds, pendingSaleIds] = await Promise.all([
-    getPendingIds("product_id"),
-    getPendingIds("wallet_id"),
-    getPendingIds("category_id"),
-    getPendingIds("sale_id"),
-  ]);
+  const [pendingProductIds, pendingWalletIds, pendingCategoryIds, pendingSaleIds, pendingProfileIds] =
+    await Promise.all([
+      getPendingIds("product_id"),
+      getPendingIds("wallet_id"),
+      getPendingIds("category_id"),
+      getPendingIds("sale_id"),
+      getPendingIds("profile_id"),
+    ]);
 
   // Pulled before products so a fresh full-catalog pull has the referenced
   // rows locally first -- not load-bearing (Dexie has no FK enforcement),
@@ -365,16 +377,21 @@ export async function pullFromSupabase(): Promise<void> {
   // with "permission denied for table profiles" (confirmed live in Phase 1.3).
   const { data: profiles, error: profilesError } = await supabase
     .from("profiles")
-    .select("id,email,full_name,role");
+    .select("id,email,full_name,first_name,last_name,avatar_url,preferred_language,role");
   if (profilesError) {
     console.error("[syncService] failed to pull profiles", profilesError);
   } else {
     for (const profile of profiles) {
+      if (pendingProfileIds.has(profile.id)) continue;
       const existing = await db.profiles.get(profile.id);
       await db.profiles.put({
         id: profile.id,
         email: profile.email,
         full_name: profile.full_name,
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        avatar_url: profile.avatar_url ?? undefined,
+        preferred_language: profile.preferred_language,
         role: profile.role,
         // Preserve any locally-set PIN hash; a brand-new pulled profile has
         // none yet and fails closed until a future PIN-assignment flow sets

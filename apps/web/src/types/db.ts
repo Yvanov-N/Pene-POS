@@ -1,15 +1,30 @@
 import type { UserRole } from "@/types/supabase";
 
+export type PreferredLanguage = "fr" | "en";
+
 export interface Profile {
   id: string;
   email: string;
+  first_name: string;
+  last_name: string;
+  // Server-generated (full_name is a Postgres `generated always as` column,
+  // migration 00010) -- never written directly. Kept as a plain field here
+  // (Dexie has no generated-column concept) and recomputed client-side via
+  // computeFullName() wherever a Profile is constructed locally, so it stays
+  // consistent between a pull and a not-yet-synced local edit.
   full_name: string;
+  avatar_url?: string;
+  preferred_language: PreferredLanguage;
   role: UserRole;
   // Locally-computed SHA-256 digest for offline PIN checks -- unrelated to
   // the server's bcrypt pin_code hash, which is intentionally never synced
   // down (see supabase/migrations/00001_initial_schema.sql). Phase 3 needs
   // to design the real secure sync path for this table.
   pin_hash: string;
+}
+
+export function computeFullName(firstName: string, lastName: string): string {
+  return `${firstName} ${lastName}`.trim();
 }
 
 export interface Category {
@@ -78,11 +93,20 @@ export interface StudentWallet {
   id: string;
   student_name: string;
   badge_code: string;
+  // Negative is a deliberately-allowed state representing student debt to
+  // the shop (see migration 00010) -- nothing in the app currently produces
+  // a negative value (withdrawal is capped at the current positive balance,
+  // wallet-payment checkout already blocks insufficient balance client-side,
+  // and adjust_wallet_balance itself now rejects any delta that would drive
+  // it negative), but the dashboard's debt-tracking widgets are built
+  // against this being a real, expected possibility for whenever a future
+  // feature does allow it.
   balance: number;
   email: string;
+  email_opt_in: boolean;
 }
 
-export type SyncAction = "INSERT" | "UPDATE" | "DELETE" | "SALE" | "WALLET_RECHARGE";
+export type SyncAction = "INSERT" | "UPDATE" | "DELETE" | "SALE" | "WALLET_RECHARGE" | "WALLET_WITHDRAWAL";
 
 export type SyncStatus = "pending" | "syncing" | "completed" | "failed" | "conflict_warning";
 
