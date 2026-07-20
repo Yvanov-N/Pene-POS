@@ -205,6 +205,14 @@ export interface Database {
         Args: { p_sale_id: string };
         Returns: Json | null;
       };
+      update_own_pin_code: {
+        Args: { new_pin: string };
+        Returns: void;
+      };
+      oauth_provider_linked: {
+        Args: { provider_name: string };
+        Returns: boolean;
+      };
     };
     Enums: {
       user_role: UserRole;

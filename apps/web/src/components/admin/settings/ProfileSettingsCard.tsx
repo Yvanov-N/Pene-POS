@@ -4,6 +4,7 @@ import type { UserIdentity } from "@supabase/supabase-js";
 import { CircleUserRound } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
+import { hashPin } from "@/lib/hashPin";
 import { enqueueMutation } from "@/services/syncService";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
@@ -11,6 +12,7 @@ import { useToast } from "@/hooks/useToast";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { AvatarEditModal } from "./AvatarEditModal";
+import { OtpVerifyModal } from "./OtpVerifyModal";
 import { computeFullName, type Profile } from "@/types/db";
 
 type OAuthProvider = "google" | "apple";
@@ -20,6 +22,14 @@ const OAUTH_PROVIDERS: OAuthProvider[] = ["google", "apple"];
 // too-short password fails fast instead of waiting on a round trip to
 // discover the same rejection server-side.
 const MIN_PASSWORD_LENGTH = 6;
+
+// Matches PinPadModal's own cashier-switching PIN length -- same 4-digit
+// convention, same profiles.pin_code column, just settable by the owning
+// admin instead of only ever checked.
+const PIN_LENGTH = 4;
+const PIN_PATTERN = /^\d{4}$/;
+
+type PendingOtpAction = "password" | "pin" | null;
 
 interface FormState {
   first_name: string;
@@ -54,6 +64,13 @@ export function ProfileSettingsCard() {
   // above (different backend call, different confirmation semantics),
   // rather than folded into the same "Enregistrer" button.
   const [accountEmail, setAccountEmail] = useState("");
+  // The address an OTP actually gets sent to for a PIN/password change --
+  // deliberately NOT the same state as accountEmail above, which mirrors
+  // whatever's currently typed in the (unsaved) email field. Sending a
+  // security code to an edited-but-not-yet-confirmed address would be
+  // useless (or wrong) -- this only ever updates from the real, confirmed
+  // Supabase Auth session.
+  const [confirmedEmail, setConfirmedEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailPending, setEmailPending] = useState(false);
   const [emailSaving, setEmailSaving] = useState(false);
@@ -65,6 +82,16 @@ export function ProfileSettingsCard() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const passwordSavingRef = useRef(false);
 
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pinSaving, setPinSaving] = useState(false);
+  const pinSavingRef = useRef(false);
+
+  // Which sensitive change is waiting on email OTP confirmation -- only one
+  // at a time, since both flows share the one OtpVerifyModal instance below.
+  const [pendingOtpAction, setPendingOtpAction] = useState<PendingOtpAction>(null);
+
   const [identities, setIdentities] = useState<UserIdentity[] | null>(null);
   const [linkingProvider, setLinkingProvider] = useState<OAuthProvider | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
@@ -75,7 +102,10 @@ export function ProfileSettingsCard() {
 
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.email) setAccountEmail(data.user.email);
+      if (data.user?.email) {
+        setAccountEmail(data.user.email);
+        setConfirmedEmail(data.user.email);
+      }
     });
   }, []);
 
@@ -160,22 +190,31 @@ export function ProfileSettingsCard() {
     }
   };
 
-  const handleUpdatePassword = async (adminProfile?: Profile) => {
-    if (!adminProfile || passwordSavingRef.current) return;
+  // Split in two on purpose: the admin-PIN button below only ever gets this
+  // far (validates the new password, then arms the OTP modal) -- the actual
+  // supabase.auth.updateUser() call is applyPasswordChange, fired only from
+  // OtpVerifyModal's onVerified so a password change genuinely can't happen
+  // without both an admin PIN AND a code mailed to the account's own inbox.
+  const handleRequestPasswordChange = (adminProfile?: Profile) => {
+    if (!adminProfile) return;
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setPasswordError(t("admin.profile.passwordTooShort", { count: MIN_PASSWORD_LENGTH }));
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError(t("admin.profile.passwordMismatch"));
+      return;
+    }
+    setPasswordError(null);
+    setPendingOtpAction("password");
+  };
+
+  const applyPasswordChange = async () => {
+    if (passwordSavingRef.current) return;
     passwordSavingRef.current = true;
     setPasswordSaving(true);
 
     try {
-      if (newPassword.length < MIN_PASSWORD_LENGTH) {
-        setPasswordError(t("admin.profile.passwordTooShort", { count: MIN_PASSWORD_LENGTH }));
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        setPasswordError(t("admin.profile.passwordMismatch"));
-        return;
-      }
-      setPasswordError(null);
-
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
         console.warn("[ProfileSettingsCard] password update failed", error);
@@ -190,6 +229,58 @@ export function ProfileSettingsCard() {
       passwordSavingRef.current = false;
       setPasswordSaving(false);
     }
+  };
+
+  // Same two-step split as password above -- validate + arm the OTP modal
+  // here, apply the real change (both the local pin_hash cashier-switching
+  // uses today and the server's bcrypt pin_code) only once OTP verifies.
+  const handleRequestPinChange = (adminProfile?: Profile) => {
+    if (!adminProfile) return;
+    if (!PIN_PATTERN.test(newPin)) {
+      setPinError(t("admin.profile.pinInvalid"));
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setPinError(t("admin.profile.pinMismatch"));
+      return;
+    }
+    setPinError(null);
+    setPendingOtpAction("pin");
+  };
+
+  const applyPinChange = async () => {
+    if (!profile || pinSavingRef.current) return;
+    pinSavingRef.current = true;
+    setPinSaving(true);
+
+    try {
+      // Server first: update_own_pin_code (migration 12) is the only way to
+      // write the real bcrypt pin_code -- if it fails, the local pin_hash
+      // below must NOT be written either, or this device would accept a PIN
+      // the server never agreed to.
+      const { error } = await supabase.rpc("update_own_pin_code", { new_pin: newPin });
+      if (error) {
+        console.warn("[ProfileSettingsCard] pin update failed", error);
+        setPinError(t("admin.profile.pinUpdateError"));
+        return;
+      }
+
+      await db.profiles.update(profile.id, { pin_hash: await hashPin(newPin) });
+
+      setNewPin("");
+      setConfirmPin("");
+      showToast("success", t("admin.profile.pinUpdateSuccessToast"));
+    } finally {
+      pinSavingRef.current = false;
+      setPinSaving(false);
+    }
+  };
+
+  const handleOtpVerified = () => {
+    const action = pendingOtpAction;
+    setPendingOtpAction(null);
+    if (action === "password") void applyPasswordChange();
+    if (action === "pin") void applyPinChange();
   };
 
   const handleLink = async (provider: OAuthProvider) => {
@@ -330,9 +421,47 @@ export function ProfileSettingsCard() {
               isLoading={passwordSaving}
               requiresAdminPin
               pinModalTitle={t("admin.profile.accountPinTitle")}
-              onClick={handleUpdatePassword}
+              onClick={handleRequestPasswordChange}
             >
               {t("admin.profile.updatePassword")}
+            </ButtonCustom>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-2">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted">{t("admin.profile.fieldNewPin")}</span>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={PIN_LENGTH}
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))}
+                autoComplete="new-password"
+                className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted">{t("admin.profile.fieldConfirmPin")}</span>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={PIN_LENGTH}
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))}
+                autoComplete="new-password"
+                className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
+              />
+            </label>
+            {pinError && <p className="text-xs text-destructive">{pinError}</p>}
+            <ButtonCustom
+              variant="primary"
+              size="sm"
+              isLoading={pinSaving}
+              requiresAdminPin
+              pinModalTitle={t("admin.profile.accountPinTitle")}
+              onClick={handleRequestPinChange}
+            >
+              {t("admin.profile.updatePin")}
             </ButtonCustom>
           </div>
         </div>
@@ -362,6 +491,17 @@ export function ProfileSettingsCard() {
       </div>
 
       {avatarModalOpen && <AvatarEditModal profile={profile} onClose={() => setAvatarModalOpen(false)} />}
+
+      {pendingOtpAction && (
+        <OtpVerifyModal
+          email={confirmedEmail}
+          title={
+            pendingOtpAction === "pin" ? t("admin.profile.otp.titlePin") : t("admin.profile.otp.titlePassword")
+          }
+          onVerified={handleOtpVerified}
+          onClose={() => setPendingOtpAction(null)}
+        />
+      )}
     </CardCustom>
   );
 }

@@ -29,6 +29,15 @@ additional_redirect_urls = ["http://localhost:5173"]
 jwt_expiry = 3600
 enable_signup = false
 
+# GoTrue's built-in "magic link" template only shows a clickable URL, no
+# human-typeable code -- signInWithOtp()/verifyOtp() (used to gate PIN and
+# password changes, ProfileSettingsCard.tsx) need an actual 6-digit code the
+# admin can read from their inbox and type back in, so this overrides that
+# one template with one that surfaces {{ .Token }}.
+[auth.email.template.magic_link]
+subject = "Your Pene POS verification code"
+content_path = "./supabase/templates/otp.html"
+
 [storage]
 enabled = true
 

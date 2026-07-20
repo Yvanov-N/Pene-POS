@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import logo from "@/assets/logo.png";
 import cashierPhoto from "@/assets/cashier.jpg";
 
 type Mode = "login" | "forgot";
+type OAuthProvider = "google" | "apple";
+const OAUTH_PROVIDERS: OAuthProvider[] = ["google", "apple"];
 
 // supabase-js names this specific error for a fetch/network-level failure
 // (server unreachable) -- distinct from a real 4xx response like wrong
@@ -21,6 +23,31 @@ export function GlobalLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+
+  // A provider only ever shows up here once at least one account has
+  // actually linked it (see admin.profile.oauth.* in ProfileSettingsCard) --
+  // a fresh deployment's Supabase project may not even have Google/Apple
+  // configured yet, and a login button that always 404s/errors is worse
+  // than no button. oauth_provider_linked (migration 12) is a narrow
+  // SECURITY DEFINER RPC anon can call for exactly this yes/no fact.
+  const [oauthLinked, setOauthLinked] = useState<Record<OAuthProvider, boolean>>({
+    google: false,
+    apple: false,
+  });
+
+  useEffect(() => {
+    for (const provider of OAUTH_PROVIDERS) {
+      void supabase.rpc("oauth_provider_linked", { provider_name: provider }).then(({ data, error }) => {
+        if (error) {
+          console.warn(`[GlobalLogin] oauth_provider_linked(${provider}) failed`, error);
+          return;
+        }
+        setOauthLinked((current) => ({ ...current, [provider]: data ?? false }));
+      });
+    }
+  }, []);
+
+  const showOauth = oauthLinked.google || oauthLinked.apple;
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -125,28 +152,36 @@ export function GlobalLogin() {
                 </button>
               </form>
 
-              <div className="flex items-center gap-2 text-xs text-muted">
-                <span className="h-px flex-1 bg-border" />
-                {t("auth.orContinueWith")}
-                <span className="h-px flex-1 bg-border" />
-              </div>
+              {showOauth && (
+                <>
+                  <div className="flex items-center gap-2 text-xs text-muted">
+                    <span className="h-px flex-1 bg-border" />
+                    {t("auth.orContinueWith")}
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
 
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleOAuth("google")}
-                  className="rounded-lg border border-border bg-surface2 py-2 text-sm font-medium text-foreground hover:border-accent"
-                >
-                  {t("auth.google")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleOAuth("apple")}
-                  className="rounded-lg border border-border bg-surface2 py-2 text-sm font-medium text-foreground hover:border-accent"
-                >
-                  {t("auth.apple")}
-                </button>
-              </div>
+                  <div className="flex flex-col gap-2">
+                    {oauthLinked.google && (
+                      <button
+                        type="button"
+                        onClick={() => void handleOAuth("google")}
+                        className="rounded-lg border border-border bg-surface2 py-2 text-sm font-medium text-foreground hover:border-accent"
+                      >
+                        {t("auth.google")}
+                      </button>
+                    )}
+                    {oauthLinked.apple && (
+                      <button
+                        type="button"
+                        onClick={() => void handleOAuth("apple")}
+                        className="rounded-lg border border-border bg-surface2 py-2 text-sm font-medium text-foreground hover:border-accent"
+                      >
+                        {t("auth.apple")}
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <>
