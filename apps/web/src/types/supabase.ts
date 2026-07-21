@@ -140,6 +140,7 @@ export interface Database {
           balance: number;
           email: string | null;
           email_opt_in: boolean;
+          phone: string | null;
         };
         Insert: {
           id?: string;
@@ -148,6 +149,7 @@ export interface Database {
           balance?: number;
           email?: string | null;
           email_opt_in?: boolean;
+          phone?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["student_wallets"]["Insert"]>;
         Relationships: [];

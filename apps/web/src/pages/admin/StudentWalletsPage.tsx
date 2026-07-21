@@ -26,9 +26,10 @@ interface FormState {
   badge_code: string;
   balance: string;
   email: string;
+  phone: string;
 }
 
-const EMPTY_FORM: FormState = { student_name: "", badge_code: "", balance: "0", email: "" };
+const EMPTY_FORM: FormState = { student_name: "", badge_code: "", balance: "0", email: "", phone: "" };
 
 function walletToForm(wallet: StudentWallet): FormState {
   return {
@@ -36,6 +37,7 @@ function walletToForm(wallet: StudentWallet): FormState {
     badge_code: wallet.badge_code,
     balance: String(wallet.balance),
     email: wallet.email,
+    phone: wallet.phone,
   };
 }
 
@@ -98,7 +100,8 @@ export function StudentWalletsPage() {
           (s) =>
             s.student_name.toLowerCase().includes(term) ||
             s.badge_code.toLowerCase().includes(term) ||
-            s.email.toLowerCase().includes(term),
+            s.email.toLowerCase().includes(term) ||
+            s.phone.toLowerCase().includes(term),
         )
       : students;
     return [...filtered].sort((a, b) => a.student_name.localeCompare(b.student_name));
@@ -177,6 +180,7 @@ export function StudentWalletsPage() {
         balance,
         email: form.email.trim(),
         email_opt_in: existing?.email_opt_in ?? true,
+        phone: form.phone.trim(),
       };
 
       await db.student_wallets.put(wallet);
@@ -221,6 +225,7 @@ export function StudentWalletsPage() {
                   <th className="py-2 pr-3">{t("admin.students.fieldName")}</th>
                   <th className="py-2 pr-3">{t("admin.students.fieldBadge")}</th>
                   <th className="py-2 pr-3">{t("admin.students.fieldEmail")}</th>
+                  <th className="py-2 pr-3">{t("admin.students.fieldPhone")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnEmailOptIn")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnBalance")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnTotalSpend")}</th>
@@ -240,6 +245,7 @@ export function StudentWalletsPage() {
                       <td className="py-2 pr-3 font-medium text-foreground">{student.student_name}</td>
                       <td className="py-2 pr-3 text-muted">{student.badge_code}</td>
                       <td className="py-2 pr-3 text-muted">{student.email || "—"}</td>
+                      <td className="py-2 pr-3 text-muted">{student.phone || "—"}</td>
                       <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
                         <Switch
                           checked={student.email_opt_in}
@@ -331,6 +337,15 @@ export function StudentWalletsPage() {
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-muted">{t("admin.students.fieldPhone")}</span>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
                 />
               </label>

@@ -203,7 +203,7 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
             <div className="min-w-0">
               <h2 className="truncate text-lg font-semibold text-foreground">{wallet.student_name}</h2>
               <p className="truncate text-xs text-muted">
-                {wallet.badge_code} · {wallet.email || "—"}
+                {wallet.badge_code} · {wallet.email || "—"} · {wallet.phone || "—"}
               </p>
             </div>
           </div>
