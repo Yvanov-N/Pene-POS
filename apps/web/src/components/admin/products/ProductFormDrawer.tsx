@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 import { enqueueMutation } from "@/services/syncService";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
@@ -32,6 +33,8 @@ const EMPTY_FORM: FormState = {
   expiry_date: "",
 };
 
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
 function productToForm(product: Product): FormState {
   return {
     name: product.name,
@@ -59,6 +62,13 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
   const [form, setForm] = useState<FormState>(product ? productToForm(product) : EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Generated upfront (not only at save time, unlike the rest of `saved` in
+  // handleSave below) so an image can be uploaded to a real storage path
+  // before Save is ever clicked.
+  const [productId] = useState(() => product?.id ?? crypto.randomUUID());
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   // A second handleSave invocation landing before the first has re-rendered
   // (e.g. a fast double click) would read stale `saving` state -- state
   // updates aren't visible synchronously to a call already in flight. A ref
@@ -85,6 +95,41 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
       : connectionType === "serial"
         ? t("pos.barcode.connectedSerial")
         : t("pos.barcode.keyboardMode");
+
+  const handleImageSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // allow re-selecting the exact same file later
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setImageError(t("admin.products.imageTypeError"));
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImageError(t("admin.products.imageSizeError"));
+      return;
+    }
+
+    setImageError(null);
+    setImageUploading(true);
+    try {
+      const path = productId;
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+      // Cache-bust: the path never changes across re-uploads, so without
+      // this the browser would keep showing whatever it first cached here.
+      setForm((current) => ({ ...current, image_url: `${data.publicUrl}?v=${Date.now()}` }));
+    } catch (uploadError) {
+      console.warn("[ProductFormDrawer] image upload failed", uploadError);
+      setImageError(t("admin.products.imageUploadError"));
+    } finally {
+      setImageUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (savingRef.current) return;
@@ -120,7 +165,7 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
 
       setFormError(null);
       const saved: Product = {
-        id: product?.id ?? crypto.randomUUID(),
+        id: productId,
         name,
         price,
         stock,
@@ -239,8 +284,36 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-center text-foreground"
               />
             </label>
-            <label className="flex flex-1 flex-col gap-1 text-sm">
+            <div className="flex flex-1 flex-col gap-2 text-sm">
               <span className="text-muted">{t("admin.products.fieldImageUrl")}</span>
+              <div className="flex items-center gap-3">
+                {form.image_url && (
+                  <img src={form.image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                )}
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => void handleImageSelected(e)}
+                />
+                <ButtonCustom
+                  variant="primary"
+                  size="sm"
+                  isLoading={imageUploading}
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  {t("admin.products.imageImportButton")}
+                </ButtonCustom>
+              </div>
+              {imageError && <p className="text-xs text-destructive">{imageError}</p>}
+
+              <div className="flex items-center gap-2 text-xs text-muted">
+                <span className="h-px flex-1 bg-border" aria-hidden />
+                {t("admin.products.imageOr")}
+                <span className="h-px flex-1 bg-border" aria-hidden />
+              </div>
+
               <input
                 type="text"
                 value={form.image_url}
@@ -248,7 +321,7 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
                 placeholder="https://..."
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
               />
-            </label>
+            </div>
           </div>
 
           <label className="flex flex-col gap-1 text-sm">
