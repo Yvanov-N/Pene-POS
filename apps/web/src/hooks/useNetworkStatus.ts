@@ -4,14 +4,20 @@ const PING_INTERVAL_MS = 20000;
 const PING_TIMEOUT_MS = 4000;
 
 const HEALTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/health`;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// GoTrue's /health endpoint answers with no auth header required -- a
-// lightweight, unauthenticated ping target confirmed working against the
-// local stack during earlier phases.
+// GoTrue's /health endpoint needs no *user* auth, but the hosted platform's
+// Kong gateway still enforces an `apikey` header on every route including
+// this one (confirmed live: a request with no headers gets a flat 401 "No
+// API key found in request") -- the local CLI stack's Kong is more lenient
+// and doesn't enforce this, which is why an earlier version of this file
+// worked in local testing but left isOnline permanently stuck false against
+// the real hosted project.
 async function pingBackend(): Promise<boolean> {
   try {
     const response = await fetch(HEALTH_URL, {
       method: "GET",
+      headers: { apikey: SUPABASE_ANON_KEY },
       signal: AbortSignal.timeout(PING_TIMEOUT_MS),
     });
     return response.ok;

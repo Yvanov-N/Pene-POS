@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.2.1",
+    "date": "2026-07-21",
+    "changes": [
+      "send apikey header on the production connectivity health check"
+    ]
+  },
+  {
     "version": "1.2.0",
     "date": "2026-07-21",
     "changes": [
