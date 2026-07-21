@@ -77,10 +77,20 @@ jobs:
         with:
           version: latest
 
+      # `supabase db push` no longer accepts --project-ref directly (dropped
+      # in a recent CLI release) -- it now requires the project to be linked
+      # first, then pushed via --linked. functions deploy below is unaffected
+      # and still takes --project-ref on its own.
+      - name: Link Supabase project
+        run: |
+          supabase link \
+            --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}" \
+            --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
+
       - name: Push database migrations
         run: |
           supabase db push \
-            --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}" \
+            --linked \
             --password "${{ secrets.SUPABASE_DB_PASSWORD }}" \
             --yes
 
