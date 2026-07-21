@@ -11,6 +11,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useNetworkStatus } from "./useNetworkStatus";
 import { useToast } from "./useToast";
+import { useRealtimeSync } from "./useRealtimeSync";
 import { processSyncQueue, pullFromSupabase } from "@/services/syncService";
 
 const SYNC_INTERVAL_MS = 30000;
@@ -38,6 +39,7 @@ const SyncEngineContext = createContext<SyncEngineValue | null>(null);
 
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { isOnline, checkNow } = useNetworkStatus();
+  useRealtimeSync();
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);

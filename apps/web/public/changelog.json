@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.3.0",
+    "date": "2026-07-21",
+    "changes": [
+      "add Supabase Realtime for cross-terminal stock/sale/wallet updates"
+    ]
+  },
+  {
     "version": "1.2.1",
     "date": "2026-07-21",
     "changes": [
