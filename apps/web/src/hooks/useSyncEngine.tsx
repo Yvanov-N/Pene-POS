@@ -26,12 +26,18 @@ interface SyncEngineValue {
   isSyncing: boolean;
   lastSyncedAt: string | null;
   triggerManualSync: () => Promise<void>;
+  // Re-exposed from useNetworkStatus so a manual "Sync Now" button can
+  // confirm real connectivity before calling triggerManualSync -- isOnline
+  // alone can be stale (only updated on the 20s ping interval or an
+  // online/offline browser event), and runSync itself has no connectivity
+  // guard of its own, only re-entrancy (syncingRef below).
+  checkNow: () => Promise<boolean>;
 }
 
 const SyncEngineContext = createContext<SyncEngineValue | null>(null);
 
 export function SyncProvider({ children }: { children: ReactNode }) {
-  const { isOnline } = useNetworkStatus();
+  const { isOnline, checkNow } = useNetworkStatus();
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -91,8 +97,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, [isOnline, runSync]);
 
   const value = useMemo<SyncEngineValue>(
-    () => ({ isOnline, isSyncing, lastSyncedAt, triggerManualSync: runSync }),
-    [isOnline, isSyncing, lastSyncedAt, runSync],
+    () => ({ isOnline, isSyncing, lastSyncedAt, triggerManualSync: runSync, checkNow }),
+    [isOnline, isSyncing, lastSyncedAt, runSync, checkNow],
   );
 
   return <SyncEngineContext.Provider value={value}>{children}</SyncEngineContext.Provider>;

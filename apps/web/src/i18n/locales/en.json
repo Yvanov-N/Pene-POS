@@ -527,6 +527,8 @@
     "badgeOfflinePending_other": "{{count}} pending",
     "badgeError": "Error / Conflict",
     "badgeErrorHint": "Click to see details",
+    "badgeSyncing": "Syncing…",
+    "tapToSync": "Tap to sync now",
     "toastSuccess_one": "Cloud sync successful ({{count}} sale saved)",
     "toastSuccess_other": "Cloud sync successful ({{count}} sales saved)",
     "toastConflict": "Stock conflict detected during synchronization!"

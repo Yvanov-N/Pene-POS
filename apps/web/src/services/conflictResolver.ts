@@ -162,8 +162,16 @@ export async function listOtherStuckItems(): Promise<StuckSyncItem[]> {
   const all = await db.sync_queue.toArray();
   return all
     .filter((item): item is SyncQueueItem & { id: number } => {
-      if (item.id === undefined || item.action === "SALE") return false;
-      if (item.status === "conflict_warning") return true;
+      if (item.id === undefined) return false;
+      // A genuine SALE conflict (stock oversell / deleted product) is
+      // already surfaced via listConflicts() above, which reads
+      // db.sales.status directly -- excluded here so the same stuck sale
+      // doesn't get double-listed across both dashboard sections. A SALE
+      // item stuck at "failed" (retries exhausted for a non-conflict
+      // reason -- e.g. the old duplicate-key retry loop this file's own
+      // migration note describes) has no other visible surface anywhere
+      // else in the app, so it must NOT be excluded here.
+      if (item.status === "conflict_warning") return item.action !== "SALE";
       return item.status === "failed" && item.retryCount >= (item.maxRetries ?? MAX_RETRIES);
     })
     .map((item) => ({

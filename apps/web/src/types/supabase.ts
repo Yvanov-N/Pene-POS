@@ -1,5 +1,5 @@
 // Hand-authored to mirror supabase/migrations/00001_initial_schema.sql through
-// 00013_push_subscription_metadata.sql.
+// 00015_atomic_complete_sale.sql.
 // Regenerate from the real database once it's stable:
 //   supabase gen types typescript --local > src/types/supabase.ts
 
@@ -198,6 +198,10 @@ export interface Database {
       decrement_product_stock: {
         Args: { p_product_id: string; p_quantity: number };
         Returns: Database["public"]["Tables"]["products"]["Row"];
+      };
+      complete_sale: {
+        Args: { p_sale: Json; p_items: Json };
+        Returns: Database["public"]["Tables"]["sales"]["Row"];
       };
       adjust_wallet_balance: {
         Args: { p_wallet_id: string; p_delta: number };

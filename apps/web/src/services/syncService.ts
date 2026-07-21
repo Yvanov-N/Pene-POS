@@ -14,7 +14,7 @@ import type {
   SyncQueueItem,
   WalletBalancePayload,
 } from "@/types/db";
-import type { Database } from "@/types/supabase";
+import type { Database, Json } from "@/types/supabase";
 
 // ============================================================================
 // Offline-first repository pattern -- the one way any feature in this app
@@ -68,6 +68,16 @@ const FOREIGN_KEY_VIOLATION_CODE = "23503";
 // real backstop. Same "conflict, don't infinite-retry" treatment.
 const UNIQUE_VIOLATION_CODE = "23505";
 
+// Mirrors useNetworkStatus.ts's PING_TIMEOUT_MS pattern -- without this, a
+// hung request has no bound (lib/supabase.ts's client passes no fetch/
+// timeout options), and processSyncQueue awaits every queue item
+// sequentially, so one hang blocks the entire sync engine -- including the
+// manual "Sync Now" button and every future 30s auto-cycle -- indefinitely.
+// 15s (vs. the 4s connectivity ping) because this covers real writes, not a
+// lightweight health check, on what may be a slow campus connection; long
+// enough not to falsely trip on a legitimately slow but working request.
+const PUSH_TIMEOUT_MS = 15000;
+
 type QueueOutcome = "completed" | "conflict";
 
 // Overloaded so the payload shape is enforced at the call site too, not just
@@ -100,26 +110,34 @@ export async function enqueueMutation(
   } as SyncQueueItem);
 }
 
+// Single atomic RPC (migration 15) instead of three separate round trips
+// (insert sale, insert items, loop-decrement stock) -- the old sequence
+// could partially succeed (e.g. the sale insert commits, then a later step
+// fails) with no safe way to retry: a resend of the sale insert hit a
+// duplicate-key error every time thereafter, burning the whole retry budget
+// without ever resolving (confirmed live in production -- a sale stuck
+// "Syncing" for over an hour). complete_sale is idempotent by construction:
+// a sales row existing for this id is a reliable, race-free signal the
+// whole operation already committed on a prior attempt.
 async function pushSale(payload: SalePayload): Promise<QueueOutcome> {
   const { sale, items } = payload;
 
-  const { error: saleError } = await supabase.from("sales").insert(sale);
-  if (saleError) throw saleError;
+  // Sale/SaleItem are plain, JSON-safe data (no functions, no index
+  // signature) -- the cast is TypeScript's Json type requiring an explicit
+  // index signature structurally, not a real runtime safety concern.
+  const { error } = await supabase
+    .rpc("complete_sale", { p_sale: sale as unknown as Json, p_items: items as unknown as Json })
+    .abortSignal(AbortSignal.timeout(PUSH_TIMEOUT_MS));
 
-  const { error: itemsError } = await supabase.from("sale_items").insert(items);
-  if (itemsError) throw itemsError;
-
-  // Atomic RPC (migration 2) -- a fetch-then-subtract-then-write from the
-  // client would race with a second terminal selling the same last item.
-  for (const line of items) {
-    const { error: stockError } = await supabase.rpc("decrement_product_stock", {
-      p_product_id: line.product_id,
-      p_quantity: line.quantity,
-    });
-    if (stockError) {
-      if (stockError.code === CHECK_VIOLATION_CODE) return "conflict";
-      throw stockError;
+  if (error) {
+    // check_violation (oversold stock) or foreign_key_violation (a product
+    // referenced by this offline sale was deleted before it ever synced) --
+    // both are genuine conflicts needing admin resolution, not a transient
+    // failure worth silently retrying to exhaustion.
+    if (error.code === CHECK_VIOLATION_CODE || error.code === FOREIGN_KEY_VIOLATION_CODE) {
+      return "conflict";
     }
+    throw error;
   }
 
   await db.sales.update(sale.id, { status: "completed" });
@@ -134,10 +152,9 @@ async function pushSale(payload: SalePayload): Promise<QueueOutcome> {
 // shop physically paid out", something totalWalletRecharges' own comment
 // already flags as impossible to distinguish today for WALLET_RECHARGE alone.
 async function pushWalletBalanceAdjustment(payload: WalletBalancePayload): Promise<QueueOutcome> {
-  const { error } = await supabase.rpc("adjust_wallet_balance", {
-    p_wallet_id: payload.wallet_id,
-    p_delta: payload.delta,
-  });
+  const { error } = await supabase
+    .rpc("adjust_wallet_balance", { p_wallet_id: payload.wallet_id, p_delta: payload.delta })
+    .abortSignal(AbortSignal.timeout(PUSH_TIMEOUT_MS));
   if (error) {
     if (error.code === CHECK_VIOLATION_CODE) return "conflict";
     throw error;
@@ -163,10 +180,10 @@ async function pushGeneric(
 
   const { error } =
     action === "INSERT"
-      ? await table.insert(payload as never)
+      ? await table.insert(payload as never).abortSignal(AbortSignal.timeout(PUSH_TIMEOUT_MS))
       : action === "UPDATE"
-        ? await table.update(payload as never).eq("id", id)
-        : await table.delete().eq("id", id);
+        ? await table.update(payload as never).eq("id", id).abortSignal(AbortSignal.timeout(PUSH_TIMEOUT_MS))
+        : await table.delete().eq("id", id).abortSignal(AbortSignal.timeout(PUSH_TIMEOUT_MS));
 
   if (error) {
     if (
