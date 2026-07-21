@@ -73,9 +73,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # version pinned, not "latest": floating on latest is what silently
+      # broke `supabase db push --project-ref` on us once already (the CLI
+      # shipped a breaking flag removal and this pipeline picked it up with
+      # no warning). Bump this deliberately when there's a reason to.
+      # github-token: without it, resolving even a *pinned* version still
+      # calls the GitHub Releases API unauthenticated and shares the public
+      # 60-req/hour limit across every GitHub-hosted runner's IP range --
+      # trivially exhausted. GITHUB_TOKEN is provided automatically by
+      # Actions, no new secret needed.
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.109.1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # `supabase db push` no longer accepts --project-ref directly (dropped
       # in a recent CLI release) -- it now requires the project to be linked
