@@ -56,6 +56,27 @@ supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT="m
 (and `RESEND_API_KEY` the same way, if you want `notify-shop-status`'s student emails to actually send —
 also not a GitHub secret, for the same reason.)
 
+## Required: point the DB webhook / cron job at this project
+
+Migration `00014_parameterize_notification_endpoints.sql` reads the `notify-shop-status` trigger's and
+`inventory-alerts-hourly` cron job's target URL/key from a table (`public.app_settings`), not a
+hardcoded value — the migration itself never contains a real value at all; only `seed.sql` (local-dev
+only, never pushed to a real project) does. Without this step, `db push` succeeds but both
+notifications silently no-op (the trigger/cron function checks for `null` and skips, rather than
+failing the actual `UPDATE`/cron run). Run this **once**, directly against the hosted project (Dashboard
+→ SQL Editor, or `supabase db execute --linked` from a machine with it linked) — substituting the real
+project ref and `VITE_SUPABASE_ANON_KEY` value from the table above (both are meant to be public, same
+as shipping the anon key to the frontend, so no extra secret-handling concern here):
+
+```sql
+insert into public.app_settings (key, value) values
+  ('functions_url', 'https://<SUPABASE_PROJECT_ID>.supabase.co/functions/v1'),
+  ('anon_key', '<VITE_SUPABASE_ANON_KEY>')
+on conflict (key) do update set value = excluded.value;
+```
+
+Re-run it if this project's anon key is ever rotated.
+
 ## Optional: push notification on deploy
 
 The last step in `summarize` pings all admins via `dispatch-push` when a deploy succeeds. It's off by
@@ -89,6 +110,9 @@ pattern, since anyone who can push one triggers a real production deploy.
 - [ ] Vercel project's Root Directory is `apps/web`.
 - [ ] Production Supabase project has its own VAPID keypair and (if wanted) `RESEND_API_KEY` set via
       `supabase secrets set` — **not** copied from local dev.
+- [ ] `public.app_settings` has `functions_url`/`anon_key` rows for this project (see "Required: point
+      the DB webhook / cron job at this project" above) — without it, shop-status and inventory alert
+      notifications silently never fire.
 - [ ] `main` has branch protection requiring PRs.
 - [ ] A tag protection rule restricts who can push `v*` tags, since that's what actually triggers a
       production deploy now.
