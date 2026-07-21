@@ -17,11 +17,30 @@ try {
   // No git available (e.g. shallow CI checkout) — degrade gracefully.
 }
 
+// Production deploys (.github/workflows/deploy-production.yml) are triggered
+// by pushing a vX.Y.Z tag, and that tag IS the release version -- prefer an
+// exact release tag at the commit being built over changelog.json's own
+// auto-bumped version field, which just tracks the running list of
+// unreleased changes and can be ahead of whatever was last actually tagged.
+// Falls back to changelog.json for local/dev builds, which are never built
+// from a release tag.
+let version = latest.version;
+try {
+  const tags = execSync("git tag --points-at HEAD", { cwd: webRoot, encoding: "utf-8" })
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+  const releaseTag = tags.find((tag) => /^v\d+\.\d+\.\d+$/.test(tag));
+  if (releaseTag) version = releaseTag.slice(1);
+} catch {
+  // No git / no tags reachable — fall back to changelog.json above.
+}
+
 writeFileSync(
   outPath,
   JSON.stringify(
     {
-      version: latest.version,
+      version,
       buildId,
       buildDate: new Date().toISOString(),
       changes: latest.changes,
@@ -31,4 +50,4 @@ writeFileSync(
   ) + "\n",
 );
 
-console.log(`[gen-version] v${latest.version} (${buildId})`);
+console.log(`[gen-version] v${version} (${buildId})`);

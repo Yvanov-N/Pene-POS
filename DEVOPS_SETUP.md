@@ -1,16 +1,31 @@
 # DevOps setup — production deploy pipeline
 
-`.github/workflows/deploy-production.yml` runs on every push to `main` (i.e. every merged PR) and:
+`.github/workflows/deploy-production.yml` runs **only when a `vX.Y.Z` release tag is pushed** — merging
+a PR to `main` by itself deploys nothing. Cutting a release is a deliberate, separate step:
 
-1. Tags the release (`resolve-version`)
+```bash
+git checkout main && git pull
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+That pushes tag then runs:
+
+1. Reads the version back out of the tag itself (`resolve-version`) — the tag *is* the version, nothing
+   to compute or bump
 2. Pushes DB migrations + deploys all Supabase Edge Functions (`supabase-deploy`)
 3. Builds and promotes the PWA on Vercel (`deploy-vercel`) — **skipped entirely if step 2 fails**
 4. Posts a summary to the Actions run page (`summarize`)
 
-Nothing above needs a version bump from CI: this repo already bumps `apps/web/public/changelog.json`
-locally on every commit (`.githooks/post-commit`), so the commit that lands on `main` already carries
-its final version. `resolve-version` just reads it and tags it — see the comment at the top of the
-workflow file if you're wondering where the "bump" step is.
+This is separate from `apps/web/public/changelog.json`, which `.githooks/post-commit` still bumps
+locally on every commit — that file tracks the running list of unreleased changes shown in the app's
+update banner. It does NOT decide what gets deployed; only pushing a tag does. `apps/web/scripts/gen-
+version.mjs` prefers an exact release tag at the built commit over changelog.json's version field when
+both exist, so the version a user actually sees in the app matches the tag that shipped it.
+
+Picking the next tag: check `apps/web/public/changelog.json`'s `[0].version` for the auto-bumped
+suggestion, or just increment the last tag yourself — either is fine, since nothing enforces the tag
+match changelog.json exactly.
 
 ## Required GitHub Secrets
 
@@ -62,9 +77,11 @@ wrong thing).
 
 ## Branch protection
 
-This workflow assumes `main` only ever changes via a merged PR (no direct pushes). If that's not
-already enforced: repo **Settings → Branches → Add branch protection rule** for `main`, require a PR
-before merging.
+Production now only deploys off a pushed `vX.Y.Z` tag, not off `main` directly — so tagging is the
+real production gate, not merging. Still require PRs into `main` (repo **Settings → Branches → Add
+branch protection rule**) so nothing ships to a release tag without review, and consider a **Tag
+protection rule** (**Settings → Tags** → pattern `v*`) restricting who can push tags matching that
+pattern, since anyone who can push one triggers a real production deploy.
 
 ## Sanity checklist before the first real run
 
@@ -73,6 +90,8 @@ before merging.
 - [ ] Production Supabase project has its own VAPID keypair and (if wanted) `RESEND_API_KEY` set via
       `supabase secrets set` — **not** copied from local dev.
 - [ ] `main` has branch protection requiring PRs.
+- [ ] A tag protection rule restricts who can push `v*` tags, since that's what actually triggers a
+      production deploy now.
 - [ ] `ENABLE_DEPLOY_PUSH_NOTIFICATION` left unset (or `false`) until you've actually verified a manual
       `dispatch-push` call against production works — the first real deploy is not the moment to find
       out it doesn't.

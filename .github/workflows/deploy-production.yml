@@ -1,78 +1,60 @@
 name: Deploy Production
 
-# Runs on every push to main -- which in practice only ever happens via a PR
-# merge, since main is a protected branch with no direct pushes.
-#
-# [skip ci] is NOT handled below on purpose: GitHub already refuses to start
-# ANY workflow run at all for a push whose commit message contains
-# [skip ci]/[ci skip], for any casing. Re-checking it here would be dead code
-# that can never see the commits it's supposedly filtering. The
-# chore(release): guard below is the only filter this file actually needs.
+# Runs only when a vX.Y.Z release tag is pushed -- merging to main by itself
+# does NOT deploy anything anymore. Cutting a release is a deliberate,
+# separate step:
+#   git tag v1.2.3 && git push origin v1.2.3
+# The pushed tag is also the app's version for this run (see resolve-version
+# below) -- there is nothing left for CI to compute or bump.
 on:
   push:
-    branches: [main]
+    tags:
+      - "v*.*.*"
 
-# A second merge landing mid-deploy must wait, not run concurrently against
-# the same production Supabase project and Vercel deployment -- but it must
-# NOT cancel a deploy already in flight (half-applied migrations are exactly
-# the kind of state you can't safely abandon partway through).
+# Two tags pushed close together must wait, not run concurrently against the
+# same production Supabase project and Vercel deployment -- but a second one
+# must NOT cancel a deploy already in flight (half-applied migrations are
+# exactly the kind of state you can't safely abandon partway through).
 concurrency:
   group: production-deploy
   cancel-in-progress: false
 
 permissions:
-  contents: write # only step that needs this: pushing the release tag in resolve-version
+  contents: read # CI no longer creates/pushes the release tag -- that's now a human action
 
 jobs:
   # ============================================================================
-  # Job 1 -- Resolve the release version and tag it.
+  # Job 1 -- Resolve the release version from the tag that triggered this run.
   # ============================================================================
-  # This repo already has a version source of truth: .githooks/post-commit
-  # runs bump-version.mjs on every local commit, which bumps
-  # apps/web/public/changelog.json (patch/minor/major, from the conventional-
-  # commit prefix) and amends that bump into the SAME commit. That means
-  # every commit that reaches main already carries its correct, final
-  # version -- there is nothing left for CI to decide or compute.
+  # The pushed tag IS the version -- there's nothing to bump or compute here,
+  # just parse it back out of GITHUB_REF_NAME (e.g. "v1.2.3" -> "1.2.3") and
+  # sanity-check its shape. No checkout needed: the ref name alone is enough.
   #
-  # So this job does NOT bump package.json, does NOT commit anything back to
-  # main, and does NOT need a bump-version action. It only reads the version
-  # main's HEAD commit already carries and tags it -- which is also what
-  # makes the infinite-loop problem moot by construction: a job that never
-  # pushes a commit can't trigger the push-triggered workflow that would
-  # re-run it. (package.json's own "version" field is left at 0.0.0
-  # deliberately, as it was before this workflow -- nothing in this app reads
-  # it; apps/web/public/version.json, generated at build time from
-  # changelog.json, is what the running app actually displays.)
+  # This is deliberately independent of apps/web/public/changelog.json's own
+  # auto-bumped version field (.githooks/post-commit bumps that on every
+  # local commit) -- that file still tracks the running list of unreleased
+  # changes shown in the app's update banner, but which commit actually
+  # becomes a numbered *release* is now decided by whoever pushes the tag,
+  # not by however many commits happened to land since the last one.
+  # apps/web/scripts/gen-version.mjs prefers an exact tag at the built commit
+  # over changelog.json's version field for exactly this reason.
   resolve-version:
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.version.outputs.new_version }}
       new_tag: ${{ steps.version.outputs.new_tag }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Read version from changelog.json
+      - name: Read version from the pushed tag
         id: version
         run: |
-          VERSION=$(jq -r '.[0].version' apps/web/public/changelog.json)
-          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-            echo "::error::apps/web/public/changelog.json has no [0].version -- can't resolve a release version."
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$TAG' isn't a vX.Y.Z release tag -- refusing to deploy."
             exit 1
           fi
           echo "new_version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "new_tag=v$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Tag the release (idempotent)
-        run: |
-          TAG="v${{ steps.version.outputs.new_version }}"
-          git fetch origin --tags --quiet
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists -- re-run of a previous deploy, nothing to do."
-          else
-            git tag -a "$TAG" -m "Release $TAG"
-            git push origin "$TAG"
-          fi
+          echo "new_tag=$TAG" >> "$GITHUB_OUTPUT"
 
   # ============================================================================
   # Job 2 -- Supabase: database migrations, then edge functions.
@@ -189,7 +171,7 @@ jobs:
             echo
             echo "## 🚀 Release"
             if [ "${{ needs.resolve-version.result }}" = "success" ]; then
-              echo "**${{ needs.resolve-version.outputs.new_tag }}** tagged and pushed."
+              echo "**${{ needs.resolve-version.outputs.new_tag }}** deploying."
             else
               echo "❌ Version resolution failed or was skipped -- nothing else in this run should be trusted."
             fi
