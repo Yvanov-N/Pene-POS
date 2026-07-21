@@ -135,6 +135,8 @@
       "averageCartSub": "Average spend per student",
       "walletRechargesLabel": "WALLET RECHARGES",
       "walletRechargesSub": "Student wallet top-up volume",
+      "stockValueLabel": "STOCK VALUE",
+      "stockValueSub": "Catalog value of all stock on hand",
       "studentDebtLabel": "STUDENT DEBT",
       "studentDebtSub": "Total negative balance owed to the shop",
       "criticalDebtTitle": "Critical debt (≥ 5,000 FCFA)",
@@ -229,6 +231,11 @@
       "fieldCategory": "Category",
       "fieldEmoji": "Icon",
       "fieldImageUrl": "Image URL",
+      "imageImportButton": "Import from computer",
+      "imageOr": "or",
+      "imageTypeError": "Please choose an image file.",
+      "imageSizeError": "Image must be under 2 MB.",
+      "imageUploadError": "Couldn't upload the image. Please try again.",
       "fieldBarcode": "Barcode",
       "fieldExpiry": "Expiry date",
       "formCancel": "Cancel",
@@ -535,6 +542,7 @@
   },
   "update": {
     "toast": {
+      "title": "NEW VERSION AVAILABLE",
       "titleWithVersion": "NEW VERSION · v{{version}}",
       "message": "Your cart and session are preserved.",
       "viewChangelog": "What's new",
@@ -542,7 +550,8 @@
       "updateNow": "Update now"
     },
     "loading": {
-      "text": "Loading version {{version}}..."
+      "text": "Loading version {{version}}...",
+      "textGeneric": "Loading update..."
     },
     "changelog": {
       "title": "What's new",

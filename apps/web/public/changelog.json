@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.5.2",
+    "date": "2026-07-21",
+    "changes": [
+      "add keys for stock-value KPI, product image upload, and update banner hardening"
+    ]
+  },
+  {
     "version": "1.5.1",
     "date": "2026-07-21",
     "changes": [
