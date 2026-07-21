@@ -4,6 +4,21 @@
 -- local-dev credentials, not secrets.
 -- ============================================================================
 
+-- Local values for migration 00014's parameterized notify-shop-status
+-- trigger / inventory-alerts cron job (public.app_settings, not a Postgres
+-- GUC -- see that migration's own comment for why). `kong` is the API
+-- gateway's internal Docker network alias; the anon key is the fixed,
+-- well-known default for every local Supabase stack (same one migration 3
+-- used to hardcode) -- public and safe to commit, unlike a service_role
+-- key. A real hosted project sets its own values directly (see migration
+-- 00014's own comment for the exact command) -- never from this file, which
+-- is dev-only and never applied to a remote project by `supabase db push`.
+insert into public.app_settings (key, value)
+values
+  ('functions_url', 'http://kong:8000/functions/v1'),
+  ('anon_key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0')
+on conflict (key) do update set value = excluded.value;
+
 -- Default admin account for local development.
 --   Email:    admin@penepos.dev
 --   Password: DevAdmin123!

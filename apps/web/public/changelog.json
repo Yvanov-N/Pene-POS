@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.0.4",
+    "date": "2026-07-21",
+    "changes": [
+      "parameterize notify-shop-status/inventory-alerts instead of hardcoding local dev values"
+    ]
+  },
+  {
     "version": "1.0.3",
     "date": "2026-07-21",
     "changes": [
