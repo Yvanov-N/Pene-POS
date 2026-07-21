@@ -57,6 +57,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     syncingRef.current = true;
     setIsSyncing(true);
     try {
+      // triggerManualSync (this function) is called unconditionally from
+      // ~15 unrelated call sites across the app (AvatarEditModal,
+      // ProductFormDrawer, LanguageSwitcher, etc.) that have no reason to
+      // know or care about connectivity -- only the two effects below ever
+      // checked isOnline before calling it, and isOnline itself can lag the
+      // real 20s ping interval. Confirming reachability here, once, means
+      // every caller is safe by construction instead of relying on 15
+      // call sites to each remember to check first.
+      const reachable = await checkNow();
+      if (!reachable) return;
+
       const { completedSales, conflicts } = await processSyncQueue();
       await pullFromSupabase();
 
@@ -83,7 +94,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       syncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [t, showToast]);
+  }, [t, showToast, checkNow]);
 
   useEffect(() => {
     if (isOnline && !wasOnlineRef.current) {

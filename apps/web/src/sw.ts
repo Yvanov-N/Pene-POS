@@ -15,8 +15,18 @@ declare const self: ServiceWorkerGlobalScope;
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
+// /auth/v1/health is deliberately excluded -- it's useNetworkStatus.ts's
+// connectivity probe, whose entire purpose is "is the network reachable
+// RIGHT NOW". NetworkFirst still falls back to a cached 200 after
+// networkTimeoutSeconds even when the network genuinely fails (that's the
+// whole point of NetworkFirst for real data routes), which would make the
+// probe permanently report "reachable" from a stale cache entry the first
+// time it ever succeeds -- confirmed live: isOnline stuck true while
+// actually offline. It has to hit the real network, uncontrolled by this
+// SW, every single time.
 registerRoute(
-  ({ url }) => url.pathname.startsWith("/rest/v1") || url.pathname.startsWith("/auth/v1"),
+  ({ url }) =>
+    (url.pathname.startsWith("/rest/v1") || url.pathname.startsWith("/auth/v1")) && !url.pathname.endsWith("/health"),
   new NetworkFirst({
     cacheName: "supabase-api-cache",
     networkTimeoutSeconds: 5,
