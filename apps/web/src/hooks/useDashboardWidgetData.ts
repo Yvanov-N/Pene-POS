@@ -31,3 +31,14 @@ export function useStudentDebtSummary(): StudentDebtSummary | undefined {
     [],
   );
 }
+
+// Current-state snapshot of stock on hand, priced at catalog value -- reads
+// db.products directly (same table sales, restocking, and sync pulls all
+// write to), so it rises/falls live with every one of those without any
+// extra wiring.
+export function useStockValueSummary(): number | undefined {
+  return useLiveQuery(
+    () => db.products.toArray().then((products) => products.reduce((sum, p) => sum + p.price * p.stock, 0)),
+    [],
+  );
+}
