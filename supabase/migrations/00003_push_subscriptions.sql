@@ -61,56 +61,14 @@ grant select, insert, update, delete on
   public.push_subscriptions
 to service_role;
 
--- ----------------------------------------------------------------------------
--- shop_status Database Webhook -> notify-shop-status edge function.
---
--- No admin UI mutates shop_status yet (that's a separate, un-built feature),
--- so this is the "Database Webhook" wiring option rather than "called by the
--- sync engine" -- fully contained here, nothing else needs to exist for it
--- to fire. supabase_functions.http_request (confirmed present locally) POSTs
--- a body shaped {type, table, schema, record, old_record} built from the
--- trigger context -- notify-shop-status must expect exactly that shape.
--- `kong` is the API gateway's internal Docker network alias; this call never
--- blocks the actual UPDATE (pg_net is async/fire-and-forget).
---
--- Kong itself gatekeeps every /functions/v1/* route on a valid `apikey`
--- header before the request ever reaches the edge runtime -- confirmed live:
--- omitting it gets a 401 "Missing authorization header" straight from Kong,
--- before notify-shop-status's own code runs at all. The value below is the
--- anon key, which is designed to be public (it's the same well-known default
--- for every local Supabase stack, derived from the local JWT secret) -- safe
--- to commit here, unlike a service_role key. When deploying to a real hosted
--- project, replace it with that project's actual anon key.
--- ----------------------------------------------------------------------------
-create trigger shop_status_notify
-  after update on public.shop_status
-  for each row
-  execute function supabase_functions.http_request(
-    'http://kong:8000/functions/v1/notify-shop-status',
-    'POST',
-    '{"Content-Type":"application/json","apikey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"}',
-    '{}',
-    '5000'
-  );
-
--- ----------------------------------------------------------------------------
--- inventory-alerts scheduling. "Scheduled (Cron)" needs to be configured
--- somewhere real, not just implied by the function existing -- pg_cron +
--- pg_net is the actual mechanism behind Supabase's Dashboard "Cron Jobs"
--- feature (confirmed pg_cron is available, just not yet enabled, on this
--- local stack). Hourly is a reasonable default for a campus shop; adjust to
--- taste.
--- ----------------------------------------------------------------------------
-create extension if not exists pg_cron;
-
-select cron.schedule(
-  'inventory-alerts-hourly',
-  '0 * * * *',
-  $$
-  select net.http_post(
-    url := 'http://kong:8000/functions/v1/inventory-alerts',
-    headers := '{"Content-Type":"application/json","apikey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"}'::jsonb,
-    body := '{}'::jsonb
-  );
-  $$
-);
+-- shop_status Database Webhook -> notify-shop-status, and inventory-alerts
+-- scheduling both moved to migration 00014: this migration's original
+-- versions called supabase_functions.http_request, a schema that turned out
+-- to exist on the local dev image but NOT on a real hosted project
+-- (confirmed live: `ERROR: schema "supabase_functions" does not exist`,
+-- which rolled back this entire migration -- push_subscriptions included --
+-- on the very first real deploy attempt). Since this migration had never
+-- successfully applied anywhere but local dev at that point, moving the
+-- trigger/cron setup forward to a later migration (rather than leaving a
+-- known-broken statement here) is safe -- see 00014 for the working
+-- pg_net-based replacement and the full story on why.

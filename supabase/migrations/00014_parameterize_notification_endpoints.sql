@@ -38,6 +38,18 @@
 -- shape notify-shop-status/index.ts already parses (see its own top-of-file
 -- comment) -- not a payload shape change, just who builds it.
 --
+-- One more thing this surfaced, confirmed live against the real hosted
+-- project (db push against knjcxivdxvslnmxzsrnq): the `supabase_functions`
+-- schema migration 3 originally called doesn't exist there at all --
+-- `ERROR: schema "supabase_functions" does not exist`, which rolled back
+-- migration 3's entire transaction (push_subscriptions included) on the
+-- very first real deploy attempt. It's not in pg_available_extensions
+-- either, so there's no CREATE EXTENSION that provides it -- it's local-dev-
+-- image-only. pg_net and pg_cron ARE available on the hosted project
+-- (confirmed via pg_available_extensions), just not enabled by default --
+-- hence the two CREATE EXTENSION IF NOT EXISTS below, which migration 3 no
+-- longer does now that its trigger/cron setup moved here.
+--
 -- Per-environment setup (NOT part of this migration, deliberately -- see
 -- above for why hardcoding either environment's value here would break the
 -- other):
@@ -53,6 +65,9 @@
 --       on conflict (key) do update set value = excluded.value;
 --     Must be re-run if this project's anon key is ever rotated.
 -- ============================================================================
+
+create extension if not exists pg_net;
+create extension if not exists pg_cron;
 
 -- Deliberately no grants to anon/authenticated -- this is read only by
 -- SECURITY DEFINER trigger/cron functions below, never by PostgREST or the
