@@ -9,7 +9,7 @@
 // supported by WhatsApp/Telegram"), has no cold-start/WASM fragility, and
 // covers the two platforms named in the deploy target. Upgrading to PNG
 // later is a contained change to this one file.
-import { formatAmount, getReceiptData } from "../_shared/receipt.ts";
+import { extractSaleId, formatAmount, getReceiptData } from "../_shared/receipt.ts";
 
 const WIDTH = 1200;
 const HEIGHT = 630;
@@ -78,7 +78,7 @@ function buildSvg(params: { totalLabel: string | null; items: { name: string; qu
 
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
-  const saleId = url.searchParams.get("id");
+  const saleId = extractSaleId(url.searchParams.get("id"));
 
   const receipt = saleId ? await getReceiptData(saleId) : null;
 

@@ -190,7 +190,7 @@
       "reprintError": "Echec de l'impression",
       "share": "🔗 Partager",
       "shareTitle": "Recu Cite Shop",
-      "shareText": "Recu d'achat #{{id}} - {{amount}}",
+      "shareText": "Recu d'achat No. {{id}} - {{amount}}",
       "shareLinkCopiedToast": "Lien du recu copie pour WhatsApp/Telegram",
       "shareError": "Impossible de partager le recu",
       "void": "Annuler / Rembourser",

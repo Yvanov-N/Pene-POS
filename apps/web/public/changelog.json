@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.1.2",
+    "date": "2026-07-21",
+    "changes": [
+      "remove landmine # from share text, add defensive UUID extraction"
+    ]
+  },
+  {
     "version": "1.1.1",
     "date": "2026-07-21",
     "changes": [

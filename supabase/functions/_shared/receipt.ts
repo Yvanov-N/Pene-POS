@@ -6,6 +6,19 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
+// Some share-target apps flatten navigator.share()'s separate title/text/url
+// fields into one string before a recipient's link ever reaches this
+// function (a documented Android Web Share intent-merging quirk, not
+// something the sending client's own code can fully prevent). Extracting
+// just the UUID from the raw ?id= value means a mangled query param like
+// "8bfa72da-...-14c8646396ae Purchase receipt" still resolves the real
+// receipt instead of a false "not found".
+const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+export function extractSaleId(raw: string | null): string | null {
+  return raw?.match(UUID_PATTERN)?.[0] ?? null;
+}
+
 export interface ReceiptItem {
   product_name: string | null;
   quantity: number;

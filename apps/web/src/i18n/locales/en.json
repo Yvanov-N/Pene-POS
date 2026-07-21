@@ -190,7 +190,7 @@
       "reprintError": "Printing failed",
       "share": "🔗 Share",
       "shareTitle": "Cite Shop receipt",
-      "shareText": "Purchase receipt #{{id}} - {{amount}}",
+      "shareText": "Purchase receipt No. {{id}} - {{amount}}",
       "shareLinkCopiedToast": "Receipt link copied for WhatsApp/Telegram",
       "shareError": "Couldn't share the receipt",
       "void": "Void / Refund",

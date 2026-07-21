@@ -70,8 +70,22 @@ function ReceiptSkeleton() {
   );
 }
 
+// Some share-target apps flatten navigator.share()'s separate title/text/url
+// fields into one string before this app ever sees it back (a documented
+// Android Web Share intent-merging quirk, not something this app's own code
+// can fully prevent -- see the fix to admin.salesHistory.shareText for the
+// specific trigger). Extracting just the UUID means a mangled param like
+// "8bfa72da-...-14c8646396ae Purchase receipt" still resolves the real
+// receipt instead of a false "not found".
+const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+function extractSaleId(raw: string | undefined): string | undefined {
+  return raw?.match(UUID_PATTERN)?.[0];
+}
+
 export function ReceiptPage() {
-  const { saleId } = useParams<{ saleId: string }>();
+  const { saleId: rawSaleId } = useParams<{ saleId: string }>();
+  const saleId = extractSaleId(rawSaleId);
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
 
