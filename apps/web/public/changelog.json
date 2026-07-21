@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.1.1",
+    "date": "2026-07-21",
+    "changes": [
+      "add Vercel SPA rewrite, fixing 404s on direct/refreshed navigation"
+    ]
+  },
+  {
     "version": "1.1.0",
     "date": "2026-07-21",
     "changes": [
