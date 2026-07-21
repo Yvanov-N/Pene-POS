@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.21.4",
+    "date": "2026-07-21",
+    "changes": [
+      "ignore .vercel local project link directory"
+    ]
+  },
+  {
     "version": "0.21.3",
     "date": "2026-07-21",
     "changes": [
