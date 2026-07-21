@@ -1,0 +1,229 @@
+name: Deploy Production
+
+# Runs on every push to main -- which in practice only ever happens via a PR
+# merge, since main is a protected branch with no direct pushes.
+#
+# [skip ci] is NOT handled below on purpose: GitHub already refuses to start
+# ANY workflow run at all for a push whose commit message contains
+# [skip ci]/[ci skip], for any casing. Re-checking it here would be dead code
+# that can never see the commits it's supposedly filtering. The
+# chore(release): guard below is the only filter this file actually needs.
+on:
+  push:
+    branches: [main]
+
+# A second merge landing mid-deploy must wait, not run concurrently against
+# the same production Supabase project and Vercel deployment -- but it must
+# NOT cancel a deploy already in flight (half-applied migrations are exactly
+# the kind of state you can't safely abandon partway through).
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: write # only step that needs this: pushing the release tag in resolve-version
+
+jobs:
+  # ============================================================================
+  # Job 1 -- Resolve the release version and tag it.
+  # ============================================================================
+  # This repo already has a version source of truth: .githooks/post-commit
+  # runs bump-version.mjs on every local commit, which bumps
+  # apps/web/public/changelog.json (patch/minor/major, from the conventional-
+  # commit prefix) and amends that bump into the SAME commit. That means
+  # every commit that reaches main already carries its correct, final
+  # version -- there is nothing left for CI to decide or compute.
+  #
+  # So this job does NOT bump package.json, does NOT commit anything back to
+  # main, and does NOT need a bump-version action. It only reads the version
+  # main's HEAD commit already carries and tags it -- which is also what
+  # makes the infinite-loop problem moot by construction: a job that never
+  # pushes a commit can't trigger the push-triggered workflow that would
+  # re-run it. (package.json's own "version" field is left at 0.0.0
+  # deliberately, as it was before this workflow -- nothing in this app reads
+  # it; apps/web/public/version.json, generated at build time from
+  # changelog.json, is what the running app actually displays.)
+  resolve-version:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      new_tag: ${{ steps.version.outputs.new_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version from changelog.json
+        id: version
+        run: |
+          VERSION=$(jq -r '.[0].version' apps/web/public/changelog.json)
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "::error::apps/web/public/changelog.json has no [0].version -- can't resolve a release version."
+            exit 1
+          fi
+          echo "new_version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Tag the release (idempotent)
+        run: |
+          TAG="v${{ steps.version.outputs.new_version }}"
+          git fetch origin --tags --quiet
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists -- re-run of a previous deploy, nothing to do."
+          else
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+          fi
+
+  # ============================================================================
+  # Job 2 -- Supabase: database migrations, then edge functions.
+  # ============================================================================
+  # Deliberately one job, migrations before functions, no continue-on-error
+  # anywhere in it: a function that starts calling a column/table a failed
+  # migration never created is worse than not deploying at all, and
+  # deploy-vercel's `needs: supabase-deploy` means a failure ANYWHERE in this
+  # job -- migrations or functions -- hard-stops the frontend deploy before
+  # it can ship a build against a schema that was never actually applied.
+  supabase-deploy:
+    needs: resolve-version
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Push database migrations
+        run: |
+          supabase db push \
+            --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}" \
+            --password "${{ secrets.SUPABASE_DB_PASSWORD }}" \
+            --yes
+
+      - name: Deploy edge functions
+        # No --no-verify-jwt here: supabase/config.toml already declares the
+        # correct verify_jwt per function (false for share-receipt and
+        # receipt-og-image, which anonymous receipt links/scrapers must
+        # reach; true for dispatch-push and notify-shop-status, which must
+        # not be callable by an anonymous request). Forcing it off for every
+        # function here would silently deploy dispatch-push/notify-shop-status
+        # weaker than they're configured for locally. Deploying the whole
+        # functions/ directory (instead of 4 hardcoded names) also means a
+        # function added later ships automatically, with no edit to this file.
+        run: |
+          supabase functions deploy \
+            --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}"
+
+  # ============================================================================
+  # Job 3 -- Vercel: build and promote to production.
+  # ============================================================================
+  # Uses the official Vercel CLI's "prebuilt deployment" flow (Vercel's own
+  # current recommended GitHub Actions pattern) rather than a third-party
+  # action: `vercel build` runs the project's actual configured install/build
+  # commands (this repo's pnpm-lock.yaml is auto-detected) and needs no
+  # separate pnpm install step here. The Vercel project's Root Directory
+  # MUST be set to apps/web in the Vercel dashboard (see DEVOPS_SETUP.md) --
+  # these commands are run from the repo root and rely on that setting to
+  # find the right app in this monorepo.
+  deploy-vercel:
+    needs: supabase-deploy
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build (production)
+        run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # These three take priority over whatever's configured in the
+          # Vercel dashboard (if anything is) -- GitHub Secrets stay the one
+          # place the team has to look to know what a production build was
+          # actually built against.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+
+      - name: Deploy prebuilt output
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # ============================================================================
+  # Job 4 -- Summary + optional staff push notification.
+  # ============================================================================
+  # if: always() so this still posts an accurate summary when something
+  # upstream failed, instead of the whole run just showing 3 red jobs and no
+  # explanation -- success() below decides the emoji/wording per section, not
+  # whether this job runs at all.
+  summarize:
+    needs: [resolve-version, supabase-deploy, deploy-vercel]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write deployment summary
+        run: |
+          {
+            echo "# Deployment summary"
+            echo
+            echo "## 🚀 Release"
+            if [ "${{ needs.resolve-version.result }}" = "success" ]; then
+              echo "**${{ needs.resolve-version.outputs.new_tag }}** tagged and pushed."
+            else
+              echo "❌ Version resolution failed or was skipped -- nothing else in this run should be trusted."
+            fi
+            echo
+            echo "## 🗄️ Supabase"
+            if [ "${{ needs.supabase-deploy.result }}" = "success" ]; then
+              echo "✅ Migrations applied. Edge functions deployed: \`dispatch-push\`, \`share-receipt\`, \`receipt-og-image\`, \`notify-shop-status\`."
+            else
+              echo "❌ Supabase deployment failed -- **the Vercel deploy below was skipped on purpose** to avoid shipping a frontend against an unapplied schema."
+            fi
+            echo
+            echo "## 🌐 Vercel"
+            if [ "${{ needs.deploy-vercel.result }}" = "success" ]; then
+              echo "✅ Production PWA live: ${{ needs.deploy-vercel.outputs.url }}"
+            elif [ "${{ needs.deploy-vercel.result }}" = "skipped" ]; then
+              echo "⏭️ Skipped (Supabase deployment above didn't succeed)."
+            else
+              echo "❌ Vercel deployment failed."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Optional: nudge staff that a new release is live. Needs
+      # SUPABASE_SERVICE_ROLE_KEY -- not in the core secrets list, since
+      # dispatch-push (supabase/functions/dispatch-push/index.ts) only
+      # honors a role-wide broadcast from the actual service_role key, never
+      # from a regular user token. Never fails the run either way -- a
+      # missed announcement push is not a reason to red-flag a deployment
+      # that otherwise succeeded.
+      - name: Notify admins via push (optional)
+        if: needs.deploy-vercel.result == 'success' && vars.ENABLE_DEPLOY_PUSH_NOTIFICATION == 'true'
+        continue-on-error: true
+        run: |
+          curl -sS -X POST "https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/dispatch-push" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"targetRole\":\"admin\",\"payload\":{\"title\":\"Nouvelle version\",\"body\":\"🚀 Cite Shop ${{ needs.resolve-version.outputs.new_tag }} est en ligne !\",\"tag\":\"release\"}}"

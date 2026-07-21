@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.21.2",
+    "date": "2026-07-21",
+    "changes": [
+      "production deploy pipeline (Supabase + Vercel), setup docs, and a PR template"
+    ]
+  },
+  {
     "version": "0.21.1",
     "date": "2026-07-21",
     "changes": [
