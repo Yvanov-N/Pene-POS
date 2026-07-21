@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Wallet, Receipt, ShoppingCart, GraduationCap, AlertTriangle } from "lucide-react";
+import { Wallet, Receipt, ShoppingCart, GraduationCap, AlertTriangle, Package } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useDashboardAnalytics } from "@/hooks/useDashboardAnalytics";
-import { useStudentDebtSummary } from "@/hooks/useDashboardWidgetData";
+import { useStudentDebtSummary, useStockValueSummary } from "@/hooks/useDashboardWidgetData";
 import { useShopStatus } from "@/hooks/useShopStatus";
 import type { CustomRange, TimeRangeFilter } from "@/hooks/useDashboardAnalytics";
 import { CardCustom } from "@/components/ui/card-custom";
@@ -60,6 +60,11 @@ export function DashboardPage() {
   const debtSummary = useStudentDebtSummary();
   const totalStudentDebt = debtSummary?.totalDebt;
 
+  // Same "current snapshot, not range-scoped" reasoning as totalStudentDebt
+  // above -- stock on hand right now isn't a "how much happened this week"
+  // metric either.
+  const stockValue = useStockValueSummary();
+
   const handleExportCsv = useCallback(() => {
     const rangeLabel = t(`admin.dashboard.range.${rangeFilter}`);
     const rows: string[][] = [
@@ -72,6 +77,7 @@ export function DashboardPage() {
       [t("admin.dashboard.averageCartLabel"), String(analytics.averageCart)],
       [t("admin.dashboard.walletRechargesLabel"), String(analytics.totalWalletRecharges)],
       [t("admin.dashboard.studentDebtLabel"), String(totalStudentDebt ?? 0)],
+      [t("admin.dashboard.stockValueLabel"), String(stockValue ?? 0)],
       [],
       [t("admin.dashboard.exportTopProductsHeader"), "Quantite", "Chiffre d'affaires"],
       ...analytics.topProducts.map((product) => [product.name, String(product.quantitySold), String(product.revenue)]),
@@ -85,7 +91,7 @@ export function DashboardPage() {
     link.download = `cite-shop-rapport-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [t, rangeFilter, analytics, totalStudentDebt]);
+  }, [t, rangeFilter, analytics, totalStudentDebt, stockValue]);
 
   const revenueChangeNode: ReactNode = useMemo(() => {
     const pct = analytics.revenueChangePct;
@@ -153,6 +159,7 @@ export function DashboardPage() {
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
+            <StatCardSkeleton />
             <StatCardSkeleton className="lg:col-span-4" />
           </>
         ) : (
@@ -183,6 +190,13 @@ export function DashboardPage() {
               value={analytics.totalWalletRecharges}
               formatValue={formatCurrency}
               sub={t("admin.dashboard.walletRechargesSub")}
+            />
+            <StatCard
+              icon={<Package className="h-6 w-6" />}
+              label={t("admin.dashboard.stockValueLabel")}
+              value={stockValue ?? 0}
+              formatValue={formatCurrency}
+              sub={t("admin.dashboard.stockValueSub")}
             />
             <StatCard
               icon={<AlertTriangle className="h-6 w-6" />}

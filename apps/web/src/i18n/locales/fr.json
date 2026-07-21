@@ -135,6 +135,8 @@
       "averageCartSub": "Depense moyenne par etudiant",
       "walletRechargesLabel": "RECHARGES WALLET",
       "walletRechargesSub": "Volume de recharges portefeuille etudiant",
+      "stockValueLabel": "VALEUR DU STOCK",
+      "stockValueSub": "Valeur catalogue de tout le stock disponible",
       "studentDebtLabel": "DETTES ETUDIANTS",
       "studentDebtSub": "Solde negatif total du aux boutiques",
       "criticalDebtTitle": "Dettes critiques (≥ 5 000 FCFA)",
@@ -229,6 +231,11 @@
       "fieldCategory": "Categorie",
       "fieldEmoji": "Icone",
       "fieldImageUrl": "URL de l'image",
+      "imageImportButton": "Importer depuis l'ordinateur",
+      "imageOr": "ou",
+      "imageTypeError": "Veuillez choisir un fichier image.",
+      "imageSizeError": "L'image ne doit pas depasser 2 Mo.",
+      "imageUploadError": "Impossible d'envoyer l'image. Veuillez reessayer.",
       "fieldBarcode": "Code-barres",
       "fieldExpiry": "Date d'expiration",
       "formCancel": "Annuler",
@@ -535,6 +542,7 @@
   },
   "update": {
     "toast": {
+      "title": "NOUVELLE VERSION DISPONIBLE",
       "titleWithVersion": "NOUVELLE VERSION - v{{version}}",
       "message": "Ta session et ton panier sont conserves.",
       "viewChangelog": "Nouveautes",
@@ -542,7 +550,8 @@
       "updateNow": "Mettre a jour"
     },
     "loading": {
-      "text": "Chargement de la version {{version}}..."
+      "text": "Chargement de la version {{version}}...",
+      "textGeneric": "Chargement de la mise a jour..."
     },
     "changelog": {
       "title": "Nouveautes",
