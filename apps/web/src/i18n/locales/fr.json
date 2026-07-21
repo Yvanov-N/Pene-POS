@@ -423,7 +423,13 @@
       "shopOpenBig": "🟢 BOUTIQUE OUVERTE",
       "shopCloseBig": "🔴 BOUTIQUE FERMEE",
       "shopStatusUpdatedToast": "Statut mis a jour et e-mails envoyes aux etudiants",
-      "shopStatusError": "Impossible de mettre a jour le statut de la boutique"
+      "shopStatusError": "Impossible de mettre a jour le statut de la boutique",
+      "aboutCardTitle": "A propos",
+      "aboutVersionLabel": "Version de l'application",
+      "aboutBuildLabel": "Build",
+      "aboutBuildDateLabel": "Compilee le",
+      "aboutLoading": "Verification...",
+      "aboutUnavailable": "Indisponible"
     },
     "routeGuard": {
       "locked": "Cette section est verrouillee. Saisissez le code PIN administrateur pour continuer.",

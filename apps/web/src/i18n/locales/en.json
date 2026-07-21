@@ -423,7 +423,13 @@
       "shopOpenBig": "🟢 SHOP OPEN",
       "shopCloseBig": "🔴 SHOP CLOSED",
       "shopStatusUpdatedToast": "Status updated and emails sent to students",
-      "shopStatusError": "Couldn't update shop status"
+      "shopStatusError": "Couldn't update shop status",
+      "aboutCardTitle": "About",
+      "aboutVersionLabel": "App version",
+      "aboutBuildLabel": "Build",
+      "aboutBuildDateLabel": "Built on",
+      "aboutLoading": "Checking...",
+      "aboutUnavailable": "Unavailable"
     },
     "routeGuard": {
       "locked": "This section is locked. Enter the admin PIN to continue.",
