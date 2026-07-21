@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.5.1",
+    "date": "2026-07-21",
+    "changes": [
+      "remove the literal \"?\" placeholder from the update banner/loading screen"
+    ]
+  },
+  {
     "version": "1.5.0",
     "date": "2026-07-21",
     "changes": [

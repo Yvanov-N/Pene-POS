@@ -31,7 +31,7 @@ export function UpdateBanner({
       <button
         type="button"
         onClick={onReopen}
-        aria-label={t("update.toast.titleWithVersion", { version: info?.version ?? "" })}
+        aria-label={info ? t("update.toast.titleWithVersion", { version: info.version }) : t("update.toast.title")}
         className="update-pill animate-pulse"
       >
         <span aria-hidden>↻</span>
@@ -43,7 +43,7 @@ export function UpdateBanner({
     <div className="toast-viewport">
       <div className="toast">
         <p className="text-xs font-semibold uppercase tracking-wide text-foreground">
-          {t("update.toast.titleWithVersion", { version: info?.version ?? "?" })}
+          {info ? t("update.toast.titleWithVersion", { version: info.version }) : t("update.toast.title")}
         </p>
         <p className="mt-1 text-sm text-muted">{t("update.toast.message")}</p>
         {info && (

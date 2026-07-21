@@ -16,7 +16,9 @@ export function UpdateLoading({ info }: UpdateLoadingProps) {
         className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent"
         aria-hidden
       />
-      <p className="text-sm text-muted">{t("update.loading.text", { version: info?.version ?? "" })}</p>
+      <p className="text-sm text-muted">
+        {info ? t("update.loading.text", { version: info.version }) : t("update.loading.textGeneric")}
+      </p>
     </div>
   );
 }
