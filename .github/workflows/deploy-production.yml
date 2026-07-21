@@ -124,11 +124,21 @@ jobs:
   # Uses the official Vercel CLI's "prebuilt deployment" flow (Vercel's own
   # current recommended GitHub Actions pattern) rather than a third-party
   # action: `vercel build` runs the project's actual configured install/build
-  # commands (this repo's pnpm-lock.yaml is auto-detected) and needs no
-  # separate pnpm install step here. The Vercel project's Root Directory
-  # MUST be set to apps/web in the Vercel dashboard (see DEVOPS_SETUP.md) --
-  # these commands are run from the repo root and rely on that setting to
-  # find the right app in this monorepo.
+  # commands (this repo's pnpm-lock.yaml is auto-detected). Confirmed live
+  # this DOES still need pnpm installed on the runner first, despite `vercel
+  # build` auto-detecting the lockfile -- that auto-detection only decides
+  # which package manager to invoke, it doesn't install one: unlike a build
+  # actually running on Vercel's own infrastructure (where every supported
+  # package manager ships preinstalled in their build image), a bare GitHub
+  # Actions runner only has whatever actions/setup-node provides (npm), so
+  # without this step `vercel build` fails with `spawn pnpm ENOENT`. Version
+  # is read from package.json's own packageManager field (pnpm/action-setup's
+  # default when no `version` input is given) -- one source of truth, not a
+  # second hardcoded version number to drift out of sync with it.
+  #
+  # The Vercel project's Root Directory MUST be set to apps/web in the Vercel
+  # dashboard (see DEVOPS_SETUP.md) -- these commands are run from the repo
+  # root and rely on that setting to find the right app in this monorepo.
   deploy-vercel:
     needs: supabase-deploy
     runs-on: ubuntu-latest
@@ -136,6 +146,8 @@ jobs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
