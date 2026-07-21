@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.0.1",
+    "date": "2026-07-21",
+    "changes": [
+      "add v1.0.0 milestone changelog entry"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-07-21",
+    "changes": [
+      "First production release -- offline-first POS, hardware scanning & printing, Supabase sync, and student wallet management",
+      "Admin analytics dashboard, staff accounts, and automated student notifications",
+      "Production deploy pipeline: tag a release to ship"
+    ]
+  },
+  {
     "version": "0.21.4",
     "date": "2026-07-21",
     "changes": [
