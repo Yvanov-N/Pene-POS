@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.7.1",
+    "date": "2026-07-21",
+    "changes": [
+      "badge code / balance inputs overflowing the add-student modal on narrow screens"
+    ]
+  },
+  {
     "version": "1.7.0",
     "date": "2026-07-21",
     "changes": [

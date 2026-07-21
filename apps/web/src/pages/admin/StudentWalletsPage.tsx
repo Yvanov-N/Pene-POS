@@ -310,23 +310,23 @@ export function StudentWalletsPage() {
                 />
               </label>
               <div className="flex gap-3">
-                <label className="flex flex-1 flex-col gap-1 text-sm">
+                <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
                   <span className="text-muted">{t("admin.students.fieldBadge")}</span>
                   <input
                     type="text"
                     value={form.badge_code}
                     onChange={(e) => setForm({ ...form, badge_code: e.target.value })}
-                    className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
+                    className="w-full min-w-0 rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
                   />
                 </label>
-                <label className="flex flex-1 flex-col gap-1 text-sm">
+                <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
                   <span className="text-muted">{t("admin.students.fieldBalance")}</span>
                   <input
                     type="number"
                     step="1"
                     value={form.balance}
                     onChange={(e) => setForm({ ...form, balance: e.target.value })}
-                    className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
+                    className="w-full min-w-0 rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
                   />
                 </label>
               </div>
