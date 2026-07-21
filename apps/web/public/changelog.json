@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.0.5",
+    "date": "2026-07-21",
+    "changes": [
+      "move shop_status_notify/inventory-alerts off the nonexistent supabase_functions schema"
+    ]
+  },
+  {
     "version": "1.0.4",
     "date": "2026-07-21",
     "changes": [
