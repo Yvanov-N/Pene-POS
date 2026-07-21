@@ -4,6 +4,7 @@ import { PrinterSettingsCard } from "@/components/admin/settings/PrinterSettings
 import { ScannerSettingsCard } from "@/components/admin/settings/ScannerSettingsCard";
 import { NotificationSettingsCard } from "@/components/admin/settings/NotificationSettingsCard";
 import { ShopStatusCard } from "@/components/admin/settings/ShopStatusCard";
+import { AboutSettingsCard } from "@/components/admin/settings/AboutSettingsCard";
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -16,6 +17,7 @@ export function SettingsPage() {
       <PrinterSettingsCard />
       <ScannerSettingsCard />
       <NotificationSettingsCard />
+      <AboutSettingsCard />
     </div>
   );
 }

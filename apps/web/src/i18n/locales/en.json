@@ -190,7 +190,7 @@
       "reprintError": "Printing failed",
       "share": "🔗 Share",
       "shareTitle": "Cite Shop receipt",
-      "shareText": "Purchase receipt #{{id}} - {{amount}}",
+      "shareText": "Purchase receipt No. {{id}} - {{amount}}",
       "shareLinkCopiedToast": "Receipt link copied for WhatsApp/Telegram",
       "shareError": "Couldn't share the receipt",
       "void": "Void / Refund",
@@ -423,7 +423,13 @@
       "shopOpenBig": "🟢 SHOP OPEN",
       "shopCloseBig": "🔴 SHOP CLOSED",
       "shopStatusUpdatedToast": "Status updated and emails sent to students",
-      "shopStatusError": "Couldn't update shop status"
+      "shopStatusError": "Couldn't update shop status",
+      "aboutCardTitle": "About",
+      "aboutVersionLabel": "App version",
+      "aboutBuildLabel": "Build",
+      "aboutBuildDateLabel": "Built on",
+      "aboutLoading": "Checking...",
+      "aboutUnavailable": "Unavailable"
     },
     "routeGuard": {
       "locked": "This section is locked. Enter the admin PIN to continue.",
@@ -521,6 +527,8 @@
     "badgeOfflinePending_other": "{{count}} pending",
     "badgeError": "Error / Conflict",
     "badgeErrorHint": "Click to see details",
+    "badgeSyncing": "Syncing…",
+    "tapToSync": "Tap to sync now",
     "toastSuccess_one": "Cloud sync successful ({{count}} sale saved)",
     "toastSuccess_other": "Cloud sync successful ({{count}} sales saved)",
     "toastConflict": "Stock conflict detected during synchronization!"

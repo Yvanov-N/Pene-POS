@@ -190,7 +190,7 @@
       "reprintError": "Echec de l'impression",
       "share": "🔗 Partager",
       "shareTitle": "Recu Cite Shop",
-      "shareText": "Recu d'achat #{{id}} - {{amount}}",
+      "shareText": "Recu d'achat No. {{id}} - {{amount}}",
       "shareLinkCopiedToast": "Lien du recu copie pour WhatsApp/Telegram",
       "shareError": "Impossible de partager le recu",
       "void": "Annuler / Rembourser",
@@ -423,7 +423,13 @@
       "shopOpenBig": "🟢 BOUTIQUE OUVERTE",
       "shopCloseBig": "🔴 BOUTIQUE FERMEE",
       "shopStatusUpdatedToast": "Statut mis a jour et e-mails envoyes aux etudiants",
-      "shopStatusError": "Impossible de mettre a jour le statut de la boutique"
+      "shopStatusError": "Impossible de mettre a jour le statut de la boutique",
+      "aboutCardTitle": "A propos",
+      "aboutVersionLabel": "Version de l'application",
+      "aboutBuildLabel": "Build",
+      "aboutBuildDateLabel": "Compilee le",
+      "aboutLoading": "Verification...",
+      "aboutUnavailable": "Indisponible"
     },
     "routeGuard": {
       "locked": "Cette section est verrouillee. Saisissez le code PIN administrateur pour continuer.",
@@ -521,6 +527,8 @@
     "badgeOfflinePending_other": "{{count}} en attente",
     "badgeError": "Erreur / Conflit",
     "badgeErrorHint": "Cliquez pour voir les details",
+    "badgeSyncing": "Synchronisation…",
+    "tapToSync": "Appuyer pour synchroniser",
     "toastSuccess_one": "Synchronisation Cloud reussie ({{count}} vente sauvegardee)",
     "toastSuccess_other": "Synchronisation Cloud reussie ({{count}} ventes sauvegardees)",
     "toastConflict": "Conflit de stock detecte lors de la synchronisation !"

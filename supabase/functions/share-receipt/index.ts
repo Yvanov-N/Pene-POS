@@ -2,7 +2,15 @@
 // Deployed with verify_jwt = false (see supabase/config.toml) -- both real
 // visitors clicking a shared link and social-platform scrapers fetch this
 // with no Supabase auth header at all.
-import { escapeMarkup, formatAmount, formatDate, getReceiptData, isSocialBot, paymentLabel } from "../_shared/receipt.ts";
+import {
+  escapeMarkup,
+  extractSaleId,
+  formatAmount,
+  formatDate,
+  getReceiptData,
+  isSocialBot,
+  paymentLabel,
+} from "../_shared/receipt.ts";
 
 // Must point at the deployed PWA's real origin in production -- set via
 // `supabase secrets set PWA_URL=https://your-domain` before deploying.
@@ -53,7 +61,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const url = new URL(req.url);
-  const saleId = url.searchParams.get("id");
+  const saleId = extractSaleId(url.searchParams.get("id"));
   const userAgent = req.headers.get("user-agent");
 
   if (!saleId) {

@@ -1,5 +1,40 @@
 [
   {
+    "version": "1.2.0",
+    "date": "2026-07-21",
+    "changes": [
+      "add Open Graph / Twitter Card tags to the base app URL"
+    ]
+  },
+  {
+    "version": "1.1.3",
+    "date": "2026-07-21",
+    "changes": [
+      "replace pushSale's 3-step push with an atomic RPC, add manual sync"
+    ]
+  },
+  {
+    "version": "1.1.2",
+    "date": "2026-07-21",
+    "changes": [
+      "remove landmine # from share text, add defensive UUID extraction"
+    ]
+  },
+  {
+    "version": "1.1.1",
+    "date": "2026-07-21",
+    "changes": [
+      "add Vercel SPA rewrite, fixing 404s on direct/refreshed navigation"
+    ]
+  },
+  {
+    "version": "1.1.0",
+    "date": "2026-07-21",
+    "changes": [
+      "add a persistent app-version display to Settings"
+    ]
+  },
+  {
     "version": "1.0.6",
     "date": "2026-07-21",
     "changes": [
