@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.0.2",
+    "date": "2026-07-21",
+    "changes": [
+      "link Supabase project before db push, --project-ref was dropped"
+    ]
+  },
+  {
     "version": "1.0.1",
     "date": "2026-07-21",
     "changes": [
