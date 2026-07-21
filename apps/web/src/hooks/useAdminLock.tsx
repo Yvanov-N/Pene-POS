@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { db } from "@/lib/db";
 import { hashPin } from "@/lib/hashPin";
@@ -72,7 +72,10 @@ export function AdminLockProvider({ children }: { children: ReactNode }) {
     };
   }, [isAdminUnlocked, showToast, t]);
 
-  const value: AdminLockContextValue = { isAdminUnlocked, unlockWithPin, unlock, manualLock };
+  const value = useMemo<AdminLockContextValue>(
+    () => ({ isAdminUnlocked, unlockWithPin, unlock, manualLock }),
+    [isAdminUnlocked, unlockWithPin, unlock, manualLock],
+  );
 
   return <AdminLockContext.Provider value={value}>{children}</AdminLockContext.Provider>;
 }

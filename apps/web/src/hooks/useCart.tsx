@@ -5,18 +5,30 @@ import { db } from "@/lib/db";
 import { useToast } from "./useToast";
 import type { CartItem, Product } from "@/types/db";
 
-interface CartContextValue {
+interface CartDataValue {
   items: CartItem[];
   totalItems: number;
   subtotal: number;
   totalAmount: number;
+}
+
+interface CartActionsValue {
   addItem: (product: Product) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, delta: number) => void;
   clearCart: () => void;
 }
 
-const CartContext = createContext<CartContextValue | null>(null);
+type CartContextValue = CartDataValue & CartActionsValue;
+
+// Split in two so a consumer that only needs a stable action (e.g. PosLayout
+// handing addItem down to BarcodeInput/ProductGrid) doesn't re-render on
+// every cart mutation just because it called useCart(). Data changes on
+// every add/remove/quantity update; actions are useCallback-stable and only
+// change identity when t/showToast do (language switch, effectively never
+// otherwise).
+const CartDataContext = createContext<CartDataValue | null>(null);
+const CartActionsContext = createContext<CartActionsValue | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const items = useLiveQuery(() => db.cart_items.toArray(), []) ?? [];
@@ -105,30 +117,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
     })();
   }, [t, showToast]);
 
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+  const dataValue = useMemo<CartDataValue>(() => {
+    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+    return { items, totalItems, subtotal: totalAmount, totalAmount };
+  }, [items]);
 
-  const value = useMemo<CartContextValue>(
-    () => ({
-      items,
-      totalItems,
-      subtotal: totalAmount,
-      totalAmount,
-      addItem,
-      removeItem,
-      updateQuantity,
-      clearCart,
-    }),
-    [items, totalItems, totalAmount, addItem, removeItem, updateQuantity, clearCart],
+  const actionsValue = useMemo<CartActionsValue>(
+    () => ({ addItem, removeItem, updateQuantity, clearCart }),
+    [addItem, removeItem, updateQuantity, clearCart],
   );
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartActionsContext.Provider value={actionsValue}>
+      <CartDataContext.Provider value={dataValue}>{children}</CartDataContext.Provider>
+    </CartActionsContext.Provider>
+  );
 }
 
+// Combined hook -- for consumers that genuinely need both data and actions
+// (PosCart, MobileCartSheet). Re-renders on every cart mutation, same as
+// before the split.
 export function useCart(): CartContextValue {
-  const context = useContext(CartContext);
-  if (!context) {
+  const data = useContext(CartDataContext);
+  const actions = useContext(CartActionsContext);
+  if (!data || !actions) {
     throw new Error("useCart must be used within a CartProvider");
   }
-  return context;
+  return { ...data, ...actions };
+}
+
+// Actions-only hook -- for consumers (e.g. PosLayout) that only need a
+// stable callback like addItem and must NOT re-render when cart items change.
+export function useCartActions(): CartActionsValue {
+  const actions = useContext(CartActionsContext);
+  if (!actions) {
+    throw new Error("useCartActions must be used within a CartProvider");
+  }
+  return actions;
 }

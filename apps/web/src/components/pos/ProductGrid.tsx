@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -53,19 +53,26 @@ function ProductVisual({ product }: { product: Product }) {
 
 export function ProductGrid({ searchTerm, category, onProductSelect }: ProductGridProps) {
   const { t } = useTranslation();
-  const products = useLiveQuery(() => db.products.toArray(), []);
+  // category_id is indexed (lib/db.ts v5) -- scope the Dexie read to the
+  // selected category instead of pulling the full catalog on every render
+  // when a category filter is active.
+  const products = useLiveQuery(
+    () =>
+      category === ALL_CATEGORIES_VALUE
+        ? db.products.toArray()
+        : db.products.where("category_id").equals(category).toArray(),
+    [category],
+  );
 
-  const filtered = (products ?? []).filter((product) => {
-    const matchesCategory = category === ALL_CATEGORIES_VALUE || product.category_id === category;
-    if (!matchesCategory) return false;
-
+  const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return true;
-    return (
-      product.name.toLowerCase().includes(term) ||
-      (product.barcode ?? "").toLowerCase().includes(term)
+    if (!term) return products ?? [];
+    return (products ?? []).filter(
+      (product) =>
+        product.name.toLowerCase().includes(term) ||
+        (product.barcode ?? "").toLowerCase().includes(term),
     );
-  });
+  }, [products, searchTerm]);
 
   if (products === undefined) {
     return <p className="p-4 text-sm text-muted">{t("pos.grid.loading")}</p>;
@@ -77,30 +84,42 @@ export function ProductGrid({ searchTerm, category, onProductSelect }: ProductGr
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-      {filtered.map((product) => {
-        const stockBadge = getStockBadge(t, product.stock);
-        const expiryLabel = getExpiryLabel(t, product.expiry_date);
-
-        return (
-          <button
-            key={product.id}
-            type="button"
-            onClick={() => onProductSelect(product)}
-            className={`flex flex-col items-center gap-2 rounded-lg border bg-surface2 p-3 text-center transition-colors hover:border-accent ${
-              expiryLabel ? "border-destructive" : "border-border"
-            }`}
-          >
-            <ProductVisual product={product} />
-            <span className="line-clamp-2 text-sm font-medium text-foreground">{product.name}</span>
-            <span className="text-sm font-semibold text-foreground">{formatCurrency(product.price)}</span>
-            <span className="text-xs text-muted">{t("pos.grid.stockLabel", { count: product.stock })}</span>
-            <div className="flex flex-wrap justify-center gap-1">
-              {stockBadge && <span className={stockBadge.className}>{stockBadge.label}</span>}
-              {expiryLabel && <span className="badge-red">{expiryLabel}</span>}
-            </div>
-          </button>
-        );
-      })}
+      {filtered.map((product) => (
+        <ProductCard key={product.id} product={product} onSelect={onProductSelect} />
+      ))}
     </div>
   );
 }
+
+interface ProductCardProps {
+  product: Product;
+  onSelect: (product: Product) => void;
+}
+
+// Memoized so an unrelated ProductGrid re-render doesn't rebuild every
+// visible card -- effective as long as onSelect stays referentially stable
+// (it comes from useCartActions()'s useCallback-wrapped addItem).
+const ProductCard = memo(function ProductCard({ product, onSelect }: ProductCardProps) {
+  const { t } = useTranslation();
+  const stockBadge = getStockBadge(t, product.stock);
+  const expiryLabel = getExpiryLabel(t, product.expiry_date);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(product)}
+      className={`flex flex-col items-center gap-2 rounded-lg border bg-surface2 p-3 text-center transition-colors hover:border-accent ${
+        expiryLabel ? "border-destructive" : "border-border"
+      }`}
+    >
+      <ProductVisual product={product} />
+      <span className="line-clamp-2 text-sm font-medium text-foreground">{product.name}</span>
+      <span className="text-sm font-semibold text-foreground">{formatCurrency(product.price)}</span>
+      <span className="text-xs text-muted">{t("pos.grid.stockLabel", { count: product.stock })}</span>
+      <div className="flex flex-wrap justify-center gap-1">
+        {stockBadge && <span className={stockBadge.className}>{stockBadge.label}</span>}
+        {expiryLabel && <span className="badge-red">{expiryLabel}</span>}
+      </div>
+    </button>
+  );
+});

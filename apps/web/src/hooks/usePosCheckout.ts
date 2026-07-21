@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useCart } from "@/hooks/useCart";
 import { db } from "@/lib/db";
@@ -40,14 +40,19 @@ export function usePosCheckout() {
   // product scanning happening on it, so feeding scans into this search too
   // would make every product scan noisily (and wrongly) filter the student
   // picker as well. Plain typed search only.
-  const studentResults = useLiveQuery(async () => {
+  //
+  // The wallet table is fetched once (no searchTerm in the query deps) and
+  // stays live via useLiveQuery's own table subscription; filtering by
+  // search term happens in memory via useMemo instead of re-reading
+  // IndexedDB on every keystroke.
+  const wallets = useLiveQuery(() => db.student_wallets.toArray(), []) ?? [];
+  const studentResults = useMemo(() => {
     const term = studentSearchTerm.trim().toLowerCase();
     if (!term) return [];
-    const all = await db.student_wallets.toArray();
-    return all
+    return wallets
       .filter((w) => w.student_name.toLowerCase().includes(term) || w.badge_code.toLowerCase().includes(term))
       .slice(0, 6);
-  }, [studentSearchTerm]);
+  }, [wallets, studentSearchTerm]);
 
   const selectStudent = (wallet: StudentWallet) => {
     setSelectedStudent(wallet);

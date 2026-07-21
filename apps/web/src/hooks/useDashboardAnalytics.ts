@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { getRangeForFilter, type CustomRange, type TimeRangeFilter } from "@/lib/dateHelpers";
-import type { PaymentMethod, Sale } from "@/types/db";
+import type { PaymentMethod, Sale, SyncQueueItem } from "@/types/db";
 
 export type { TimeRangeFilter, CustomRange };
 
@@ -89,7 +89,10 @@ async function sumRevenueForRange(start: string, end: string): Promise<number> {
 async function sumWalletRechargesForRange(start: string, end: string): Promise<number> {
   const items = await db.sync_queue.where("created_at").between(start, end, true, true).toArray();
   return items
-    .filter((item) => item.action === "WALLET_RECHARGE")
+    .filter(
+      (item): item is Extract<SyncQueueItem, { action: "WALLET_RECHARGE" | "WALLET_WITHDRAWAL" }> =>
+        item.action === "WALLET_RECHARGE",
+    )
     .reduce((sum, item) => sum + (Number(item.payload.delta) || 0), 0);
 }
 
@@ -155,8 +158,6 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
     // (same reasoning as ProductManagementModal's in-memory name sort).
     const saleIds = relevantSales.map((sale) => sale.id);
     const items = saleIds.length > 0 ? await db.sale_items.where("sale_id").anyOf(saleIds).toArray() : [];
-    const products = await db.products.toArray();
-    const productNames = new Map(products.map((product) => [product.id, product.name]));
 
     const productTotals = new Map<string, { quantitySold: number; revenue: number }>();
     for (const item of items) {
@@ -166,15 +167,21 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
       productTotals.set(item.product_id, bucket);
     }
 
-    const topProducts: TopProduct[] = Array.from(productTotals.entries())
-      .map(([productId, totals]) => ({
-        productId,
-        name: productNames.get(productId) ?? "Produit",
-        quantitySold: totals.quantitySold,
-        revenue: Math.round(totals.revenue),
-      }))
+    const topEntries = Array.from(productTotals.entries())
+      .map(([productId, totals]) => ({ productId, ...totals }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
+
+    // Only the top-5 products need a display name -- bulkGet by primary key
+    // instead of scanning the entire products table just to build a lookup
+    // Map that's overwhelmingly discarded.
+    const topProductRows = await db.products.bulkGet(topEntries.map((entry) => entry.productId));
+    const topProducts: TopProduct[] = topEntries.map((entry, index) => ({
+      productId: entry.productId,
+      name: topProductRows[index]?.name ?? "Produit",
+      quantitySold: entry.quantitySold,
+      revenue: Math.round(entry.revenue),
+    }));
 
     return {
       grossRevenue,

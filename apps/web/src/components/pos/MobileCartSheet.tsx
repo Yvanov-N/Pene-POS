@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banknote, Smartphone, GraduationCap, X, Trash2, ChevronUp, ChevronDown, type LucideIcon } from "lucide-react";
+import { Banknote, Smartphone, GraduationCap, Trash2, ChevronUp, ChevronDown, type LucideIcon } from "lucide-react";
 import { usePosCheckout, PAYMENT_METHODS } from "@/hooks/usePosCheckout";
 import { formatCurrency } from "@/lib/currency";
 import { PinPadModal } from "./PinPadModal";
 import { ButtonCustom } from "@/components/ui/button-custom";
+import { CartLineItem } from "./CartLineItem";
 import type { PaymentMethod } from "@/types/db";
 
 const PAYMENT_ICON: Record<PaymentMethod, LucideIcon> = {
@@ -13,17 +14,6 @@ const PAYMENT_ICON: Record<PaymentMethod, LucideIcon> = {
   momo_orange: Smartphone,
   student_wallet: GraduationCap,
 };
-
-function CartLineVisual({ image_url, emoji }: { image_url?: string; emoji?: string }) {
-  if (image_url) {
-    return <img src={image_url} alt="" className="h-10 w-10 rounded-md object-cover" />;
-  }
-  return (
-    <span className="text-2xl" aria-hidden>
-      {emoji || "📦"}
-    </span>
-  );
-}
 
 // Mobile chrome only (below md) -- PosLayout mounts this or PosCart based on
 // viewport, never both, so this owns its own usePosCheckout() instance
@@ -72,39 +62,13 @@ export function MobileCartSheet() {
           ) : (
             <ul className="flex flex-col gap-3">
               {cart.items.map((item) => (
-                <li key={item.id} className="flex items-center gap-3">
-                  <CartLineVisual image_url={item.image_url} emoji={item.emoji} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
-                    <p className="text-xs text-muted">{formatCurrency(item.price)}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => cart.updateQuantity(item.product_id, -1)}
-                      className="h-8 w-8 rounded-md border border-border text-base text-foreground hover:border-accent"
-                    >
-                      -
-                    </button>
-                    <span className="w-5 text-center text-sm text-foreground">{item.quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => cart.updateQuantity(item.product_id, 1)}
-                      className="h-8 w-8 rounded-md border border-border text-base text-foreground hover:border-accent"
-                    >
-                      +
-                    </button>
-                  </div>
-                  {/* Instant, no PIN -- Page 2's frictionless-POS requirement. */}
-                  <button
-                    type="button"
-                    onClick={() => cart.removeItem(item.product_id)}
-                    aria-label={t("pos.cart.remove")}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive text-destructive-foreground hover:opacity-90"
-                  >
-                    <X className="h-4 w-4" aria-hidden />
-                  </button>
-                </li>
+                <CartLineItem
+                  key={item.id}
+                  item={item}
+                  size="touch"
+                  onQuantityChange={cart.updateQuantity}
+                  onRemove={cart.removeItem}
+                />
               ))}
             </ul>
           )}

@@ -17,15 +17,11 @@ export interface ConflictDetail {
   lines: ConflictLine[];
 }
 
-interface SalePayloadShape {
-  sale?: { id?: string };
-}
-
 async function findQueueItemForSale(saleId: string) {
   const queueItems = await db.sync_queue.where("status").equals("conflict_warning").toArray();
   return queueItems.find((item) => {
     if (item.action !== "SALE") return false;
-    return (item.payload as SalePayloadShape).sale?.id === saleId;
+    return item.payload.sale.id === saleId;
   });
 }
 
@@ -138,10 +134,7 @@ export async function dismissConflict(queueItemId: number): Promise<void> {
   await db.sync_queue.update(queueItemId, { status: "completed" });
 
   if (queueItem.action === "SALE") {
-    const saleId = (queueItem.payload as SalePayloadShape).sale?.id;
-    if (saleId) {
-      await db.sales.update(saleId, { status: "completed" });
-    }
+    await db.sales.update(queueItem.payload.sale.id, { status: "completed" });
   }
 }
 

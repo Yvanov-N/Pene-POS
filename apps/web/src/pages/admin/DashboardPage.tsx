@@ -1,10 +1,9 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useLiveQuery } from "dexie-react-hooks";
 import { Wallet, Receipt, ShoppingCart, GraduationCap, AlertTriangle } from "lucide-react";
-import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { useDashboardAnalytics } from "@/hooks/useDashboardAnalytics";
+import { useStudentDebtSummary } from "@/hooks/useDashboardWidgetData";
 import { useShopStatus } from "@/hooks/useShopStatus";
 import type { CustomRange, TimeRangeFilter } from "@/hooks/useDashboardAnalytics";
 import { CardCustom } from "@/components/ui/card-custom";
@@ -57,15 +56,11 @@ export function DashboardPage() {
   // Current-state snapshot, not scoped to rangeFilter like the rest of
   // `analytics` -- total debt owed right now isn't a "how much happened this
   // week" metric, so it deliberately doesn't live inside useDashboardAnalytics.
-  const totalStudentDebt = useLiveQuery(
-    () =>
-      db.student_wallets
-        .toArray()
-        .then((wallets) => wallets.filter((w) => w.balance < 0).reduce((sum, w) => sum + w.balance, 0)),
-    [],
-  );
+  // One shared scan backs both this stat and CriticalDebtWidget below it.
+  const debtSummary = useStudentDebtSummary();
+  const totalStudentDebt = debtSummary?.totalDebt;
 
-  const handleExportCsv = () => {
+  const handleExportCsv = useCallback(() => {
     const rangeLabel = t(`admin.dashboard.range.${rangeFilter}`);
     const rows: string[][] = [
       ["Cite Shop - Rapport tableau de bord"],
@@ -90,15 +85,15 @@ export function DashboardPage() {
     link.download = `cite-shop-rapport-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  };
+  }, [t, rangeFilter, analytics, totalStudentDebt]);
 
-  const revenueChangeNode: ReactNode = (() => {
+  const revenueChangeNode: ReactNode = useMemo(() => {
     const pct = analytics.revenueChangePct;
     if (pct === null) return <span className="text-muted">{t("admin.dashboard.revenueChangeNew")}</span>;
     if (pct > 0) return <span className="text-success">+{pct}% {t("admin.dashboard.revenueChangeSuffix")}</span>;
     if (pct < 0) return <span className="text-destructive">{pct}% {t("admin.dashboard.revenueChangeSuffix")}</span>;
     return <span className="text-muted">0% {t("admin.dashboard.revenueChangeSuffix")}</span>;
-  })();
+  }, [analytics.revenueChangePct, t]);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4">
@@ -202,7 +197,7 @@ export function DashboardPage() {
         )}
       </div>
 
-      <CriticalDebtWidget />
+      <CriticalDebtWidget debtors={debtSummary?.criticalDebtors} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CardCustom title={t("admin.dashboard.revenueChartTitle")}>

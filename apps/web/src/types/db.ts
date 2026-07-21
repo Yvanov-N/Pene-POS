@@ -1,6 +1,12 @@
-import type { UserRole } from "@/types/supabase";
+import type {
+  MomoVerificationStatus,
+  PaymentMethod,
+  PreferredLanguage,
+  SaleStatus,
+  UserRole,
+} from "@/types/supabase";
 
-export type PreferredLanguage = "fr" | "en";
+export type { MomoVerificationStatus, PaymentMethod, PreferredLanguage, SaleStatus };
 
 export interface Profile {
   id: string;
@@ -56,16 +62,6 @@ export interface CartItem {
   emoji?: string;
 }
 
-export type PaymentMethod = "cash" | "momo_mtn" | "momo_orange" | "student_wallet";
-
-export type SaleStatus = "completed" | "pending_sync" | "conflict_warning" | "refunded";
-
-// Orthogonal to SaleStatus (which tracks offline push/sync state) -- whether
-// a MoMo sale's SMS confirmation has been checked is a separate concern.
-// Undefined/absent for cash and student_wallet sales, which never go through
-// MoMo verification at all.
-export type MomoVerificationStatus = "pending" | "confirmed" | "rejected";
-
 export interface Sale {
   id: string;
   created_at: string;
@@ -78,6 +74,10 @@ export interface Sale {
   // tag a cash/MoMo sale to a student, or skip it for an anonymous sale).
   student_id?: string;
   status: SaleStatus;
+  // Orthogonal to `status` (which tracks offline push/sync state) -- whether
+  // a MoMo sale's SMS confirmation has been checked is a separate concern.
+  // Undefined/absent for cash and student_wallet sales, which never go
+  // through MoMo verification at all.
   momo_verification_status?: MomoVerificationStatus;
 }
 
@@ -110,11 +110,29 @@ export type SyncAction = "INSERT" | "UPDATE" | "DELETE" | "SALE" | "WALLET_RECHA
 
 export type SyncStatus = "pending" | "syncing" | "completed" | "failed" | "conflict_warning";
 
-export interface SyncQueueItem {
+export interface SalePayload {
+  sale: Sale;
+  items: SaleItem[];
+}
+
+export interface WalletBalancePayload {
+  wallet_id: string;
+  delta: number;
+}
+
+// The generic INSERT/UPDATE/DELETE path (products/categories/student_wallets
+// /profiles/shop_status admin CRUD) -- payload shape varies per table, but
+// every caller needs at least the row's id (pushGeneric's .eq("id", id) and
+// getPendingIds' pending-id tracking both rely on it being present). id is
+// string | number, not just string: shop_status's fixed primary key (1) is a
+// real number, not a uuid like every other table here.
+export interface GenericMutationPayload extends Record<string, unknown> {
+  id: string | number;
+}
+
+interface SyncQueueItemBase {
   id?: number;
-  action: SyncAction;
   table_name: string;
-  payload: Record<string, any>;
   created_at: string;
   status: SyncStatus;
   retryCount: number;
@@ -131,6 +149,15 @@ export interface SyncQueueItem {
   // constant for everything else.
   maxRetries?: number;
 }
+
+// Discriminated by `action` -- narrows `payload` to the right shape at every
+// read site (syncService.ts, conflictResolver.ts) instead of the manual
+// `as SalePayload` / `as WalletRechargePayload` casts a plain
+// `Record<string, any>` payload used to force.
+export type SyncQueueItem =
+  | (SyncQueueItemBase & { action: "SALE"; payload: SalePayload })
+  | (SyncQueueItemBase & { action: "WALLET_RECHARGE" | "WALLET_WITHDRAWAL"; payload: WalletBalancePayload })
+  | (SyncQueueItemBase & { action: "INSERT" | "UPDATE" | "DELETE"; payload: GenericMutationPayload });
 
 // Singleton row (id is always 1) -- mirrors public.shop_status.
 export interface ShopStatus {

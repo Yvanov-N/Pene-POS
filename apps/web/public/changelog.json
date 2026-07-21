@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.21.1",
+    "date": "2026-07-21",
+    "changes": [
+      "cut POS/dashboard re-render churn and replace sync payload's any with a discriminated union"
+    ]
+  },
+  {
     "version": "0.21.0",
     "date": "2026-07-20",
     "changes": [

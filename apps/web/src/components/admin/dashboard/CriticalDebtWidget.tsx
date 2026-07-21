@@ -1,17 +1,9 @@
-import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { AlertTriangle } from "lucide-react";
-import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
 import type { StudentWallet } from "@/types/db";
-
-// Same "owing >= 5,000 FCFA" threshold as the prompt's own business rule --
-// a separate, stricter cutoff than "any debt at all" so this stays a short,
-// genuinely actionable list rather than flagging every few-hundred-FCFA
-// rounding-edge overdraft as a critical collections case.
-const CRITICAL_DEBT_THRESHOLD = -5000;
 
 function buildReminderMailto(wallet: StudentWallet, t: TFunction): string {
   const subject = t("admin.dashboard.debtReminderSubject");
@@ -22,19 +14,15 @@ function buildReminderMailto(wallet: StudentWallet, t: TFunction): string {
   return `mailto:${encodeURIComponent(wallet.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-export function CriticalDebtWidget() {
-  const { t } = useTranslation();
+interface CriticalDebtWidgetProps {
+  // Sourced from the shared useStudentDebtSummary() hook (one scan of
+  // student_wallets backing both this widget and DashboardPage's total-debt
+  // stat) rather than this component fetching its own copy.
+  debtors: StudentWallet[] | undefined;
+}
 
-  // "balance" isn't indexed in the Dexie schema -- same reasoning as
-  // StockAlertWidget's in-memory filter/sort (a campus shop's wallet table
-  // is small enough that this is cheap).
-  const debtors = useLiveQuery(
-    () =>
-      db.student_wallets
-        .toArray()
-        .then((rows) => rows.filter((w) => w.balance <= CRITICAL_DEBT_THRESHOLD).sort((a, b) => a.balance - b.balance)),
-    [],
-  );
+export function CriticalDebtWidget({ debtors }: CriticalDebtWidgetProps) {
+  const { t } = useTranslation();
 
   if (debtors !== undefined && debtors.length === 0) return null;
 

@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -52,8 +53,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       await pullFromSupabase();
 
       // Only toast when something actually happened this cycle -- the
-      // interval fires every 50s regardless of whether the queue had
-      // anything in it, and a still-unresolved conflict is never re-counted
+      // interval fires every 30s (SYNC_INTERVAL_MS) regardless of whether
+      // the queue had anything in it, and a still-unresolved conflict is
+      // never re-counted
       // (processSyncQueue only selects pending/failed items, and a conflict
       // transitions straight to conflict_warning, so it can't show up here
       // again on a later cycle and re-toast forever).
@@ -88,12 +90,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(interval);
   }, [isOnline, runSync]);
 
-  const value: SyncEngineValue = {
-    isOnline,
-    isSyncing,
-    lastSyncedAt,
-    triggerManualSync: runSync,
-  };
+  const value = useMemo<SyncEngineValue>(
+    () => ({ isOnline, isSyncing, lastSyncedAt, triggerManualSync: runSync }),
+    [isOnline, isSyncing, lastSyncedAt, runSync],
+  );
 
   return <SyncEngineContext.Provider value={value}>{children}</SyncEngineContext.Provider>;
 }

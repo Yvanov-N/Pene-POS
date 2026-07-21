@@ -5,7 +5,7 @@ import { ProductGrid } from "./ProductGrid";
 import { PosCart } from "./PosCart";
 import { MobileCartSheet } from "./MobileCartSheet";
 import { ReceiptPrintHost } from "./ReceiptPrintHost";
-import { useCart } from "@/hooks/useCart";
+import { useCartActions } from "@/hooks/useCart";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
 
@@ -16,7 +16,7 @@ import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
 // h-screen) because this now fills a flex child of AppShell's layout rather
 // than being the full viewport itself.
 export function PosLayout() {
-  const cart = useCart();
+  const { addItem } = useCartActions();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORIES_VALUE);
   // Matches Tailwind's own `md` breakpoint (768px, unmodified in this repo's
@@ -31,14 +31,14 @@ export function PosLayout() {
   return (
     <div className="pos-layout flex h-full w-full bg-background text-foreground">
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 pb-44 md:border-r md:border-border md:pb-4">
-        <BarcodeInput onProductSelect={cart.addItem} />
+        <BarcodeInput onProductSelect={addItem} />
         <ProductFilters
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           activeCategory={activeCategory}
           onCategoryChange={setActiveCategory}
         />
-        <ProductGrid searchTerm={searchTerm} category={activeCategory} onProductSelect={cart.addItem} />
+        <ProductGrid searchTerm={searchTerm} category={activeCategory} onProductSelect={addItem} />
       </div>
 
       {isDesktopCart ? <PosCart /> : <MobileCartSheet />}

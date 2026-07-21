@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { enqueueMutation } from "@/services/syncService";
@@ -42,39 +42,45 @@ export function ShopStatusProvider({ children }: { children: ReactNode }) {
   // client (or how many sync retries) eventually applies it. Calling the
   // edge function directly here too would double-send the broadcast email
   // to every student wallet.
-  const toggleShopStatus = async (profile: Profile): Promise<ToggleShopStatusResult> => {
-    // shopOpen is only null before this device's first successful pull --
-    // toggling from an unknown current value isn't well-defined, so this is
-    // disabled at the call site too (ShopStatusCard/SidebarNav already
-    // disable the button while shopOpen === null).
-    if (shopOpen === null) return { success: false, nextOpen: true };
+  const toggleShopStatus = useCallback(
+    async (profile: Profile): Promise<ToggleShopStatusResult> => {
+      // shopOpen is only null before this device's first successful pull --
+      // toggling from an unknown current value isn't well-defined, so this is
+      // disabled at the call site too (ShopStatusCard/SidebarNav already
+      // disable the button while shopOpen === null).
+      if (shopOpen === null) return { success: false, nextOpen: true };
 
-    const nextOpen = !shopOpen;
-    const now = new Date().toISOString();
+      const nextOpen = !shopOpen;
+      const now = new Date().toISOString();
 
-    try {
-      // put(), not update(): guarantees a full, valid row even in the
-      // (should-be-impossible-per-the-guard-above, but defensive anyway)
-      // case where the local row is somehow missing -- update() on a
-      // nonexistent key is a silent no-op in Dexie, not an error.
-      await db.shop_status.put({ id: 1, is_open: nextOpen, updated_by: profile.id, updated_at: now });
-      await enqueueMutation("UPDATE", "shop_status", {
-        id: 1,
-        is_open: nextOpen,
-        updated_by: profile.id,
-        updated_at: now,
-      });
-      void triggerManualSync();
-      return { success: true, nextOpen };
-    } catch (error) {
-      console.error("[useShopStatus] local write failed", error);
-      return { success: false, nextOpen };
-    }
-  };
-
-  return (
-    <ShopStatusContext.Provider value={{ shopOpen, toggleShopStatus }}>{children}</ShopStatusContext.Provider>
+      try {
+        // put(), not update(): guarantees a full, valid row even in the
+        // (should-be-impossible-per-the-guard-above, but defensive anyway)
+        // case where the local row is somehow missing -- update() on a
+        // nonexistent key is a silent no-op in Dexie, not an error.
+        await db.shop_status.put({ id: 1, is_open: nextOpen, updated_by: profile.id, updated_at: now });
+        await enqueueMutation("UPDATE", "shop_status", {
+          id: 1,
+          is_open: nextOpen,
+          updated_by: profile.id,
+          updated_at: now,
+        });
+        void triggerManualSync();
+        return { success: true, nextOpen };
+      } catch (error) {
+        console.error("[useShopStatus] local write failed", error);
+        return { success: false, nextOpen };
+      }
+    },
+    [shopOpen, triggerManualSync],
   );
+
+  const value = useMemo<ShopStatusContextValue>(
+    () => ({ shopOpen, toggleShopStatus }),
+    [shopOpen, toggleShopStatus],
+  );
+
+  return <ShopStatusContext.Provider value={value}>{children}</ShopStatusContext.Provider>;
 }
 
 export function useShopStatus(): ShopStatusContextValue {

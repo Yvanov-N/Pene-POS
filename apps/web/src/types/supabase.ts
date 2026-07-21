@@ -5,6 +5,9 @@
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+// Canonical source for these enums -- types/db.ts imports and re-exports all
+// five rather than redeclaring them, so a future migration can't let the two
+// files' unions silently drift apart.
 export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "momo_mtn" | "momo_orange" | "student_wallet";
 export type SaleStatus = "completed" | "pending_sync" | "conflict_warning" | "refunded";

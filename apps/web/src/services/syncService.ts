@@ -2,13 +2,17 @@ import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import type {
   Category,
+  GenericMutationPayload,
   Product,
+  Profile,
   Sale,
   SaleItem,
+  SalePayload,
   ShopStatus,
   StudentWallet,
   SyncAction,
   SyncQueueItem,
+  WalletBalancePayload,
 } from "@/types/db";
 import type { Database } from "@/types/supabase";
 
@@ -66,20 +70,25 @@ const UNIQUE_VIOLATION_CODE = "23505";
 
 type QueueOutcome = "completed" | "conflict";
 
-interface SalePayload {
-  sale: Sale;
-  items: SaleItem[];
-}
-
-interface WalletRechargePayload {
-  wallet_id: string;
-  delta: number;
-}
-
+// Overloaded so the payload shape is enforced at the call site too, not just
+// narrowed back inside this file -- passing a WALLET_RECHARGE payload for a
+// "SALE" action (or vice versa) is now a compile error instead of relying on
+// the payload's Record<string, any> shape trusting the caller.
+export async function enqueueMutation(action: "SALE", tableName: string, payload: SalePayload): Promise<void>;
+export async function enqueueMutation(
+  action: "WALLET_RECHARGE" | "WALLET_WITHDRAWAL",
+  tableName: string,
+  payload: WalletBalancePayload,
+): Promise<void>;
+export async function enqueueMutation(
+  action: "INSERT" | "UPDATE" | "DELETE",
+  tableName: string,
+  payload: GenericMutationPayload,
+): Promise<void>;
 export async function enqueueMutation(
   action: SyncAction,
   tableName: string,
-  payload: Record<string, unknown>,
+  payload: SalePayload | WalletBalancePayload | GenericMutationPayload,
 ): Promise<void> {
   await db.sync_queue.add({
     action,
@@ -88,7 +97,7 @@ export async function enqueueMutation(
     created_at: new Date().toISOString(),
     status: "pending",
     retryCount: 0,
-  });
+  } as SyncQueueItem);
 }
 
 async function pushSale(payload: SalePayload): Promise<QueueOutcome> {
@@ -124,7 +133,7 @@ async function pushSale(payload: SalePayload): Promise<QueueOutcome> {
 // can eventually tell "money the shop added/reversed" apart from "cash the
 // shop physically paid out", something totalWalletRecharges' own comment
 // already flags as impossible to distinguish today for WALLET_RECHARGE alone.
-async function pushWalletBalanceAdjustment(payload: WalletRechargePayload): Promise<QueueOutcome> {
+async function pushWalletBalanceAdjustment(payload: WalletBalancePayload): Promise<QueueOutcome> {
   const { error } = await supabase.rpc("adjust_wallet_balance", {
     p_wallet_id: payload.wallet_id,
     p_delta: payload.delta,
@@ -141,16 +150,16 @@ async function pushWalletBalanceAdjustment(payload: WalletRechargePayload): Prom
 // repository-pattern note at the top of this file): categories, products,
 // student_wallets, profiles, and shop_status admin CRUD all go through here.
 async function pushGeneric(
-  action: SyncAction,
+  action: "INSERT" | "UPDATE" | "DELETE",
   tableName: string,
-  payload: Record<string, unknown>,
+  payload: GenericMutationPayload,
 ): Promise<QueueOutcome> {
   // tableName is an arbitrary runtime string, not a literal keyof
   // Database["public"]["Tables"] -- there's no static row shape to check
   // against here by design (this handler exists for actions/tables the
   // Database type doesn't know about yet).
   const table = supabase.from(tableName);
-  const id = payload.id as string;
+  const { id } = payload;
 
   const { error } =
     action === "INSERT"
@@ -175,10 +184,10 @@ async function pushGeneric(
 async function pushItem(item: SyncQueueItem): Promise<QueueOutcome> {
   switch (item.action) {
     case "SALE":
-      return pushSale(item.payload as SalePayload);
+      return pushSale(item.payload);
     case "WALLET_RECHARGE":
     case "WALLET_WITHDRAWAL":
-      return pushWalletBalanceAdjustment(item.payload as WalletRechargePayload);
+      return pushWalletBalanceAdjustment(item.payload);
     default:
       return pushGeneric(item.action, item.table_name, item.payload);
   }
@@ -204,7 +213,7 @@ export async function processSyncQueue(): Promise<SyncQueueSummary> {
       if (outcome === "conflict") {
         await db.sync_queue.update(item.id, { status: "conflict_warning", errorMessage: undefined });
         if (item.action === "SALE") {
-          const { sale } = item.payload as SalePayload;
+          const { sale } = item.payload;
           await db.sales.update(sale.id, { status: "conflict_warning" });
         }
         conflicts += 1;
@@ -247,16 +256,16 @@ async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
 
   for (const item of pending) {
     if (kind === "product_id" && item.action === "SALE") {
-      const { items } = item.payload as SalePayload;
+      const { items } = item.payload;
       for (const line of items) ids.add(line.product_id);
     } else if (kind === "sale_id" && item.action === "SALE") {
-      const { sale } = item.payload as SalePayload;
+      const { sale } = item.payload;
       ids.add(sale.id);
     } else if (
       kind === "wallet_id" &&
       (item.action === "WALLET_RECHARGE" || item.action === "WALLET_WITHDRAWAL")
     ) {
-      const { wallet_id } = item.payload as WalletRechargePayload;
+      const { wallet_id } = item.payload;
       ids.add(wallet_id);
     } else if (
       (item.action === "INSERT" || item.action === "UPDATE" || item.action === "DELETE") &&
@@ -273,8 +282,7 @@ async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
       // primary key), not a uuid string like every other table here -- both
       // need to land in the same Set<string> so `.has()` lookups against it
       // work regardless of which shape produced the entry.
-      const id = (item.payload as { id?: string | number }).id;
-      if (id !== undefined) ids.add(String(id));
+      ids.add(String(item.payload.id));
     }
   }
 
@@ -289,11 +297,7 @@ async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
 export async function cancelPendingSalePush(saleId: string): Promise<void> {
   const queueItems = await db.sync_queue.toArray();
   for (const item of queueItems) {
-    if (
-      item.action === "SALE" &&
-      (item.payload as { sale?: Sale }).sale?.id === saleId &&
-      item.id !== undefined
-    ) {
+    if (item.action === "SALE" && item.payload.sale.id === saleId && item.id !== undefined) {
       await db.sync_queue.delete(item.id);
     }
   }
@@ -305,6 +309,14 @@ type SupabaseCategoryRow = Database["public"]["Tables"]["categories"]["Row"];
 type SupabaseSaleRow = Database["public"]["Tables"]["sales"]["Row"];
 type SupabaseSaleItemRow = Database["public"]["Tables"]["sale_items"]["Row"];
 type SupabaseShopStatusRow = Database["public"]["Tables"]["shop_status"]["Row"];
+// Only the columns pullFromSupabase's profiles select actually requests --
+// pin_code is never granted (see that select's own comment), so this is
+// deliberately narrower than the table's full Row type, unlike every other
+// mapper here which maps a full select("*") row.
+type SupabaseProfileRow = Pick<
+  Database["public"]["Tables"]["profiles"]["Row"],
+  "id" | "email" | "full_name" | "first_name" | "last_name" | "avatar_url" | "preferred_language" | "role"
+>;
 
 export function mapProductRow(row: SupabaseProductRow): Product {
   return {
@@ -360,6 +372,22 @@ function mapSaleItemRow(row: SupabaseSaleItemRow): SaleItem {
     product_id: row.product_id,
     quantity: row.quantity,
     unit_price: row.unit_price,
+  };
+}
+
+// pin_hash is intentionally excluded -- it's never part of the server row
+// (see the type comment above), only ever merged back in at the call site
+// from the existing local record.
+function mapProfileRow(row: SupabaseProfileRow): Omit<Profile, "pin_hash"> {
+  return {
+    id: row.id,
+    email: row.email,
+    full_name: row.full_name,
+    first_name: row.first_name,
+    last_name: row.last_name,
+    avatar_url: row.avatar_url ?? undefined,
+    preferred_language: row.preferred_language,
+    role: row.role,
   };
 }
 
@@ -448,14 +476,7 @@ export async function pullFromSupabase(): Promise<void> {
       if (pendingProfileIds.has(profile.id)) continue;
       const existing = await db.profiles.get(profile.id);
       await db.profiles.put({
-        id: profile.id,
-        email: profile.email,
-        full_name: profile.full_name,
-        first_name: profile.first_name,
-        last_name: profile.last_name,
-        avatar_url: profile.avatar_url ?? undefined,
-        preferred_language: profile.preferred_language,
-        role: profile.role,
+        ...mapProfileRow(profile),
         // Preserve any locally-set PIN hash; a brand-new pulled profile has
         // none yet and fails closed until a future PIN-assignment flow sets
         // one -- an empty string never matches a real SHA-256 digest.
