@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.0.3",
+    "date": "2026-07-21",
+    "changes": [
+      "pin Supabase CLI version and authenticate its release lookup"
+    ]
+  },
+  {
     "version": "1.0.2",
     "date": "2026-07-21",
     "changes": [
