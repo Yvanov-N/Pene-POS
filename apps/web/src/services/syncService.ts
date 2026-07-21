@@ -358,6 +358,7 @@ function mapWalletRow(row: SupabaseWalletRow): StudentWallet {
     balance: row.balance,
     email: row.email ?? "",
     email_opt_in: row.email_opt_in,
+    phone: row.phone ?? "",
   };
 }
 

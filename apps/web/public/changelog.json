@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.6.0",
+    "date": "2026-07-21",
+    "changes": [
+      "gather student phone numbers"
+    ]
+  },
+  {
+    "version": "1.5.3",
+    "date": "2026-07-21",
+    "changes": [
+      "stop the connectivity probe from being served out of the service worker cache"
+    ]
+  },
+  {
     "version": "1.5.2",
     "date": "2026-07-21",
     "changes": [

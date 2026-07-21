@@ -36,16 +36,27 @@ interface NetworkStatus {
 // composes this hook rather than folding those concerns in here.
 export function useNetworkStatus(): NetworkStatus {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const checkingRef = useRef(false);
+  // A shared in-flight promise, not a boolean guard -- a boolean guard would
+  // make a concurrent caller bail out with whatever `isOnline` happened to
+  // read as before the real ping resolved (stale, possibly wrong: e.g. still
+  // `true` from before a connection just dropped). With ~15+ call sites now
+  // able to trigger a check around the same moment (the 20s interval, an
+  // online/offline browser event, and every runSync() call in
+  // useSyncEngine.tsx), concurrent calls are common, not an edge case -- so
+  // every caller awaits the one real ping already in flight instead of
+  // getting a shortcut answer.
+  const inFlightRef = useRef<Promise<boolean> | null>(null);
 
   const checkNow = useCallback(async () => {
-    if (checkingRef.current) return isOnline;
-    checkingRef.current = true;
-    const reachable = await pingBackend();
-    checkingRef.current = false;
-    setIsOnline(reachable);
-    return reachable;
-  }, [isOnline]);
+    if (inFlightRef.current) return inFlightRef.current;
+    const promise = pingBackend().then((reachable) => {
+      setIsOnline(reachable);
+      inFlightRef.current = null;
+      return reachable;
+    });
+    inFlightRef.current = promise;
+    return promise;
+  }, []);
 
   useEffect(() => {
     // navigator.onLine going true just means "connected to a router" --

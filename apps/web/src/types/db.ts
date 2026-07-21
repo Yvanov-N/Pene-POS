@@ -104,6 +104,7 @@ export interface StudentWallet {
   balance: number;
   email: string;
   email_opt_in: boolean;
+  phone: string;
 }
 
 export type SyncAction = "INSERT" | "UPDATE" | "DELETE" | "SALE" | "WALLET_RECHARGE" | "WALLET_WITHDRAWAL";
