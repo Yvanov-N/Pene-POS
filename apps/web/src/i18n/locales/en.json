@@ -57,6 +57,11 @@
       "checkoutTitle": "Identify yourself to check out",
       "incorrect": "Incorrect PIN",
       "close": "Close"
+    },
+    "receipt": {
+      "title": "Sale complete",
+      "printButton": "Print",
+      "closeButton": "Close"
     }
   },
   "admin": {
@@ -294,7 +299,7 @@
       "formSave": "Save",
       "errorNameRequired": "Name is required.",
       "errorBadgeRequired": "Badge code is required.",
-      "errorBalanceInvalid": "Balance must be a positive number.",
+      "errorBalanceInvalid": "Balance must be a valid number.",
       "errorBadgeTaken": "This badge code is already used by another student."
     },
     "conflicts": {
@@ -384,6 +389,8 @@
       "title": "Settings",
       "pinTitle": "Administrator authorization required",
       "printerCardTitle": "Printing",
+      "autoPrintReceiptsLabel": "Auto-print receipts",
+      "autoPrintReceiptsSub": "Print automatically after each sale. Off by default: a receipt summary is shown, printable on demand.",
       "printModeLabel": "Default print mode",
       "printMode": {
         "browser": "Browser",

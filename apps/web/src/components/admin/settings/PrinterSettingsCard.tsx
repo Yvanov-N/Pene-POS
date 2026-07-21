@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { printService } from "@/services/hardware/printService";
 import { CardCustom } from "@/components/ui/card-custom";
+import { Switch } from "@/components/ui/switch";
 import type { PrintMode } from "@/types/db";
 
 const SETTINGS_ID = "default";
@@ -21,9 +22,14 @@ export function PrinterSettingsCard() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const printMode: PrintMode = settings?.printMode ?? "browser";
+  const autoPrintReceipts = settings?.autoPrintReceipts ?? false;
 
   const setPrintMode = async (mode: PrintMode) => {
-    await db.local_settings.put({ id: SETTINGS_ID, printMode: mode });
+    await db.local_settings.put({ id: SETTINGS_ID, printMode: mode, autoPrintReceipts });
+  };
+
+  const toggleAutoPrint = async () => {
+    await db.local_settings.put({ id: SETTINGS_ID, printMode, autoPrintReceipts: !autoPrintReceipts });
   };
 
   const handlePairBluetooth = async () => {
@@ -53,7 +59,19 @@ export function PrinterSettingsCard() {
   return (
     <CardCustom title={t("admin.settings.printerCardTitle")}>
       <div className="flex flex-col gap-4">
-        <div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-foreground">{t("admin.settings.autoPrintReceiptsLabel")}</p>
+            <p className="text-xs text-muted">{t("admin.settings.autoPrintReceiptsSub")}</p>
+          </div>
+          <Switch
+            checked={autoPrintReceipts}
+            onChange={() => void toggleAutoPrint()}
+            aria-label={t("admin.settings.autoPrintReceiptsLabel")}
+          />
+        </div>
+
+        <div className="border-t border-border pt-4">
           <p className="mb-2 text-sm font-medium text-foreground">{t("admin.settings.printModeLabel")}</p>
           <div className="grid grid-cols-2 gap-2">
             {PRINT_MODES.map((mode) => (

@@ -4,11 +4,24 @@ import { useCart } from "@/hooks/useCart";
 import { db } from "@/lib/db";
 import { enqueueMutation } from "@/services/syncService";
 import { printService } from "@/services/hardware/printService";
-import type { PaymentMethod, Profile, Sale, SaleItem, StudentWallet } from "@/types/db";
+import type { CartItem, PaymentMethod, Profile, Sale, SaleItem, StudentWallet } from "@/types/db";
 
 const SETTINGS_ID = "default";
 
 export const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
+
+export interface CompletedReceipt {
+  sale: Sale;
+  items: SaleItem[];
+  // Kept alongside `items` rather than derived from it -- items only have
+  // product_id, and this modal (unlike ReceiptPage.tsx's standalone route)
+  // has the cart's own name/price already in memory at checkout time, so
+  // there's no reason to pay for a fresh product lookup just to redisplay
+  // what was already on screen a moment ago.
+  cartItems: CartItem[];
+  cashierName: string;
+  studentName: string | null;
+}
 
 // Shared by PosCart (desktop sidebar) and MobileCartSheet (mobile bottom
 // sheet) -- both need the exact same payment/student-linking state and the
@@ -28,6 +41,7 @@ export function usePosCheckout() {
   const [pendingAction, setPendingAction] = useState<"checkout" | null>(null);
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<StudentWallet | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<CompletedReceipt | null>(null);
 
   const isEmpty = cart.items.length === 0;
   const isWalletPayment = paymentMethod === "student_wallet";
@@ -69,6 +83,10 @@ export function usePosCheckout() {
     const now = new Date().toISOString();
     let committedSale: Sale | null = null;
     let committedItems: SaleItem[] = [];
+    // Snapshotted before the transaction clears db.cart_items -- cart.items
+    // itself is about to be emptied out from under us.
+    const cartItemsSnapshot = cart.items;
+    const studentNameSnapshot = selectedStudent?.student_name ?? null;
 
     await db.transaction(
       "rw",
@@ -139,15 +157,41 @@ export function usePosCheckout() {
     setPaymentMethod(null);
     setSelectedStudent(null);
 
-    // Printing is best-effort -- the sale already succeeded, so a printer
-    // being unplugged/unpaired must never surface as a checkout failure.
     if (committedSale) {
-      try {
-        const settings = await db.local_settings.get(SETTINGS_ID);
-        await printService.printReceipt(committedSale, committedItems, settings?.printMode ?? "browser");
-      } catch (error) {
-        console.warn("[usePosCheckout] receipt print failed", error);
+      setLastReceipt({
+        sale: committedSale,
+        items: committedItems,
+        cartItems: cartItemsSnapshot,
+        cashierName: profile.full_name,
+        studentName: studentNameSnapshot,
+      });
+
+      // Auto-print is opt-in (admin.settings.autoPrintReceiptsLabel, off by
+      // default) -- the receipt modal above is the new default confirmation
+      // UI; printing is now something a cashier chooses per-terminal, not a
+      // silent side effect on every sale. Still best-effort when enabled --
+      // the sale already succeeded, so a printer being unplugged/unpaired
+      // must never surface as a checkout failure.
+      const settings = await db.local_settings.get(SETTINGS_ID);
+      if (settings?.autoPrintReceipts) {
+        try {
+          await printService.printReceipt(committedSale, committedItems, settings.printMode ?? "browser");
+        } catch (error) {
+          console.warn("[usePosCheckout] receipt print failed", error);
+        }
       }
+    }
+  };
+
+  const dismissReceipt = () => setLastReceipt(null);
+
+  const printReceiptNow = async () => {
+    if (!lastReceipt) return;
+    try {
+      const settings = await db.local_settings.get(SETTINGS_ID);
+      await printService.printReceipt(lastReceipt.sale, lastReceipt.items, settings?.printMode ?? "browser");
+    } catch (error) {
+      console.warn("[usePosCheckout] manual receipt print failed", error);
     }
   };
 
@@ -174,5 +218,8 @@ export function usePosCheckout() {
     requestCheckout,
     cancelPendingAction: () => setPendingAction(null),
     handleCheckoutPinSuccess,
+    lastReceipt,
+    dismissReceipt,
+    printReceiptNow,
   };
 }

@@ -155,7 +155,7 @@ export function StudentWalletsPage() {
         setFormError(t("admin.students.errorBadgeRequired"));
         return;
       }
-      if (!Number.isFinite(balance) || balance < 0) {
+      if (!Number.isFinite(balance)) {
         setFormError(t("admin.students.errorBalanceInvalid"));
         return;
       }
@@ -323,7 +323,6 @@ export function StudentWalletsPage() {
                   <span className="text-muted">{t("admin.students.fieldBalance")}</span>
                   <input
                     type="number"
-                    min="0"
                     step="1"
                     value={form.balance}
                     onChange={(e) => setForm({ ...form, balance: e.target.value })}

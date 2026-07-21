@@ -57,6 +57,11 @@
       "checkoutTitle": "Identifiez-vous pour encaisser",
       "incorrect": "Code PIN incorrect",
       "close": "Fermer"
+    },
+    "receipt": {
+      "title": "Vente terminee",
+      "printButton": "Imprimer",
+      "closeButton": "Fermer"
     }
   },
   "admin": {
@@ -294,7 +299,7 @@
       "formSave": "Enregistrer",
       "errorNameRequired": "Le nom est requis.",
       "errorBadgeRequired": "Le code badge est requis.",
-      "errorBalanceInvalid": "Le solde doit etre un nombre positif.",
+      "errorBalanceInvalid": "Le solde doit etre un nombre valide.",
       "errorBadgeTaken": "Ce code badge est deja utilise par un autre etudiant."
     },
     "conflicts": {
@@ -384,6 +389,8 @@
       "title": "Parametres",
       "pinTitle": "Autorisation administrateur requise",
       "printerCardTitle": "Impression",
+      "autoPrintReceiptsLabel": "Impression automatique des recus",
+      "autoPrintReceiptsSub": "Imprime automatiquement apres chaque vente. Desactive par defaut : un resume du recu est affiche, imprimable a la demande.",
       "printModeLabel": "Mode d'impression par defaut",
       "printMode": {
         "browser": "Navigateur",
