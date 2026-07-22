@@ -17,6 +17,7 @@
       "loading": "Loading products...",
       "empty": "No products found.",
       "stockLabel": "Stock: {{count}}",
+      "negativeStock": "Negative stock",
       "outOfStock": "Out of stock",
       "lowStock": "Low stock",
       "expired": "Expired",

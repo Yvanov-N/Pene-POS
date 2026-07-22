@@ -19,6 +19,11 @@ interface ProductGridProps {
 }
 
 function getStockBadge(t: TFunction, stock: number): { label: string; className: string } | null {
+  // A genuine cross-terminal oversell (migration 00019 lets this settle
+  // negative instead of blocking sync) -- distinct from a plain "0 left"
+  // out-of-stock read, since this specifically means a physical recount is
+  // needed, not just "nothing to sell right now".
+  if (stock < 0) return { label: t("pos.grid.negativeStock"), className: "badge-red" };
   if (stock === 0) return { label: t("pos.grid.outOfStock"), className: "badge-red" };
   if (stock <= 3) return { label: t("pos.grid.lowStock"), className: "badge-amber" };
   return null;

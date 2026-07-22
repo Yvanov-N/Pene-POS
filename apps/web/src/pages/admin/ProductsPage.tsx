@@ -207,7 +207,9 @@ export function ProductsPage() {
                         </td>
                         <td className="py-2 pr-3 text-foreground">{formatCurrency(product.price)}</td>
                         <td className="py-2 pr-3">
-                          {lowStock ? (
+                          {product.stock < 0 ? (
+                            <span className="badge-red">{product.stock}</span>
+                          ) : lowStock ? (
                             <span className="badge-amber">{product.stock}</span>
                           ) : (
                             <span className="text-foreground">{product.stock}</span>

@@ -55,15 +55,15 @@ export function StockAlertWidget() {
             <div
               key={product.id}
               className={`flex items-center justify-between rounded-lg border p-2 text-sm ${
-                product.stock === 0 ? "border-destructive" : "border-warning"
+                product.stock <= 0 ? "border-destructive" : "border-warning"
               }`}
             >
               <span className="flex items-center gap-2 text-foreground">
                 <span aria-hidden>{product.emoji || "📦"}</span>
                 {product.name}
               </span>
-              <span className={product.stock === 0 ? "badge-red" : "badge-amber"}>
-                {t("pos.grid.stockLabel", { count: product.stock })}
+              <span className={product.stock <= 0 ? "badge-red" : "badge-amber"}>
+                {product.stock < 0 ? t("pos.grid.negativeStock") : t("pos.grid.stockLabel", { count: product.stock })}
               </span>
             </div>
           ))

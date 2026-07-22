@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.10.0",
+    "date": "2026-07-22",
+    "changes": [
+      "surface negative stock, distinguish resyncing in the sync status badge"
+    ]
+  },
+  {
     "version": "1.9.0",
     "date": "2026-07-22",
     "changes": [

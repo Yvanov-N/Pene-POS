@@ -17,6 +17,7 @@
       "loading": "Chargement des produits...",
       "empty": "Aucun produit trouve.",
       "stockLabel": "Stock : {{count}}",
+      "negativeStock": "Stock negatif",
       "outOfStock": "Rupture",
       "lowStock": "Stock critique",
       "expired": "Expire",
