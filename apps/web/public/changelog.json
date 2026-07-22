@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.8.0",
+    "date": "2026-07-22",
+    "changes": [
+      "network-first writes, allow negative stock and wallet balance"
+    ]
+  },
+  {
     "version": "1.7.1",
     "date": "2026-07-21",
     "changes": [

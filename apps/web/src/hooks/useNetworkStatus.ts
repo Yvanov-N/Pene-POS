@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { setIsOnlineSnapshot } from "@/lib/networkStatusStore";
 
 const PING_INTERVAL_MS = 20000;
 const PING_TIMEOUT_MS = 4000;
@@ -51,6 +52,7 @@ export function useNetworkStatus(): NetworkStatus {
     if (inFlightRef.current) return inFlightRef.current;
     const promise = pingBackend().then((reachable) => {
       setIsOnline(reachable);
+      setIsOnlineSnapshot(reachable);
       inFlightRef.current = null;
       return reachable;
     });
@@ -63,7 +65,10 @@ export function useNetworkStatus(): NetworkStatus {
     // confirm with a real ping to avoid a Wi-Fi-but-no-internet false
     // positive. Going false is reliable enough to trust immediately.
     const handleOnline = () => void checkNow();
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => {
+      setIsOnline(false);
+      setIsOnlineSnapshot(false);
+    };
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);

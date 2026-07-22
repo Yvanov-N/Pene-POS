@@ -546,7 +546,8 @@
     "tapToSync": "Tap to sync now",
     "toastSuccess_one": "Cloud sync successful ({{count}} sale saved)",
     "toastSuccess_other": "Cloud sync successful ({{count}} sales saved)",
-    "toastConflict": "Stock conflict detected during synchronization!"
+    "toastConflict": "Synchronization conflict detected!",
+    "offlineFallbackToast": "Network unavailable — saved locally, will sync automatically."
   },
   "update": {
     "toast": {

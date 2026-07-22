@@ -1,11 +1,17 @@
 import { db } from "@/lib/db";
 import { cancelPendingSalePush, enqueueMutation } from "@/services/syncService";
+import { submitGenericMutationNetworkFirst, submitWalletAdjustmentNetworkFirst, type WriteMode } from "@/services/repository";
+import type { Product } from "@/types/db";
 
 export type VoidSaleFailureReason = "not-authorized" | "not-found" | "already-refunded" | "unknown-error";
 
 export interface VoidSaleResult {
   success: boolean;
   message?: VoidSaleFailureReason;
+  // True if any of the (up to 3) server writes below fell back to the local
+  // queue instead of landing directly -- lets the caller show the same
+  // offline-fallback toast every other write path shows.
+  usedFallback?: boolean;
 }
 
 export async function voidSale(saleId: string, adminId: string): Promise<VoidSaleResult> {
@@ -19,6 +25,37 @@ export async function voidSale(saleId: string, adminId: string): Promise<VoidSal
   }
 
   try {
+    const sale = await db.sales.get(saleId);
+    if (!sale) return { success: false, message: "not-found" };
+    if (sale.status === "refunded") return { success: false, message: "already-refunded" };
+
+    const items = await db.sale_items.where("sale_id").equals(saleId).toArray();
+
+    const restoredProducts: Product[] = [];
+    for (const line of items) {
+      const product = await db.products.get(line.product_id);
+      if (product) restoredProducts.push({ ...product, stock: product.stock + line.quantity });
+    }
+
+    const wallet =
+      sale.payment_method === "student_wallet" && sale.student_id
+        ? await db.student_wallets.get(sale.student_id)
+        : undefined;
+    const nextWalletBalance = wallet ? wallet.balance + sale.total_amount : null;
+
+    // Up to 3 independent server writes (N product restocks, a wallet
+    // credit-back, the sale's status flip) -- run them concurrently so
+    // worst-case added latency stays ~2.5s total, not stacked per-write.
+    const [productModes, walletMode, saleStatusMode] = await Promise.all([
+      Promise.all(restoredProducts.map((p) => submitGenericMutationNetworkFirst("UPDATE", "products", { ...p }))),
+      wallet
+        ? submitWalletAdjustmentNetworkFirst({ wallet_id: wallet.id, delta: sale.total_amount })
+        : Promise.resolve<WriteMode>("cloud"),
+      submitGenericMutationNetworkFirst("UPDATE", "sales", { id: saleId, status: "refunded" }),
+    ]);
+
+    let usedFallback = false;
+
     await db.transaction(
       "rw",
       db.sales,
@@ -27,12 +64,6 @@ export async function voidSale(saleId: string, adminId: string): Promise<VoidSal
       db.student_wallets,
       db.sync_queue,
       async () => {
-        const sale = await db.sales.get(saleId);
-        if (!sale) throw new Error("not-found");
-        if (sale.status === "refunded") throw new Error("already-refunded");
-
-        const items = await db.sale_items.where("sale_id").equals(saleId).toArray();
-
         // Cancel any not-yet-pushed original SALE queue entry for this sale
         // first -- otherwise it could still reach Supabase and re-decrement
         // server-side stock (or re-insert the now-voided sale) after we've
@@ -40,20 +71,18 @@ export async function voidSale(saleId: string, adminId: string): Promise<VoidSal
         // as MoMoVerificationCard's reject flow (Phase 7.2).
         await cancelPendingSalePush(saleId);
 
-        for (const line of items) {
-          const product = await db.products.get(line.product_id);
-          if (product) {
-            const restored = { ...product, stock: product.stock + line.quantity };
-            await db.products.put(restored);
+        for (const [index, restored] of restoredProducts.entries()) {
+          await db.products.put(restored);
+          if (productModes[index] === "local") {
+            usedFallback = true;
             await enqueueMutation("UPDATE", "products", { ...restored });
           }
         }
 
-        if (sale.payment_method === "student_wallet" && sale.student_id) {
-          const wallet = await db.student_wallets.get(sale.student_id);
-          if (wallet) {
-            const nextBalance = wallet.balance + sale.total_amount;
-            await db.student_wallets.update(wallet.id, { balance: nextBalance });
+        if (wallet && nextWalletBalance !== null) {
+          await db.student_wallets.update(wallet.id, { balance: nextWalletBalance });
+          if (walletMode === "local") {
+            usedFallback = true;
             await enqueueMutation("WALLET_RECHARGE", "student_wallets", {
               wallet_id: wallet.id,
               delta: sale.total_amount,
@@ -62,15 +91,15 @@ export async function voidSale(saleId: string, adminId: string): Promise<VoidSal
         }
 
         await db.sales.update(saleId, { status: "refunded" });
-        await enqueueMutation("UPDATE", "sales", { id: saleId, status: "refunded" });
+        if (saleStatusMode === "local") {
+          usedFallback = true;
+          await enqueueMutation("UPDATE", "sales", { id: saleId, status: "refunded" });
+        }
       },
     );
 
-    return { success: true };
+    return { success: true, usedFallback };
   } catch (error) {
-    if (error instanceof Error && (error.message === "not-found" || error.message === "already-refunded")) {
-      return { success: false, message: error.message };
-    }
     // Dexie rolls the whole transaction back on any thrown error -- no
     // partial stock/wallet/status writes survive a mid-loop failure.
     console.error("[refundService] voidSale failed", saleId, adminId, error);

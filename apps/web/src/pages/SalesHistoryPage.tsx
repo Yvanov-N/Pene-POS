@@ -153,7 +153,10 @@ export function SalesHistoryPage() {
     try {
       const result = await voidSale(sale.id, profile.id);
       if (result.success) {
-        void triggerManualSync();
+        if (result.usedFallback) {
+          void triggerManualSync();
+          showToast("warning", t("sync.offlineFallbackToast"));
+        }
         showToast("success", t("admin.salesHistory.voidSuccessToast"));
       } else {
         showToast("error", t(VOID_ERROR_KEY[result.message ?? "unknown-error"]));

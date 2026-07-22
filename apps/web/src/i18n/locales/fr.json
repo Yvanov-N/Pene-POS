@@ -546,7 +546,8 @@
     "tapToSync": "Appuyer pour synchroniser",
     "toastSuccess_one": "Synchronisation Cloud reussie ({{count}} vente sauvegardee)",
     "toastSuccess_other": "Synchronisation Cloud reussie ({{count}} ventes sauvegardees)",
-    "toastConflict": "Conflit de stock detecte lors de la synchronisation !"
+    "toastConflict": "Conflit de synchronisation detecte !",
+    "offlineFallbackToast": "Reseau indisponible — enregistre localement, synchronisation automatique a venir."
   },
   "update": {
     "toast": {
