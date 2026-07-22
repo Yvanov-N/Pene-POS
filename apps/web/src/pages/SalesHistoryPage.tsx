@@ -231,6 +231,15 @@ export function SalesHistoryPage() {
     // with no meta tags at all. Same fix already applied in ReceiptPage.tsx.
     const shareUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/share-receipt?id=${sale.id}`;
 
+    // Sharing is never blocked on sync status -- but a recipient opening the
+    // link before this device's own push has landed server-side will
+    // genuinely see a "checking" state for a few seconds (ReceiptPage.tsx
+    // retries get_public_receipt instead of giving up on one null). Purely
+    // informative, so the cashier isn't left thinking the link is broken.
+    if (sale.status !== "completed") {
+      showToast("warning", t("admin.salesHistory.shareUnsyncedHint"));
+    }
+
     if (navigator.share) {
       try {
         await navigator.share({
