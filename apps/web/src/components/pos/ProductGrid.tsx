@@ -1,8 +1,10 @@
-import { memo, useMemo, useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { db } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
+import { useNetworkFirstQuery } from "@/hooks/useNetworkFirstQuery";
+import { getPendingIds, mapProductRow } from "@/services/syncService";
 import type { Product } from "@/types/db";
 import { formatCurrency } from "@/lib/currency";
 import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
@@ -56,12 +58,38 @@ export function ProductGrid({ searchTerm, category, onProductSelect }: ProductGr
   // category_id is indexed (lib/db.ts v5) -- scope the Dexie read to the
   // selected category instead of pulling the full catalog on every render
   // when a category filter is active.
-  const products = useLiveQuery(
+  //
+  // Network-first: renders instantly from the Dexie cache below (unchanged
+  // from before), while a direct Supabase fetch races in the background and
+  // refreshes it -- the highest-value read to convert first, since stale
+  // stock counts here are exactly what causes a cross-terminal oversell.
+  const fetchRemote = useCallback(
+    async (signal: AbortSignal) => {
+      const query =
+        category === ALL_CATEGORIES_VALUE
+          ? supabase.from("products").select("*")
+          : supabase.from("products").select("*").eq("category_id", category);
+      const { data, error } = await query.abortSignal(signal);
+      if (error) throw error;
+      return data;
+    },
+    [category],
+  );
+  const writeBack = useCallback(async (rows: Awaited<ReturnType<typeof fetchRemote>>) => {
+    // Never clobber a row with a still-unsynced local edit (e.g. a queued
+    // restock) with a stale server value -- same guard pullFromSupabase uses.
+    const pendingIds = await getPendingIds("product_id");
+    const toPut = rows.filter((row) => !pendingIds.has(row.id)).map(mapProductRow);
+    if (toPut.length > 0) await db.products.bulkPut(toPut);
+  }, []);
+
+  const products = useNetworkFirstQuery(
     () =>
       category === ALL_CATEGORIES_VALUE
         ? db.products.toArray()
         : db.products.where("category_id").equals(category).toArray(),
     [category],
+    { fetchRemote, writeBack },
   );
 
   const filtered = useMemo(() => {

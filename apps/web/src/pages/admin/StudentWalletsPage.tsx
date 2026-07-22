@@ -3,7 +3,9 @@ import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { X } from "lucide-react";
 import { db } from "@/lib/db";
-import { enqueueMutation } from "@/services/syncService";
+import { supabase } from "@/lib/supabase";
+import { enqueueMutation, getPendingIds, mapWalletRow } from "@/services/syncService";
+import { useNetworkFirstQuery } from "@/hooks/useNetworkFirstQuery";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
@@ -19,6 +21,17 @@ import type { Sale, StudentWallet } from "@/types/db";
 // not inflate a student's lifetime spend/order count.
 function isRevenueRelevant(sale: Sale): boolean {
   return (sale.status === "completed" || sale.status === "pending_sync") && sale.momo_verification_status !== "rejected";
+}
+
+async function fetchWalletsRemote(signal: AbortSignal) {
+  const { data, error } = await supabase.from("student_wallets").select("*").abortSignal(signal);
+  if (error) throw error;
+  return data;
+}
+async function writeBackWallets(rows: Awaited<ReturnType<typeof fetchWalletsRemote>>) {
+  const pendingIds = await getPendingIds("wallet_id");
+  const toPut = rows.filter((row) => !pendingIds.has(row.id)).map(mapWalletRow);
+  if (toPut.length > 0) await db.student_wallets.bulkPut(toPut);
 }
 
 interface FormState {
@@ -62,7 +75,10 @@ export function StudentWalletsPage() {
   // it actually closes that window, where state doesn't.
   const savingRef = useRef(false);
 
-  const students = useLiveQuery(() => db.student_wallets.toArray(), []);
+  const students = useNetworkFirstQuery(() => db.student_wallets.toArray(), [], {
+    fetchRemote: fetchWalletsRemote,
+    writeBack: writeBackWallets,
+  });
 
   // A dedicated page with no product scanning happening on it at all --
   // unlike PosCart's checkout picker, any scan here is unambiguously a

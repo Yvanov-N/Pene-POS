@@ -1,16 +1,31 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLiveQuery } from "dexie-react-hooks";
 import { useCart } from "@/hooks/useCart";
+import { useNetworkFirstQuery } from "@/hooks/useNetworkFirstQuery";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { db } from "@/lib/db";
-import { enqueueMutation } from "@/services/syncService";
+import { supabase } from "@/lib/supabase";
+import { enqueueMutation, getPendingIds, mapWalletRow } from "@/services/syncService";
 import { submitSaleNetworkFirst, submitWalletAdjustmentNetworkFirst, type WriteMode } from "@/services/repository";
 import { printService } from "@/services/hardware/printService";
 import type { CartItem, PaymentMethod, Profile, Sale, SaleItem, SalePayload, StudentWallet } from "@/types/db";
 
 const SETTINGS_ID = "default";
+
+// Module-level, not component-scoped -- neither closes over any reactive
+// state (the wallet search has no query params to react to, unlike
+// ProductGrid's category filter), so there's nothing to re-derive per render.
+async function fetchWalletsRemote(signal: AbortSignal) {
+  const { data, error } = await supabase.from("student_wallets").select("*").abortSignal(signal);
+  if (error) throw error;
+  return data;
+}
+async function writeBackWallets(rows: Awaited<ReturnType<typeof fetchWalletsRemote>>) {
+  const pendingIds = await getPendingIds("wallet_id");
+  const toPut = rows.filter((row) => !pendingIds.has(row.id)).map(mapWalletRow);
+  if (toPut.length > 0) await db.student_wallets.bulkPut(toPut);
+}
 
 export const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
 
@@ -66,7 +81,11 @@ export function usePosCheckout() {
   // stays live via useLiveQuery's own table subscription; filtering by
   // search term happens in memory via useMemo instead of re-reading
   // IndexedDB on every keystroke.
-  const wallets = useLiveQuery(() => db.student_wallets.toArray(), []) ?? [];
+  const wallets =
+    useNetworkFirstQuery(() => db.student_wallets.toArray(), [], {
+      fetchRemote: fetchWalletsRemote,
+      writeBack: writeBackWallets,
+    }) ?? [];
   const studentResults = useMemo(() => {
     const term = studentSearchTerm.trim().toLowerCase();
     if (!term) return [];
