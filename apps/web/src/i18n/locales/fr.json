@@ -207,6 +207,7 @@
       "shareText": "Recu d'achat No. {{id}} - {{amount}}",
       "shareLinkCopiedToast": "Lien du recu copie pour WhatsApp/Telegram",
       "shareError": "Impossible de partager le recu",
+      "shareUnsyncedHint": "Cette vente n'est pas encore synchronisee -- le destinataire devra peut-etre patienter quelques secondes apres avoir ouvert le lien.",
       "void": "Annuler / Rembourser",
       "voidPinTitle": "Autorisation Admin requise pour annuler cette vente",
       "voidSuccessToast": "Vente annulee — Stocks et portefeuille restaures",
@@ -485,6 +486,7 @@
   },
   "receiptPage": {
     "loading": "Chargement du recu...",
+    "checking": "Verification de votre recu...",
     "notFoundTitle": "Recu introuvable",
     "notFound": "Ce lien ne correspond a aucun recu connu.",
     "share": "Partager",

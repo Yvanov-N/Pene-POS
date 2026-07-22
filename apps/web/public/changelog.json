@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.11.1",
+    "date": "2026-07-22",
+    "changes": [
+      "retry shared-receipt lookup instead of failing on the first sync race"
+    ]
+  },
+  {
     "version": "1.11.0",
     "date": "2026-07-22",
     "changes": [

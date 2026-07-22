@@ -207,6 +207,7 @@
       "shareText": "Purchase receipt No. {{id}} - {{amount}}",
       "shareLinkCopiedToast": "Receipt link copied for WhatsApp/Telegram",
       "shareError": "Couldn't share the receipt",
+      "shareUnsyncedHint": "This sale hasn't synced yet -- the recipient may need to wait a few seconds after opening the link.",
       "void": "Void / Refund",
       "voidPinTitle": "Admin authorization required to void this sale",
       "voidSuccessToast": "Sale voided — stock and wallet restored",
@@ -485,6 +486,7 @@
   },
   "receiptPage": {
     "loading": "Loading receipt...",
+    "checking": "Verifying your receipt...",
     "notFoundTitle": "Receipt not found",
     "notFound": "This link doesn't match any known receipt.",
     "share": "Share",

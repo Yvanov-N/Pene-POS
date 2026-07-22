@@ -49,16 +49,27 @@ type LocalLookup = { found: true; data: ReceiptData } | { found: false };
 
 const LOCALE_BY_LANGUAGE: Record<string, string> = { fr: "fr-FR", en: "en-US" };
 
+// A sale can be shared the instant it's rung up, before this exact device's
+// write has actually landed server-side (offline at checkout time, or the
+// network-first attempt fell back to the queue) -- get_public_receipt
+// genuinely returns null until that sync completes, which is usually a few
+// seconds away, not never. One retry loop instead of one shot: covers the
+// realistic sync window (near-instant on reconnect, worst case the 30s
+// background poll) without hanging forever on a truly bad/garbage id.
+const RECEIPT_RETRY_INTERVAL_MS = 3000;
+const RECEIPT_MAX_RETRIES = 8; // ~24s total
+
 function shortSaleId(saleId: string): string {
   return saleId.slice(0, 6).toUpperCase();
 }
 
-function ReceiptSkeleton() {
+function ReceiptSkeleton({ checking }: { checking: boolean }) {
   const { t } = useTranslation();
   return (
     <div className="animate-pulse">
-      <span className="sr-only">{t("receiptPage.loading")}</span>
+      <span className="sr-only">{t(checking ? "receiptPage.checking" : "receiptPage.loading")}</span>
       <div className="mx-auto mb-4 h-6 w-32 rounded bg-surface2" />
+      {checking && <p className="mb-3 text-center text-xs text-muted">{t("receiptPage.checking")}</p>}
       <div className="mx-auto mb-6 h-3 w-40 rounded bg-surface2" />
       <div className="flex flex-col gap-2 border-t border-dashed border-border pt-3">
         <div className="h-3 w-full rounded bg-surface2" />
@@ -89,9 +100,12 @@ export function ReceiptPage() {
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
 
-  // undefined = not attempted yet, null = attempted and no sale found,
-  // ReceiptData = found via the public RPC.
+  // undefined = not attempted yet, null = retries exhausted with no sale
+  // found, ReceiptData = found via the public RPC.
   const [remoteReceipt, setRemoteReceipt] = useState<ReceiptData | null | undefined>(undefined);
+  // Purely for the "still checking" loading copy -- never read by any
+  // fetch/retry logic itself.
+  const [retryAttempt, setRetryAttempt] = useState(0);
 
   const localResult = useLiveQuery<LocalLookup>(async () => {
     if (!saleId) return { found: false };
@@ -135,15 +149,17 @@ export function ReceiptPage() {
   // for exactly the anonymous-visitor case it's meant to handle. The RPC is
   // the narrow, already-safe exception built for this.
   useEffect(() => {
-    if (!saleId || localResult === undefined || localResult.found || remoteReceipt !== undefined) return;
+    if (!saleId || localResult === undefined || localResult.found) return;
 
-    void supabase
-      .rpc("get_public_receipt", { p_sale_id: saleId })
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setRemoteReceipt(null);
-          return;
-        }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+
+    const attempt = async () => {
+      const { data, error } = await supabase.rpc("get_public_receipt", { p_sale_id: saleId });
+      if (cancelled) return;
+
+      if (!error && data) {
         const row = data as unknown as PublicReceiptRow;
         setRemoteReceipt({
           id: row.id,
@@ -159,8 +175,31 @@ export function ReceiptPage() {
             unitPrice: item.unit_price,
           })),
         });
-      });
-  }, [saleId, localResult, remoteReceipt, t]);
+        return;
+      }
+
+      // A real RPC/network error and a genuine "not yet synced" both land
+      // here -- logged so a persistent failure (misconfigured RPC, network
+      // issue) is at least visible in the console instead of silently
+      // looking identical to a not-yet-synced sale forever.
+      if (error) console.warn("[ReceiptPage] get_public_receipt failed", error);
+
+      attempts += 1;
+      if (attempts >= RECEIPT_MAX_RETRIES) {
+        setRemoteReceipt(null);
+        return;
+      }
+      setRetryAttempt(attempts);
+      timer = setTimeout(() => void attempt(), RECEIPT_RETRY_INTERVAL_MS);
+    };
+
+    void attempt();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [saleId, localResult?.found, t]);
 
   const receipt = localResult?.found ? localResult.data : (remoteReceipt ?? undefined);
   const isLoading = localResult === undefined || (localResult.found === false && remoteReceipt === undefined);
@@ -218,7 +257,7 @@ export function ReceiptPage() {
       <div className="mx-auto w-full sm:max-w-[380px]">
         <CardCustom className="receipt-card">
           {isLoading ? (
-            <ReceiptSkeleton />
+            <ReceiptSkeleton checking={retryAttempt > 0} />
           ) : notFound ? (
             <div className="py-6 text-center">
               <ReceiptIcon className="mx-auto h-10 w-10 text-muted" aria-hidden />
