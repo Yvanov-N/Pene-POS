@@ -1,14 +1,46 @@
 import { useMemo, useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
+import { useTranslation } from "react-i18next";
 import { useCart } from "@/hooks/useCart";
+import { useNetworkFirstQuery } from "@/hooks/useNetworkFirstQuery";
+import { useSyncEngine } from "@/hooks/useSyncEngine";
+import { useToast } from "@/hooks/useToast";
 import { db } from "@/lib/db";
-import { enqueueMutation } from "@/services/syncService";
+import { supabase } from "@/lib/supabase";
+import { enqueueMutation, getPendingIds, mapWalletRow } from "@/services/syncService";
+import { submitSaleNetworkFirst, submitWalletAdjustmentNetworkFirst, type WriteMode } from "@/services/repository";
 import { printService } from "@/services/hardware/printService";
-import type { PaymentMethod, Profile, Sale, SaleItem, StudentWallet } from "@/types/db";
+import type { CartItem, PaymentMethod, Profile, Sale, SaleItem, SalePayload, StudentWallet } from "@/types/db";
 
 const SETTINGS_ID = "default";
 
+// Module-level, not component-scoped -- neither closes over any reactive
+// state (the wallet search has no query params to react to, unlike
+// ProductGrid's category filter), so there's nothing to re-derive per render.
+async function fetchWalletsRemote(signal: AbortSignal) {
+  const { data, error } = await supabase.from("student_wallets").select("*").abortSignal(signal);
+  if (error) throw error;
+  return data;
+}
+async function writeBackWallets(rows: Awaited<ReturnType<typeof fetchWalletsRemote>>) {
+  const pendingIds = await getPendingIds("wallet_id");
+  const toPut = rows.filter((row) => !pendingIds.has(row.id)).map(mapWalletRow);
+  if (toPut.length > 0) await db.student_wallets.bulkPut(toPut);
+}
+
 export const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
+
+export interface CompletedReceipt {
+  sale: Sale;
+  items: SaleItem[];
+  // Kept alongside `items` rather than derived from it -- items only have
+  // product_id, and this modal (unlike ReceiptPage.tsx's standalone route)
+  // has the cart's own name/price already in memory at checkout time, so
+  // there's no reason to pay for a fresh product lookup just to redisplay
+  // what was already on screen a moment ago.
+  cartItems: CartItem[];
+  cashierName: string;
+  studentName: string | null;
+}
 
 // Shared by PosCart (desktop sidebar) and MobileCartSheet (mobile bottom
 // sheet) -- both need the exact same payment/student-linking state and the
@@ -20,6 +52,9 @@ export const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orang
 // this project: pick a payment method on one, and the other's independent
 // state would never know.
 export function usePosCheckout() {
+  const { t } = useTranslation();
+  const { showToast } = useToast();
+  const { triggerManualSync } = useSyncEngine();
   const cart = useCart();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   // "clear" and "remove item" no longer need this -- frictionless per Page 2
@@ -28,12 +63,17 @@ export function usePosCheckout() {
   const [pendingAction, setPendingAction] = useState<"checkout" | null>(null);
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<StudentWallet | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<CompletedReceipt | null>(null);
 
   const isEmpty = cart.items.length === 0;
   const isWalletPayment = paymentMethod === "student_wallet";
+  // No longer gates checkout -- wallet-payment sales are allowed to drive a
+  // student's balance negative (server-side already permits this via
+  // adjust_wallet_balance, migration 00019). Kept purely to drive the inline
+  // UI: red styling + a "this will create/increase debt" message instead of
+  // a hard block.
   const walletInsufficient = isWalletPayment && selectedStudent !== null && selectedStudent.balance < cart.totalAmount;
-  const canCheckout =
-    !isEmpty && !!paymentMethod && (!isWalletPayment || (selectedStudent !== null && !walletInsufficient));
+  const canCheckout = !isEmpty && !!paymentMethod && (!isWalletPayment || selectedStudent !== null);
 
   // Deliberately not wired to useBarcodeScanner/the shared pos:barcode-scan
   // event the way StudentWalletsPage's search is: this screen also has
@@ -45,7 +85,11 @@ export function usePosCheckout() {
   // stays live via useLiveQuery's own table subscription; filtering by
   // search term happens in memory via useMemo instead of re-reading
   // IndexedDB on every keystroke.
-  const wallets = useLiveQuery(() => db.student_wallets.toArray(), []) ?? [];
+  const wallets =
+    useNetworkFirstQuery(() => db.student_wallets.toArray(), [], {
+      fetchRemote: fetchWalletsRemote,
+      writeBack: writeBackWallets,
+    }) ?? [];
   const studentResults = useMemo(() => {
     const term = studentSearchTerm.trim().toLowerCase();
     if (!term) return [];
@@ -69,6 +113,47 @@ export function usePosCheckout() {
     const now = new Date().toISOString();
     let committedSale: Sale | null = null;
     let committedItems: SaleItem[] = [];
+    // Snapshotted before the transaction clears db.cart_items -- cart.items
+    // itself is about to be emptied out from under us.
+    const cartItemsSnapshot = cart.items;
+    const studentNameSnapshot = selectedStudent?.student_name ?? null;
+
+    const sale: Sale = {
+      id: saleId,
+      created_at: now,
+      cashier_id: profile.id,
+      total_amount: cart.totalAmount,
+      payment_method: paymentMethod!,
+      student_id: selectedStudent?.id,
+      status: "pending_sync",
+      // Only Mobile Money sales need a shop-phone SMS checked before
+      // they're considered settled -- cash and student_wallet sales
+      // never enter this workflow at all.
+      momo_verification_status: paymentMethod === "momo_mtn" || paymentMethod === "momo_orange" ? "pending" : undefined,
+    };
+    const saleItems: SaleItem[] = cart.items.map((item) => ({
+      id: crypto.randomUUID(),
+      sale_id: saleId,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      unit_price: item.price,
+    }));
+    const salePayload: SalePayload = { sale, items: saleItems };
+
+    // Network-first: attempt the direct Supabase write before touching Dexie
+    // at all. On "cloud", the sale/wallet delta is already durably committed
+    // server-side, so the local write below just mirrors that confirmed
+    // state and skips enqueueing entirely -- there's nothing left to sync.
+    // On "local" (offline, timed out, or a genuine conflict), this falls
+    // back to exactly the local-first flow this app has always used.
+    const saleMode = await submitSaleNetworkFirst(salePayload);
+    let walletMode: WriteMode | null = null;
+    if (isWalletPayment && selectedStudent) {
+      walletMode = await submitWalletAdjustmentNetworkFirst({
+        wallet_id: selectedStudent.id,
+        delta: -cart.totalAmount,
+      });
+    }
 
     await db.transaction(
       "rw",
@@ -77,77 +162,86 @@ export function usePosCheckout() {
       // pushed it over that limit).
       [db.sales, db.sale_items, db.products, db.student_wallets, db.sync_queue, db.cart_items],
       async () => {
-        const sale: Sale = {
-          id: saleId,
-          created_at: now,
-          cashier_id: profile.id,
-          total_amount: cart.totalAmount,
-          payment_method: paymentMethod!,
-          student_id: selectedStudent?.id,
-          status: "pending_sync",
-          // Only Mobile Money sales need a shop-phone SMS checked before
-          // they're considered settled -- cash and student_wallet sales
-          // never enter this workflow at all.
-          momo_verification_status:
-            paymentMethod === "momo_mtn" || paymentMethod === "momo_orange" ? "pending" : undefined,
-        };
-        await db.sales.put(sale);
-
-        const saleItems: SaleItem[] = cart.items.map((item) => ({
-          id: crypto.randomUUID(),
-          sale_id: saleId,
-          product_id: item.product_id,
-          quantity: item.quantity,
-          unit_price: item.price,
-        }));
+        await db.sales.put({ ...sale, status: saleMode === "cloud" ? "completed" : "pending_sync" });
         await db.sale_items.bulkPut(saleItems);
 
         for (const item of cart.items) {
           const product = await db.products.get(item.product_id);
           if (product) {
-            await db.products.update(item.product_id, {
-              stock: Math.max(0, product.stock - item.quantity),
+            // No clamp to 0 -- a genuine cross-terminal oversell is now
+            // expected to settle negative (migration 00019), surfaced via
+            // the product grid/table's "Negative stock" badge, not hidden
+            // locally until the next pull.
+            await db.products.update(item.product_id, { stock: product.stock - item.quantity });
+          }
+        }
+
+        if (saleMode === "local") await enqueueMutation("SALE", "sales", salePayload);
+
+        if (isWalletPayment && selectedStudent) {
+          const nextBalance = selectedStudent.balance - cart.totalAmount;
+          await db.student_wallets.update(selectedStudent.id, { balance: nextBalance });
+          if (walletMode === "local") {
+            await enqueueMutation("WALLET_RECHARGE", "student_wallets", {
+              wallet_id: selectedStudent.id,
+              delta: -cart.totalAmount,
             });
           }
         }
 
-        await enqueueMutation("SALE", "sales", { sale, items: saleItems });
-
-        // Real balance deduction, reusing the exact same adjust_wallet_balance
-        // RPC / WALLET_RECHARGE mutation the recharge flow already uses --
-        // just a negative delta. The server's non-negative balance CHECK
-        // constraint is the real backstop against a race between two devices
-        // spending the same wallet before either has synced; this local
-        // sufficiency check (canCheckout above) just avoids hitting that in
-        // the overwhelmingly common single-device case.
-        if (isWalletPayment && selectedStudent) {
-          const nextBalance = selectedStudent.balance - cart.totalAmount;
-          await db.student_wallets.update(selectedStudent.id, { balance: nextBalance });
-          await enqueueMutation("WALLET_RECHARGE", "student_wallets", {
-            wallet_id: selectedStudent.id,
-            delta: -cart.totalAmount,
-          });
-        }
-
         await db.cart_items.clear();
 
-        committedSale = sale;
+        committedSale = { ...sale, status: saleMode === "cloud" ? "completed" : "pending_sync" };
         committedItems = saleItems;
       },
     );
 
+    if (saleMode === "local" || walletMode === "local") {
+      showToast("warning", t("sync.offlineFallbackToast"));
+      // Every other write path in this app already fires this after
+      // enqueueing; checkout was the one exception -- fixed here since the
+      // new fallback branch needs it to actually flush promptly.
+      void triggerManualSync();
+    }
+
     setPaymentMethod(null);
     setSelectedStudent(null);
 
-    // Printing is best-effort -- the sale already succeeded, so a printer
-    // being unplugged/unpaired must never surface as a checkout failure.
     if (committedSale) {
-      try {
-        const settings = await db.local_settings.get(SETTINGS_ID);
-        await printService.printReceipt(committedSale, committedItems, settings?.printMode ?? "browser");
-      } catch (error) {
-        console.warn("[usePosCheckout] receipt print failed", error);
+      setLastReceipt({
+        sale: committedSale,
+        items: committedItems,
+        cartItems: cartItemsSnapshot,
+        cashierName: profile.full_name,
+        studentName: studentNameSnapshot,
+      });
+
+      // Auto-print is opt-in (admin.settings.autoPrintReceiptsLabel, off by
+      // default) -- the receipt modal above is the new default confirmation
+      // UI; printing is now something a cashier chooses per-terminal, not a
+      // silent side effect on every sale. Still best-effort when enabled --
+      // the sale already succeeded, so a printer being unplugged/unpaired
+      // must never surface as a checkout failure.
+      const settings = await db.local_settings.get(SETTINGS_ID);
+      if (settings?.autoPrintReceipts) {
+        try {
+          await printService.printReceipt(committedSale, committedItems, settings.printMode ?? "browser");
+        } catch (error) {
+          console.warn("[usePosCheckout] receipt print failed", error);
+        }
       }
+    }
+  };
+
+  const dismissReceipt = () => setLastReceipt(null);
+
+  const printReceiptNow = async () => {
+    if (!lastReceipt) return;
+    try {
+      const settings = await db.local_settings.get(SETTINGS_ID);
+      await printService.printReceipt(lastReceipt.sale, lastReceipt.items, settings?.printMode ?? "browser");
+    } catch (error) {
+      console.warn("[usePosCheckout] manual receipt print failed", error);
     }
   };
 
@@ -174,5 +268,8 @@ export function usePosCheckout() {
     requestCheckout,
     cancelPendingAction: () => setPendingAction(null),
     handleCheckoutPinSuccess,
+    lastReceipt,
+    dismissReceipt,
+    printReceiptNow,
   };
 }

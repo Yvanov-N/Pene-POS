@@ -5,6 +5,7 @@ import type { TFunction } from "i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { enqueueMutation } from "@/services/syncService";
+import { submitGenericMutationNetworkFirst } from "@/services/repository";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
@@ -83,9 +84,13 @@ export function RestockingPage() {
         updated_at: new Date().toISOString(),
       };
 
+      const mode = await submitGenericMutationNetworkFirst("UPDATE", "products", { ...updated });
       await db.products.put(updated);
-      await enqueueMutation("UPDATE", "products", { ...updated });
-      void triggerManualSync();
+      if (mode === "local") {
+        await enqueueMutation("UPDATE", "products", { ...updated });
+        void triggerManualSync();
+        showToast("warning", t("sync.offlineFallbackToast"));
+      }
 
       showToast("success", t("restocking.successToast", { name: updated.name, quantity }));
       setSelected(null);

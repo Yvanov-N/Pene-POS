@@ -22,18 +22,27 @@ import type { Database, Json } from "@/types/supabase";
 // same 3 steps every existing one already does:
 //   1. Add the table to Dexie's schema (lib/db.ts) -- bump the version only
 //      if you're adding/removing an INDEX, not for a plain new field.
-//   2. Read exclusively via useLiveQuery(() => db.<table>...., []) in
-//      components/hooks. Never a direct supabase.from(...).select(...) to
-//      render UI -- the local table is the single source of truth for reads,
-//      online or offline, so the UI never waits on a network round trip.
-//   3. Write locally first (db.<table>.put/update/delete), then call
-//      enqueueMutation(action, tableName, payload) (or the useOfflineMutation
-//      hook, which just wraps that + triggerManualSync() in one call) and
-//      void triggerManualSync(). Never await a direct supabase.from(...)
-//      .insert/update/delete(...) from a click handler or form submit --
-//      grep this file's own pushGeneric()/pushItem() before adding a new
-//      action type; the odds are the generic INSERT/UPDATE/DELETE path
-//      already handles a plain new table with zero new sync code.
+//   2. Read via useLiveQuery(() => db.<table>...., []) in components/hooks --
+//      or, for the operationally-critical reads listed in
+//      hooks/useNetworkFirstQuery.ts, that same useLiveQuery call wrapped by
+//      useNetworkFirstQuery, which races a background direct fetch and
+//      writes the result into Dexie on success. Either way, the value
+//      rendered to the UI always comes from Dexie, never a promise the
+//      component awaits directly -- a slow/failed background fetch never
+//      blocks or blanks the screen, it just leaves the cached value showing.
+//   3. Write via services/repository.ts's network-first helpers
+//      (submitSaleNetworkFirst / submitWalletAdjustmentNetworkFirst /
+//      submitGenericMutationNetworkFirst), which attempt this file's push
+//      primitives (pushSale/pushWalletBalanceAdjustment/pushGeneric,
+//      exported below) directly first, then always write locally
+//      (db.<table>.put/update/delete) regardless of outcome -- enqueueing
+//      via enqueueMutation(action, tableName, payload) only when the direct
+//      attempt didn't land ("local" outcome). Never await a direct
+//      supabase.from(...).insert/update/delete(...) from a click handler or
+//      form submit outside repository.ts -- grep this file's own
+//      pushGeneric()/pushItem() before adding a new action type; the odds
+//      are the generic INSERT/UPDATE/DELETE path already handles a plain new
+//      table with zero new sync code.
 //
 // The few deliberate exceptions to step 3 in this codebase (documented at
 // each call site, not silently done): supabase.auth.* calls (sign in/out,
@@ -78,7 +87,7 @@ const UNIQUE_VIOLATION_CODE = "23505";
 // enough not to falsely trip on a legitimately slow but working request.
 const PUSH_TIMEOUT_MS = 15000;
 
-type QueueOutcome = "completed" | "conflict";
+export type QueueOutcome = "completed" | "conflict";
 
 // Overloaded so the payload shape is enforced at the call site too, not just
 // narrowed back inside this file -- passing a WALLET_RECHARGE payload for a
@@ -119,7 +128,17 @@ export async function enqueueMutation(
 // "Syncing" for over an hour). complete_sale is idempotent by construction:
 // a sales row existing for this id is a reliable, race-free signal the
 // whole operation already committed on a prior attempt.
-async function pushSale(payload: SalePayload): Promise<QueueOutcome> {
+// Exported (and parameterized by `signal`) so repository.ts's network-first
+// write path can call this exact same primitive directly for an
+// immediate/direct attempt, not just the deferred queue processor -- without
+// duplicating the RPC-call logic. The db.sales status update on success is
+// deliberately NOT done here (see pushItem below, its one deferred-queue
+// caller): a direct/immediate attempt runs before any local sales row exists
+// yet, so that side effect only makes sense for the queue path.
+export async function pushSale(
+  payload: SalePayload,
+  signal: AbortSignal = AbortSignal.timeout(PUSH_TIMEOUT_MS),
+): Promise<QueueOutcome> {
   const { sale, items } = payload;
 
   // Sale/SaleItem are plain, JSON-safe data (no functions, no index
@@ -127,7 +146,7 @@ async function pushSale(payload: SalePayload): Promise<QueueOutcome> {
   // index signature structurally, not a real runtime safety concern.
   const { error } = await supabase
     .rpc("complete_sale", { p_sale: sale as unknown as Json, p_items: items as unknown as Json })
-    .abortSignal(AbortSignal.timeout(PUSH_TIMEOUT_MS));
+    .abortSignal(signal);
 
   if (error) {
     // check_violation (oversold stock) or foreign_key_violation (a product
@@ -140,7 +159,6 @@ async function pushSale(payload: SalePayload): Promise<QueueOutcome> {
     throw error;
   }
 
-  await db.sales.update(sale.id, { status: "completed" });
   return "completed";
 }
 
@@ -151,10 +169,13 @@ async function pushSale(payload: SalePayload): Promise<QueueOutcome> {
 // can eventually tell "money the shop added/reversed" apart from "cash the
 // shop physically paid out", something totalWalletRecharges' own comment
 // already flags as impossible to distinguish today for WALLET_RECHARGE alone.
-async function pushWalletBalanceAdjustment(payload: WalletBalancePayload): Promise<QueueOutcome> {
+export async function pushWalletBalanceAdjustment(
+  payload: WalletBalancePayload,
+  signal: AbortSignal = AbortSignal.timeout(PUSH_TIMEOUT_MS),
+): Promise<QueueOutcome> {
   const { error } = await supabase
     .rpc("adjust_wallet_balance", { p_wallet_id: payload.wallet_id, p_delta: payload.delta })
-    .abortSignal(AbortSignal.timeout(PUSH_TIMEOUT_MS));
+    .abortSignal(signal);
   if (error) {
     if (error.code === CHECK_VIOLATION_CODE) return "conflict";
     throw error;
@@ -166,10 +187,11 @@ async function pushWalletBalanceAdjustment(payload: WalletBalancePayload): Promi
 // any new table/feature gets for free with zero new sync code (see the
 // repository-pattern note at the top of this file): categories, products,
 // student_wallets, profiles, and shop_status admin CRUD all go through here.
-async function pushGeneric(
+export async function pushGeneric(
   action: "INSERT" | "UPDATE" | "DELETE",
   tableName: string,
   payload: GenericMutationPayload,
+  signal: AbortSignal = AbortSignal.timeout(PUSH_TIMEOUT_MS),
 ): Promise<QueueOutcome> {
   // tableName is an arbitrary runtime string, not a literal keyof
   // Database["public"]["Tables"] -- there's no static row shape to check
@@ -180,10 +202,10 @@ async function pushGeneric(
 
   const { error } =
     action === "INSERT"
-      ? await table.insert(payload as never).abortSignal(AbortSignal.timeout(PUSH_TIMEOUT_MS))
+      ? await table.insert(payload as never).abortSignal(signal)
       : action === "UPDATE"
-        ? await table.update(payload as never).eq("id", id).abortSignal(AbortSignal.timeout(PUSH_TIMEOUT_MS))
-        : await table.delete().eq("id", id).abortSignal(AbortSignal.timeout(PUSH_TIMEOUT_MS));
+        ? await table.update(payload as never).eq("id", id).abortSignal(signal)
+        : await table.delete().eq("id", id).abortSignal(signal);
 
   if (error) {
     if (
@@ -200,8 +222,17 @@ async function pushGeneric(
 
 async function pushItem(item: SyncQueueItem): Promise<QueueOutcome> {
   switch (item.action) {
-    case "SALE":
-      return pushSale(item.payload);
+    case "SALE": {
+      const outcome = await pushSale(item.payload);
+      // Deferred-queue-only side effect: the row was written locally as
+      // "pending_sync" back when this was enqueued, so flip it once the
+      // server confirms -- see pushSale's own comment for why this doesn't
+      // live inside pushSale itself.
+      if (outcome === "completed") {
+        await db.sales.update(item.payload.sale.id, { status: "completed" });
+      }
+      return outcome;
+    }
     case "WALLET_RECHARGE":
     case "WALLET_WITHDRAWAL":
       return pushWalletBalanceAdjustment(item.payload);
@@ -267,7 +298,7 @@ const PENDING_ID_TABLE: Record<PendingIdKind, string> = {
   shop_status_id: "shop_status",
 };
 
-async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
+export async function getPendingIds(kind: PendingIdKind): Promise<Set<string>> {
   const pending = await db.sync_queue.where("status").anyOf(["pending", "failed"]).toArray();
   const ids = new Set<string>();
 
@@ -350,7 +381,7 @@ export function mapProductRow(row: SupabaseProductRow): Product {
   };
 }
 
-function mapWalletRow(row: SupabaseWalletRow): StudentWallet {
+export function mapWalletRow(row: SupabaseWalletRow): StudentWallet {
   return {
     id: row.id,
     student_name: row.student_name,
@@ -370,7 +401,7 @@ function mapCategoryRow(row: SupabaseCategoryRow): Category {
   };
 }
 
-function mapSaleRow(row: SupabaseSaleRow): Sale {
+export function mapSaleRow(row: SupabaseSaleRow): Sale {
   return {
     id: row.id,
     created_at: row.created_at,

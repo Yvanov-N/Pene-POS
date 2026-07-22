@@ -5,18 +5,22 @@ import { db } from "@/lib/db";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { MAX_RETRIES } from "@/services/syncService";
 
-type Tone = "online" | "offline" | "error";
+type Tone = "online" | "offline" | "error" | "resyncing";
 
 const TONE_ICON: Record<Tone, LucideIcon> = {
   online: Wifi,
   offline: WifiOff,
   error: AlertTriangle,
+  resyncing: RefreshCw,
 };
 
 const TONE_COLOR: Record<Tone, string> = {
   online: "text-success",
   offline: "text-warning",
   error: "text-destructive",
+  // Distinct from "online"'s green -- an in-progress resync is active work,
+  // not "everything's fine", even though it's the good-outcome path.
+  resyncing: "text-accent",
 };
 
 interface SyncStatusIndicatorProps {
@@ -53,33 +57,33 @@ export function SyncStatusIndicator({ compact = false, onErrorClick }: SyncStatu
       [],
     ) ?? 0;
 
-  // Only three states are ever shown: plain online/offline covers the
-  // overwhelming majority of the time (including while a routine background
-  // sync is quietly running -- that's not something worth a distinct badge
-  // state; it happens every 30s and resolves in well under a second), and
-  // "error" -- which outranks both, regardless of connectivity, since a
-  // conflict doesn't resolve itself just because the network came back --
-  // only appears when something genuinely needs admin attention.
-  const tone: Tone = conflictCount > 0 || exhaustedCount > 0 ? "error" : !isOnline ? "offline" : "online";
+  // "error" outranks everything, regardless of connectivity or an in-flight
+  // sync -- a conflict/exhausted item doesn't resolve itself just because a
+  // sync cycle happens to be running, so it keeps its own look rather than
+  // being masked by the resyncing spinner. Otherwise, a routine background
+  // sync (30s poll, reconnect, or manual) gets its own "resyncing" tone
+  // instead of overlaying a spinner on whatever tone happened to be showing.
+  const baseTone: Tone = conflictCount > 0 || exhaustedCount > 0 ? "error" : !isOnline ? "offline" : "online";
+  const tone: Tone = isSyncing && baseTone !== "error" ? "resyncing" : baseTone;
 
-  const label = isSyncing
-    ? t("sync.badgeSyncing")
-    : tone === "error"
-      ? t("sync.badgeError")
-      : tone === "offline"
-        ? pendingCount > 0
-          ? t("sync.badgeOfflinePending", { count: pendingCount })
-          : t("sync.badgeOffline")
-        : t("sync.badgeOnline");
+  const label =
+    tone === "resyncing"
+      ? t("sync.badgeSyncing")
+      : tone === "error"
+        ? t("sync.badgeError")
+        : tone === "offline"
+          ? pendingCount > 0
+            ? t("sync.badgeOfflinePending", { count: pendingCount })
+            : t("sync.badgeOffline")
+          : t("sync.badgeOnline");
 
   const ToneIcon = TONE_ICON[tone];
   const content = (
     <>
-      {isSyncing ? (
-        <RefreshCw className={`h-4 w-4 shrink-0 animate-spin ${TONE_COLOR[tone]}`} aria-hidden />
-      ) : (
-        <ToneIcon className={`h-4 w-4 shrink-0 ${TONE_COLOR[tone]}`} aria-hidden />
-      )}
+      <ToneIcon
+        className={`h-4 w-4 shrink-0 ${TONE_COLOR[tone]} ${tone === "resyncing" ? "animate-spin" : ""}`}
+        aria-hidden
+      />
       {!compact && <span className="truncate">{label}</span>}
     </>
   );

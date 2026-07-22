@@ -17,6 +17,7 @@
       "loading": "Chargement des produits...",
       "empty": "Aucun produit trouve.",
       "stockLabel": "Stock : {{count}}",
+      "negativeStock": "Stock negatif",
       "outOfStock": "Rupture",
       "lowStock": "Stock critique",
       "expired": "Expire",
@@ -47,7 +48,7 @@
       "studentNoResults": "Aucun etudiant correspondant.",
       "removeStudent": "Retirer",
       "walletBalance": "Solde : {{balance}}",
-      "walletInsufficient": "Solde insuffisant pour ce portefeuille.",
+      "walletInsufficient": "Cette vente laissera le portefeuille a {{resultingBalance}} (dette).",
       "itemsBadge_one": "{{count}} article",
       "itemsBadge_other": "{{count}} articles",
       "viewCart": "Voir le panier",
@@ -57,6 +58,11 @@
       "checkoutTitle": "Identifiez-vous pour encaisser",
       "incorrect": "Code PIN incorrect",
       "close": "Fermer"
+    },
+    "receipt": {
+      "title": "Vente terminee",
+      "printButton": "Imprimer",
+      "closeButton": "Fermer"
     }
   },
   "admin": {
@@ -177,6 +183,12 @@
       "viewConflicts": "Voir les conflits",
       "offlineHint": "Hors ligne -- les donnees se synchroniseront a la reconnexion."
     },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "pageOf": "Page {{page}} sur {{totalPages}}",
+      "offlineNotice": "Hors ligne -- affichage des donnees enregistrees localement."
+    },
     "salesHistory": {
       "title": "Historique des ventes",
       "allPaymentMethods": "Tous",
@@ -294,7 +306,7 @@
       "formSave": "Enregistrer",
       "errorNameRequired": "Le nom est requis.",
       "errorBadgeRequired": "Le code badge est requis.",
-      "errorBalanceInvalid": "Le solde doit etre un nombre positif.",
+      "errorBalanceInvalid": "Le solde doit etre un nombre valide.",
       "errorBadgeTaken": "Ce code badge est deja utilise par un autre etudiant."
     },
     "conflicts": {
@@ -384,6 +396,8 @@
       "title": "Parametres",
       "pinTitle": "Autorisation administrateur requise",
       "printerCardTitle": "Impression",
+      "autoPrintReceiptsLabel": "Impression automatique des recus",
+      "autoPrintReceiptsSub": "Imprime automatiquement apres chaque vente. Desactive par defaut : un resume du recu est affiche, imprimable a la demande.",
       "printModeLabel": "Mode d'impression par defaut",
       "printMode": {
         "browser": "Navigateur",
@@ -539,7 +553,8 @@
     "tapToSync": "Appuyer pour synchroniser",
     "toastSuccess_one": "Synchronisation Cloud reussie ({{count}} vente sauvegardee)",
     "toastSuccess_other": "Synchronisation Cloud reussie ({{count}} ventes sauvegardees)",
-    "toastConflict": "Conflit de stock detecte lors de la synchronisation !"
+    "toastConflict": "Conflit de synchronisation detecte !",
+    "offlineFallbackToast": "Reseau indisponible — enregistre localement, synchronisation automatique a venir."
   },
   "update": {
     "toast": {

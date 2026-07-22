@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { usePosCheckout, PAYMENT_METHODS } from "@/hooks/usePosCheckout";
 import { formatCurrency } from "@/lib/currency";
 import { PinPadModal } from "./PinPadModal";
+import { ReceiptModal } from "./ReceiptModal";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { CartLineItem } from "./CartLineItem";
 
@@ -28,6 +29,9 @@ export function PosCart() {
     requestCheckout,
     cancelPendingAction,
     handleCheckoutPinSuccess,
+    lastReceipt,
+    dismissReceipt,
+    printReceiptNow,
   } = usePosCheckout();
 
   return (
@@ -131,7 +135,13 @@ export function PosCart() {
                 )}
               </div>
             )}
-            {walletInsufficient && <p className="text-xs text-destructive">{t("pos.cart.walletInsufficient")}</p>}
+            {walletInsufficient && selectedStudent && (
+              <p className="text-xs text-destructive">
+                {t("pos.cart.walletInsufficient", {
+                  resultingBalance: formatCurrency(selectedStudent.balance - cart.totalAmount),
+                })}
+              </p>
+            )}
           </div>
         )}
 
@@ -151,6 +161,10 @@ export function PosCart() {
           onSuccess={handleCheckoutPinSuccess}
           onClose={cancelPendingAction}
         />
+      )}
+
+      {lastReceipt && (
+        <ReceiptModal receipt={lastReceipt} onClose={dismissReceipt} onPrint={() => void printReceiptNow()} />
       )}
     </div>
   );

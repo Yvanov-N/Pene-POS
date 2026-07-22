@@ -176,4 +176,5 @@ export type PrintMode = "browser" | "bluetooth";
 export interface LocalSettings {
   id: string;
   printMode: PrintMode;
+  autoPrintReceipts: boolean;
 }

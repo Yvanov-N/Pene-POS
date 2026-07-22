@@ -4,11 +4,13 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { GraduationCap, Wallet, ShoppingCart, Receipt, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { enqueueMutation } from "@/services/syncService";
+import { submitWalletAdjustmentNetworkFirst } from "@/services/repository";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
 import { printService } from "@/services/hardware/printService";
 import { PAYMENT_BADGE_CLASS, STATUS_BADGE_CLASS } from "@/lib/paymentMethodStyles";
+import { isRevenueRelevant } from "@/lib/salesAggregation";
 import { StatCard } from "@/components/admin/StatCard";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import type { Profile, Sale, StudentWallet } from "@/types/db";
@@ -17,14 +19,6 @@ const SETTINGS_ID = "default";
 const QUICK_ADD_AMOUNTS = [1000, 2000, 5000] as const;
 
 type Tab = "analytics" | "history";
-
-// Same revenue-relevance rule as useDashboardAnalytics/useTodayKPIs -- a
-// rejected MoMo sale or a refunded sale must not inflate this student's
-// lifetime value / basket size, even though both still appear (with their
-// real status) in the plain purchase-history list below.
-function isRevenueRelevant(sale: Sale): boolean {
-  return (sale.status === "completed" || sale.status === "pending_sync") && sale.momo_verification_status !== "rejected";
-}
 
 interface StudentProfileDrawerProps {
   student: StudentWallet;
@@ -123,10 +117,14 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
       }
       setRechargeError(null);
 
+      const mode = await submitWalletAdjustmentNetworkFirst({ wallet_id: wallet.id, delta });
       const nextBalance = wallet.balance + delta;
       await db.student_wallets.update(wallet.id, { balance: nextBalance });
-      await enqueueMutation("WALLET_RECHARGE", "student_wallets", { wallet_id: wallet.id, delta });
-      void triggerManualSync();
+      if (mode === "local") {
+        await enqueueMutation("WALLET_RECHARGE", "student_wallets", { wallet_id: wallet.id, delta });
+        void triggerManualSync();
+        showToast("warning", t("sync.offlineFallbackToast"));
+      }
 
       showToast("success", t("admin.recharge.toastSuccess", { amount: formatCurrency(delta), name: wallet.student_name }));
       setRechargeAmount("");
@@ -150,20 +148,25 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
         setWithdrawError(t("admin.withdrawal.errorAmountInvalid"));
         return;
       }
-      // Client-side cap mirrors what adjust_wallet_balance now enforces
-      // server-side too (migration 00010) -- checked here first so the
-      // cashier gets an immediate, specific message instead of waiting on a
-      // round trip / sync cycle to discover the same thing as a conflict.
+      // A single-device UX nicety, not a correctness mechanism -- the real
+      // cross-terminal race (two devices withdrawing against the same
+      // wallet before either has synced) is exactly what migration 00019
+      // now lets settle to a negative balance instead of blocking, the same
+      // way it does for stock.
       if (amount > wallet.balance) {
         setWithdrawError(t("admin.withdrawal.errorInsufficientBalance"));
         return;
       }
       setWithdrawError(null);
 
+      const mode = await submitWalletAdjustmentNetworkFirst({ wallet_id: wallet.id, delta: -amount });
       const nextBalance = wallet.balance - amount;
       await db.student_wallets.update(wallet.id, { balance: nextBalance });
-      await enqueueMutation("WALLET_WITHDRAWAL", "student_wallets", { wallet_id: wallet.id, delta: -amount });
-      void triggerManualSync();
+      if (mode === "local") {
+        await enqueueMutation("WALLET_WITHDRAWAL", "student_wallets", { wallet_id: wallet.id, delta: -amount });
+        void triggerManualSync();
+        showToast("warning", t("sync.offlineFallbackToast"));
+      }
 
       showToast(
         "success",

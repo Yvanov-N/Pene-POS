@@ -1,5 +1,47 @@
 [
   {
+    "version": "1.11.0",
+    "date": "2026-07-22",
+    "changes": [
+      "paginate admin tables, sort POS grid by best-seller, allow wallet debt at checkout, fix conflict resolve-all"
+    ]
+  },
+  {
+    "version": "1.10.0",
+    "date": "2026-07-22",
+    "changes": [
+      "surface negative stock, distinguish resyncing in the sync status badge"
+    ]
+  },
+  {
+    "version": "1.9.0",
+    "date": "2026-07-22",
+    "changes": [
+      "stale-while-revalidate reads for POS product grid and dashboard"
+    ]
+  },
+  {
+    "version": "1.8.0",
+    "date": "2026-07-22",
+    "changes": [
+      "network-first writes, allow negative stock and wallet balance"
+    ]
+  },
+  {
+    "version": "1.7.1",
+    "date": "2026-07-21",
+    "changes": [
+      "badge code / balance inputs overflowing the add-student modal on narrow screens"
+    ]
+  },
+  {
+    "version": "1.7.0",
+    "date": "2026-07-21",
+    "changes": [
+      "allow negative starting wallet balance, replace silent auto-print with a receipt modal"
+    ]
+  },
+  {
     "version": "1.6.0",
     "date": "2026-07-21",
     "changes": [

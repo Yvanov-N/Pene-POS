@@ -4,6 +4,7 @@ import { Banknote, Smartphone, GraduationCap, Trash2, ChevronUp, ChevronDown, ty
 import { usePosCheckout, PAYMENT_METHODS } from "@/hooks/usePosCheckout";
 import { formatCurrency } from "@/lib/currency";
 import { PinPadModal } from "./PinPadModal";
+import { ReceiptModal } from "./ReceiptModal";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { CartLineItem } from "./CartLineItem";
 import type { PaymentMethod } from "@/types/db";
@@ -47,6 +48,9 @@ export function MobileCartSheet() {
     requestCheckout,
     cancelPendingAction,
     handleCheckoutPinSuccess,
+    lastReceipt,
+    dismissReceipt,
+    printReceiptNow,
   } = usePosCheckout();
 
   return (
@@ -127,7 +131,13 @@ export function MobileCartSheet() {
                   )}
                 </div>
               )}
-              {walletInsufficient && <p className="text-xs text-destructive">{t("pos.cart.walletInsufficient")}</p>}
+              {walletInsufficient && selectedStudent && (
+                <p className="text-xs text-destructive">
+                  {t("pos.cart.walletInsufficient", {
+                    resultingBalance: formatCurrency(selectedStudent.balance - cart.totalAmount),
+                  })}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -206,6 +216,10 @@ export function MobileCartSheet() {
           onSuccess={handleCheckoutPinSuccess}
           onClose={cancelPendingAction}
         />
+      )}
+
+      {lastReceipt && (
+        <ReceiptModal receipt={lastReceipt} onClose={dismissReceipt} onPrint={() => void printReceiptNow()} />
       )}
     </div>
   );
