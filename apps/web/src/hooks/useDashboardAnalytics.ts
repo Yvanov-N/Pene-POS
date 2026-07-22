@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { getRangeForFilter, type CustomRange, type TimeRangeFilter } from "@/lib/dateHelpers";
-import type { PaymentMethod, Sale, SyncQueueItem } from "@/types/db";
+import { isRevenueRelevant, buildProductTotals } from "@/lib/salesAggregation";
+import type { PaymentMethod, SyncQueueItem } from "@/types/db";
 
 export type { TimeRangeFilter, CustomRange };
 
@@ -61,14 +62,6 @@ function emptyHourly(): HourlyPoint[] {
 
 function emptyPaymentSplit(): PaymentSplitEntry[] {
   return PAYMENT_METHODS.map((method) => ({ method, total: 0, percentage: 0, fill: PAYMENT_COLORS[method] }));
-}
-
-// A rejected MoMo sale keeps status completed/pending_sync (rejection is
-// tracked separately via momo_verification_status) and a refunded sale
-// already carries its own distinct "refunded" status, so both are
-// naturally excluded by this same check.
-function isRevenueRelevant(sale: Sale): boolean {
-  return (sale.status === "completed" || sale.status === "pending_sync") && sale.momo_verification_status !== "rejected";
 }
 
 async function sumRevenueForRange(start: string, end: string): Promise<number> {
@@ -157,15 +150,7 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
     // lists -- join and aggregate in memory rather than via indexed queries
     // (same reasoning as ProductManagementModal's in-memory name sort).
     const saleIds = relevantSales.map((sale) => sale.id);
-    const items = saleIds.length > 0 ? await db.sale_items.where("sale_id").anyOf(saleIds).toArray() : [];
-
-    const productTotals = new Map<string, { quantitySold: number; revenue: number }>();
-    for (const item of items) {
-      const bucket = productTotals.get(item.product_id) ?? { quantitySold: 0, revenue: 0 };
-      bucket.quantitySold += item.quantity;
-      bucket.revenue += item.quantity * item.unit_price;
-      productTotals.set(item.product_id, bucket);
-    }
+    const productTotals = await buildProductTotals(saleIds);
 
     const topEntries = Array.from(productTotals.entries())
       .map(([productId, totals]) => ({ productId, ...totals }))

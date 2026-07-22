@@ -131,7 +131,13 @@ export function MobileCartSheet() {
                   )}
                 </div>
               )}
-              {walletInsufficient && <p className="text-xs text-destructive">{t("pos.cart.walletInsufficient")}</p>}
+              {walletInsufficient && selectedStudent && (
+                <p className="text-xs text-destructive">
+                  {t("pos.cart.walletInsufficient", {
+                    resultingBalance: formatCurrency(selectedStudent.balance - cart.totalAmount),
+                  })}
+                </p>
+              )}
             </div>
           )}
         </div>

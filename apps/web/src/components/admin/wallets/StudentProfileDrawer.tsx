@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
 import { printService } from "@/services/hardware/printService";
 import { PAYMENT_BADGE_CLASS, STATUS_BADGE_CLASS } from "@/lib/paymentMethodStyles";
+import { isRevenueRelevant } from "@/lib/salesAggregation";
 import { StatCard } from "@/components/admin/StatCard";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import type { Profile, Sale, StudentWallet } from "@/types/db";
@@ -18,14 +19,6 @@ const SETTINGS_ID = "default";
 const QUICK_ADD_AMOUNTS = [1000, 2000, 5000] as const;
 
 type Tab = "analytics" | "history";
-
-// Same revenue-relevance rule as useDashboardAnalytics/useTodayKPIs -- a
-// rejected MoMo sale or a refunded sale must not inflate this student's
-// lifetime value / basket size, even though both still appear (with their
-// real status) in the plain purchase-history list below.
-function isRevenueRelevant(sale: Sale): boolean {
-  return (sale.status === "completed" || sale.status === "pending_sync") && sale.momo_verification_status !== "rejected";
-}
 
 interface StudentProfileDrawerProps {
   student: StudentWallet;

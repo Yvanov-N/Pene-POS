@@ -401,7 +401,7 @@ function mapCategoryRow(row: SupabaseCategoryRow): Category {
   };
 }
 
-function mapSaleRow(row: SupabaseSaleRow): Sale {
+export function mapSaleRow(row: SupabaseSaleRow): Sale {
   return {
     id: row.id,
     created_at: row.created_at,

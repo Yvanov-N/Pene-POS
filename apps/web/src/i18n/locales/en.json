@@ -48,7 +48,7 @@
       "studentNoResults": "No matching student.",
       "removeStudent": "Remove",
       "walletBalance": "Balance: {{balance}}",
-      "walletInsufficient": "Insufficient balance on this wallet.",
+      "walletInsufficient": "This sale will leave the wallet at {{resultingBalance}} (debt).",
       "itemsBadge_one": "{{count}} item",
       "itemsBadge_other": "{{count}} items",
       "viewCart": "View cart",
@@ -182,6 +182,12 @@
       "conflictBanner_other": "{{count}} sales with a stock conflict",
       "viewConflicts": "View conflicts",
       "offlineHint": "Offline -- data will sync once reconnected."
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {{page}} of {{totalPages}}",
+      "offlineNotice": "Offline -- showing locally saved data."
     },
     "salesHistory": {
       "title": "Sales history",

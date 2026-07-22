@@ -3,6 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
+import { getPendingIds, mapSaleRow } from "@/services/syncService";
+import { usePaginatedQuery, type PageParams, type PageResult } from "@/hooks/usePaginatedQuery";
+import { PaginationControls } from "@/components/admin/PaginationControls";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
@@ -15,11 +19,92 @@ import { ButtonCustom } from "@/components/ui/button-custom";
 import type { PaymentMethod, Profile, Sale } from "@/types/db";
 
 const SETTINGS_ID = "default";
-const SALES_LIMIT = 200;
+const PAGE_SIZE = 50;
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
 const STATUS_FILTERS = ["all", "completed", "pending_sync", "conflict_warning", "refunded"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
+
+interface SalesFilters_ {
+  paymentFilter: PaymentMethod | "all";
+  statusFilter: StatusFilter;
+  dateRange: { start: string; end: string } | null;
+}
+
+// Local fallback (offline, or the server attempt timed out/failed) -- same
+// filter logic this page always had, minus the old hard SALES_LIMIT=200
+// truncation (which previously ran BEFORE filtering, so a search/date-range
+// query could silently miss real matches beyond row 200 -- fixed here as a
+// side effect of building real pagination).
+async function queryLocalSales(params: PageParams<"created_at", SalesFilters_>): Promise<PageResult<Sale>> {
+  const [sales, profiles] = await Promise.all([
+    db.sales.orderBy("created_at").reverse().toArray(),
+    db.profiles.toArray(),
+  ]);
+  const cashierNames = new Map(profiles.map((p) => [p.id, p.full_name]));
+  const term = params.searchTerm.trim().toLowerCase();
+
+  const filtered = sales.filter((sale) => {
+    if (params.filters.paymentFilter !== "all" && sale.payment_method !== params.filters.paymentFilter) return false;
+    if (params.filters.statusFilter !== "all" && sale.status !== params.filters.statusFilter) return false;
+    if (term) {
+      const cashierName = cashierNames.get(sale.cashier_id) ?? "";
+      const matchesId = sale.id.toLowerCase().includes(term);
+      const matchesCashier = cashierName.toLowerCase().includes(term);
+      if (!matchesId && !matchesCashier) return false;
+    }
+    if (params.filters.dateRange && (sale.created_at < params.filters.dateRange.start || sale.created_at > params.filters.dateRange.end)) {
+      return false;
+    }
+    return true;
+  });
+
+  const offset = (params.page - 1) * params.pageSize;
+  return { rows: filtered.slice(offset, offset + params.pageSize), totalCount: filtered.length };
+}
+
+// Server path. sales.id is uuid (no ilike operator) -- id_text (migration
+// 00020) is the generated text column that makes id substring search
+// possible. Cashier-name search is a two-step resolution: resolve matching
+// profile ids first, then OR them into the sales filter alongside id_text.
+async function fetchServerSales(
+  params: PageParams<"created_at", SalesFilters_>,
+  signal: AbortSignal,
+): Promise<PageResult<Sale>> {
+  const term = params.searchTerm.trim().replace(/[%,()]/g, "");
+
+  let matchingCashierIds: string[] = [];
+  if (term) {
+    const { data, error } = await supabase.from("profiles").select("id").ilike("full_name", `%${term}%`).abortSignal(signal);
+    if (error) throw error;
+    matchingCashierIds = data.map((row) => row.id);
+  }
+
+  let query = supabase.from("sales").select("*", { count: "exact" });
+  if (params.filters.paymentFilter !== "all") query = query.eq("payment_method", params.filters.paymentFilter);
+  if (params.filters.statusFilter !== "all") query = query.eq("status", params.filters.statusFilter);
+  if (params.filters.dateRange) {
+    query = query.gte("created_at", params.filters.dateRange.start).lte("created_at", params.filters.dateRange.end);
+  }
+  if (term) {
+    const cashierClause = matchingCashierIds.length > 0 ? `,cashier_id.in.(${matchingCashierIds.join(",")})` : "";
+    query = query.or(`id_text.ilike.%${term}%${cashierClause}`);
+  }
+
+  const offset = (params.page - 1) * params.pageSize;
+  const { data, error, count } = await query
+    .order("created_at", { ascending: false })
+    .range(offset, offset + params.pageSize - 1)
+    .abortSignal(signal);
+  if (error) throw error;
+  return { rows: data.map(mapSaleRow), totalCount: count ?? 0 };
+}
+
+async function writeBackSales(rows: Sale[]): Promise<void> {
+  const pendingIds = await getPendingIds("sale_id");
+  const toPut = rows.filter((row) => !pendingIds.has(row.id));
+  if (toPut.length > 0) await db.sales.bulkPut(toPut);
+}
 
 // A subset of dateHelpers' TimeRangeFilter -- this audit page only needs
 // today/yesterday/custom (plus "all", which that type doesn't have a
@@ -49,17 +134,40 @@ function shortId(saleId: string): string {
 export function SalesHistoryPage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { triggerManualSync } = useSyncEngine();
+  const { triggerManualSync, isOnline } = useSyncEngine();
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState<PaymentMethod | "all">("all");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [customRange, setCustomRange] = useState<CustomRange>({ start: "", end: "" });
+  const [searchTermState, setSearchTermState] = useState("");
+  const [paymentFilter, setPaymentFilterState] = useState<PaymentMethod | "all">("all");
+  const [statusFilter, setStatusFilterState] = useState<StatusFilter>("all");
+  const [dateFilter, setDateFilterState] = useState<DateFilter>("all");
+  const [customRange, setCustomRangeState] = useState<CustomRange>({ start: "", end: "" });
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
-  const sales = useLiveQuery(() => db.sales.orderBy("created_at").reverse().limit(SALES_LIMIT).toArray(), []);
+  // Any search/filter/date change while on page 3 could otherwise land on
+  // an empty page -- every setter below also resets back to page 1.
+  const searchTerm = searchTermState;
+  const setSearchTerm = (value: string) => {
+    setSearchTermState(value);
+    setPage(1);
+  };
+  const setPaymentFilter = (value: PaymentMethod | "all") => {
+    setPaymentFilterState(value);
+    setPage(1);
+  };
+  const setStatusFilter = (value: StatusFilter) => {
+    setStatusFilterState(value);
+    setPage(1);
+  };
+  const setDateFilter = (value: DateFilter) => {
+    setDateFilterState(value);
+    setPage(1);
+  };
+  const setCustomRange = (updater: (current: CustomRange) => CustomRange) => {
+    setCustomRangeState(updater);
+    setPage(1);
+  };
 
   const cashierNames = useLiveQuery(
     () => db.profiles.toArray().then((profiles) => new Map(profiles.map((p) => [p.id, p.full_name]))),
@@ -82,23 +190,23 @@ export function SalesHistoryPage() {
     return getRangeForFilter(dateFilter, dateFilter === "custom" ? customRange : undefined).current;
   }, [dateFilter, customRange]);
 
-  const filteredSales = useMemo(() => {
-    if (!sales) return undefined;
-    const term = searchTerm.trim().toLowerCase();
-
-    return sales.filter((sale) => {
-      if (paymentFilter !== "all" && sale.payment_method !== paymentFilter) return false;
-      if (statusFilter !== "all" && sale.status !== statusFilter) return false;
-      if (term) {
-        const cashierName = cashierNames?.get(sale.cashier_id) ?? "";
-        const matchesId = sale.id.toLowerCase().includes(term);
-        const matchesCashier = cashierName.toLowerCase().includes(term);
-        if (!matchesId && !matchesCashier) return false;
-      }
-      if (dateRange && (sale.created_at < dateRange.start || sale.created_at > dateRange.end)) return false;
-      return true;
-    });
-  }, [sales, paymentFilter, statusFilter, searchTerm, dateRange, cashierNames]);
+  const {
+    rows: filteredSales,
+    totalCount,
+    totalPages,
+  } = usePaginatedQuery({
+    params: {
+      page,
+      pageSize: PAGE_SIZE,
+      searchTerm,
+      sortKey: "created_at",
+      sortDir: "desc",
+      filters: { paymentFilter, statusFilter, dateRange },
+    },
+    queryLocal: queryLocalSales,
+    fetchServer: fetchServerSales,
+    writeBack: writeBackSales,
+  });
 
   const handleReprint = async (sale: Sale) => {
     setBusyId(sale.id);
@@ -335,6 +443,10 @@ export function SalesHistoryPage() {
             </table>
           </div>
         )}
+        {filteredSales !== undefined && totalCount > 0 && (
+          <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
+        )}
+        {!isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>
     </div>
   );

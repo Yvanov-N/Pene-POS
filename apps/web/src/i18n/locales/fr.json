@@ -48,7 +48,7 @@
       "studentNoResults": "Aucun etudiant correspondant.",
       "removeStudent": "Retirer",
       "walletBalance": "Solde : {{balance}}",
-      "walletInsufficient": "Solde insuffisant pour ce portefeuille.",
+      "walletInsufficient": "Cette vente laissera le portefeuille a {{resultingBalance}} (dette).",
       "itemsBadge_one": "{{count}} article",
       "itemsBadge_other": "{{count}} articles",
       "viewCart": "Voir le panier",
@@ -182,6 +182,12 @@
       "conflictBanner_other": "{{count}} ventes en conflit de stock",
       "viewConflicts": "Voir les conflits",
       "offlineHint": "Hors ligne -- les donnees se synchroniseront a la reconnexion."
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "pageOf": "Page {{page}} sur {{totalPages}}",
+      "offlineNotice": "Hors ligne -- affichage des donnees enregistrees localement."
     },
     "salesHistory": {
       "title": "Historique des ventes",

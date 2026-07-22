@@ -67,9 +67,13 @@ export function usePosCheckout() {
 
   const isEmpty = cart.items.length === 0;
   const isWalletPayment = paymentMethod === "student_wallet";
+  // No longer gates checkout -- wallet-payment sales are allowed to drive a
+  // student's balance negative (server-side already permits this via
+  // adjust_wallet_balance, migration 00019). Kept purely to drive the inline
+  // UI: red styling + a "this will create/increase debt" message instead of
+  // a hard block.
   const walletInsufficient = isWalletPayment && selectedStudent !== null && selectedStudent.balance < cart.totalAmount;
-  const canCheckout =
-    !isEmpty && !!paymentMethod && (!isWalletPayment || (selectedStudent !== null && !walletInsufficient));
+  const canCheckout = !isEmpty && !!paymentMethod && (!isWalletPayment || selectedStudent !== null);
 
   // Deliberately not wired to useBarcodeScanner/the shared pos:barcode-scan
   // event the way StudentWalletsPage's search is: this screen also has

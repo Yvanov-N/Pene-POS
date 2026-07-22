@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.11.0",
+    "date": "2026-07-22",
+    "changes": [
+      "paginate admin tables, sort POS grid by best-seller, allow wallet debt at checkout, fix conflict resolve-all"
+    ]
+  },
+  {
     "version": "1.10.0",
     "date": "2026-07-22",
     "changes": [

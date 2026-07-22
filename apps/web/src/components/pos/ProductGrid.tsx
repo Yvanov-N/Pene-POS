@@ -1,10 +1,12 @@
 import { memo, useCallback, useMemo, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { useNetworkFirstQuery } from "@/hooks/useNetworkFirstQuery";
 import { getPendingIds, mapProductRow } from "@/services/syncService";
+import { isRevenueRelevant, buildProductTotals } from "@/lib/salesAggregation";
 import type { Product } from "@/types/db";
 import { formatCurrency } from "@/lib/currency";
 import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
@@ -97,15 +99,31 @@ export function ProductGrid({ searchTerm, category, onProductSelect }: ProductGr
     { fetchRemote, writeBack },
   );
 
+  // Local-only (not network-first): a slightly-stale sales ranking has no
+  // correctness consequence, unlike stock -- just a nice-to-have ordering
+  // hint for fast cashier access to whatever sells the most.
+  const bestSellerTotals = useLiveQuery(async () => {
+    const sales = await db.sales.toArray();
+    return buildProductTotals(sales.filter(isRevenueRelevant).map((sale) => sale.id));
+  }, []);
+
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return products ?? [];
-    return (products ?? []).filter(
+    const base = (products ?? []).filter(
       (product) =>
+        !term ||
         product.name.toLowerCase().includes(term) ||
         (product.barcode ?? "").toLowerCase().includes(term),
     );
-  }, [products, searchTerm]);
+    return [...base].sort((a, b) => {
+      const qtyA = bestSellerTotals?.get(a.id)?.quantitySold ?? 0;
+      const qtyB = bestSellerTotals?.get(b.id)?.quantitySold ?? 0;
+      // Descending by units sold; zero-sales products (not in the map) fall
+      // out naturally via ?? 0, tiebroken alphabetically instead of leaving
+      // their relative order to incidental fetch/sort order.
+      return qtyB - qtyA || a.name.localeCompare(b.name);
+    });
+  }, [products, searchTerm, bestSellerTotals]);
 
   if (products === undefined) {
     return <p className="p-4 text-sm text-muted">{t("pos.grid.loading")}</p>;

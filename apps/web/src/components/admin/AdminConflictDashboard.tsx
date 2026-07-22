@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import {
   listConflicts,
   listOtherStuckItems,
@@ -47,8 +48,18 @@ export function AdminConflictDashboard({ onClose }: AdminConflictDashboardProps)
       for (const conflict of conflicts ?? []) {
         for (const line of conflict.lines) productIds.add(line.productId);
       }
+
+      // Sequential, skip-on-failure -- matches processSyncQueue's own "one
+      // bad item must never stop the loop" convention rather than
+      // Promise.all (which would abort every other resolvable conflict on
+      // one hiccup).
       for (const productId of productIds) {
-        await resolveByAdjustingStock(productId, 0);
+        const { data, error } = await supabase.from("products").select("stock").eq("id", productId).single();
+        if (error || !data) {
+          console.error("[AdminConflictDashboard] failed to fetch live stock for resolve-all", productId, error);
+          continue; // stays conflict_warning; refresh() below re-surfaces it, admin can retry
+        }
+        await resolveByAdjustingStock(productId, data.stock); // real live value, not hardcoded 0
       }
     });
 

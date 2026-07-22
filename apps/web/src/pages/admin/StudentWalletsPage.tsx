@@ -1,36 +1,68 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { X } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { enqueueMutation, getPendingIds, mapWalletRow } from "@/services/syncService";
-import { useNetworkFirstQuery } from "@/hooks/useNetworkFirstQuery";
+import { usePaginatedQuery, type PageParams, type PageResult } from "@/hooks/usePaginatedQuery";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
+import { isRevenueRelevant } from "@/lib/salesAggregation";
 import { MoMoVerificationCard } from "@/components/admin/MoMoVerificationCard";
+import { PaginationControls } from "@/components/admin/PaginationControls";
 import { StudentProfileDrawer } from "@/components/admin/wallets/StudentProfileDrawer";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { Switch } from "@/components/ui/switch";
-import type { Sale, StudentWallet } from "@/types/db";
+import type { StudentWallet } from "@/types/db";
 
-// Same revenue-relevance rule duplicated in useDashboardAnalytics.ts and
-// StudentProfileDrawer.tsx -- a rejected MoMo sale or a refunded sale must
-// not inflate a student's lifetime spend/order count.
-function isRevenueRelevant(sale: Sale): boolean {
-  return (sale.status === "completed" || sale.status === "pending_sync") && sale.momo_verification_status !== "rejected";
+const PAGE_SIZE = 25;
+type WalletFilters_ = Record<string, never>;
+
+// Local fallback (offline, or the server attempt timed out/failed) -- same
+// filter/sort this page always did, sliced to the requested page.
+async function queryLocalWallets(params: PageParams<"student_name", WalletFilters_>): Promise<PageResult<StudentWallet>> {
+  const all = await db.student_wallets.toArray();
+  const term = params.searchTerm.trim().toLowerCase();
+  const filtered = term
+    ? all.filter(
+        (s) =>
+          s.student_name.toLowerCase().includes(term) ||
+          s.badge_code.toLowerCase().includes(term) ||
+          s.email.toLowerCase().includes(term) ||
+          s.phone.toLowerCase().includes(term),
+      )
+    : all;
+  const sorted = [...filtered].sort((a, b) => a.student_name.localeCompare(b.student_name));
+  const offset = (params.page - 1) * params.pageSize;
+  return { rows: sorted.slice(offset, offset + params.pageSize), totalCount: sorted.length };
 }
 
-async function fetchWalletsRemote(signal: AbortSignal) {
-  const { data, error } = await supabase.from("student_wallets").select("*").abortSignal(signal);
+async function fetchServerWallets(
+  params: PageParams<"student_name", WalletFilters_>,
+  signal: AbortSignal,
+): Promise<PageResult<StudentWallet>> {
+  const offset = (params.page - 1) * params.pageSize;
+  let query = supabase.from("student_wallets").select("*", { count: "exact" });
+  const term = params.searchTerm.trim().replace(/[%,()]/g, "");
+  if (term) {
+    query = query.or(
+      `student_name.ilike.%${term}%,badge_code.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`,
+    );
+  }
+  const { data, error, count } = await query
+    .order("student_name", { ascending: true })
+    .range(offset, offset + params.pageSize - 1)
+    .abortSignal(signal);
   if (error) throw error;
-  return data;
+  return { rows: data.map(mapWalletRow), totalCount: count ?? 0 };
 }
-async function writeBackWallets(rows: Awaited<ReturnType<typeof fetchWalletsRemote>>) {
+
+async function writeBackWallets(rows: StudentWallet[]): Promise<void> {
   const pendingIds = await getPendingIds("wallet_id");
-  const toPut = rows.filter((row) => !pendingIds.has(row.id)).map(mapWalletRow);
+  const toPut = rows.filter((row) => !pendingIds.has(row.id));
   if (toPut.length > 0) await db.student_wallets.bulkPut(toPut);
 }
 
@@ -57,9 +89,14 @@ function walletToForm(wallet: StudentWallet): FormState {
 export function StudentWalletsPage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { triggerManualSync } = useSyncEngine();
+  const { triggerManualSync, isOnline } = useSyncEngine();
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTermState] = useState("");
+  const [page, setPage] = useState(1);
+  const setSearchTerm = (value: string) => {
+    setSearchTermState(value);
+    setPage(1); // a changed search term while on page 3 could otherwise land on an empty page
+  };
   const [selectedStudent, setSelectedStudent] = useState<StudentWallet | null>(null);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -75,8 +112,10 @@ export function StudentWalletsPage() {
   // it actually closes that window, where state doesn't.
   const savingRef = useRef(false);
 
-  const students = useNetworkFirstQuery(() => db.student_wallets.toArray(), [], {
-    fetchRemote: fetchWalletsRemote,
+  const { rows: visibleStudents, totalCount, totalPages } = usePaginatedQuery({
+    params: { page, pageSize: PAGE_SIZE, searchTerm, sortKey: "student_name", sortDir: "asc", filters: {} },
+    queryLocal: queryLocalWallets,
+    fetchServer: fetchServerWallets,
     writeBack: writeBackWallets,
   });
 
@@ -107,21 +146,6 @@ export function StudentWalletsPage() {
     }
     return map;
   }, []);
-
-  const visibleStudents = useMemo(() => {
-    if (!students) return undefined;
-    const term = searchTerm.trim().toLowerCase();
-    const filtered = term
-      ? students.filter(
-          (s) =>
-            s.student_name.toLowerCase().includes(term) ||
-            s.badge_code.toLowerCase().includes(term) ||
-            s.email.toLowerCase().includes(term) ||
-            s.phone.toLowerCase().includes(term),
-        )
-      : students;
-    return [...filtered].sort((a, b) => a.student_name.localeCompare(b.student_name));
-  }, [students, searchTerm]);
 
   const openCreateForm = () => {
     setEditingId(null);
@@ -295,6 +319,10 @@ export function StudentWalletsPage() {
             </table>
           </div>
         )}
+        {visibleStudents !== undefined && totalCount > 0 && (
+          <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
+        )}
+        {!isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>
 
       <MoMoVerificationCard />
