@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.11.3",
+    "date": "2026-07-23",
+    "changes": [
+      "rebuild shared-receipt sharing to gate on confirmed sync, not guesswork"
+    ]
+  },
+  {
     "version": "1.11.2",
     "date": "2026-07-23",
     "changes": [

@@ -40,11 +40,16 @@ function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
-function buildSvg(params: { totalLabel: string | null; items: { name: string; quantity: number }[]; dateLabel: string | null }): string {
-  const { totalLabel, items, dateLabel } = params;
+function buildSvg(params: {
+  totalLabel: string | null;
+  items: { name: string; quantity: number }[];
+  dateLabel: string | null;
+  refunded: boolean;
+}): string {
+  const { totalLabel, items, dateLabel, refunded } = params;
 
   const totalBlock = totalLabel
-    ? `<text x="120" y="230" font-size="60" font-weight="bold" fill="${COLORS.green}" font-family="Arial, sans-serif">${escapeXml(totalLabel)} FCFA</text>`
+    ? `<text x="120" y="230" font-size="60" font-weight="bold" fill="${COLORS.green}" font-family="Arial, sans-serif">${escapeXml(totalLabel)} FCFA${refunded ? " (Rembourse)" : ""}</text>`
     : `<text x="120" y="220" font-size="40" font-weight="bold" fill="${COLORS.muted}" font-family="Arial, sans-serif">Point de vente hors-ligne</text>`;
 
   const itemRows = items
@@ -80,17 +85,22 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   const saleId = extractSaleId(url.searchParams.get("id"));
 
-  const receipt = saleId ? await getReceiptData(saleId) : null;
+  const result = saleId ? await getReceiptData(saleId) : { status: "not-found" as const };
+  if (result.status === "error") {
+    console.error("[receipt-og-image] get_public_receipt failed", saleId, result.error);
+  }
 
-  const svg = receipt
-    ? buildSvg({
-        totalLabel: formatAmount(receipt.total_amount),
-        items: receipt.items.map((item) => ({ name: item.product_name ?? "Article", quantity: item.quantity })),
-        dateLabel: new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(
-          new Date(receipt.created_at),
-        ),
-      })
-    : buildSvg({ totalLabel: null, items: [], dateLabel: null });
+  const svg =
+    result.status === "found"
+      ? buildSvg({
+          totalLabel: formatAmount(result.receipt.total_amount),
+          items: result.receipt.items.map((item) => ({ name: item.product_name ?? "Article", quantity: item.quantity })),
+          dateLabel: new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(
+            new Date(result.receipt.created_at),
+          ),
+          refunded: result.receipt.status === "refunded",
+        })
+      : buildSvg({ totalLabel: null, items: [], dateLabel: null, refunded: false });
 
   return new Response(svg, {
     status: 200,

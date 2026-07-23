@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Receipt as ReceiptIcon, Share2, Printer } from "lucide-react";
+import { Receipt as ReceiptIcon, Share2, Printer, RotateCw } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/useToast";
+import { useShareReceipt } from "@/hooks/useShareReceipt";
 import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
@@ -49,27 +50,26 @@ type LocalLookup = { found: true; data: ReceiptData } | { found: false };
 
 const LOCALE_BY_LANGUAGE: Record<string, string> = { fr: "fr-FR", en: "en-US" };
 
-// A sale can be shared the instant it's rung up, before this exact device's
-// write has actually landed server-side (offline at checkout time, or the
-// network-first attempt fell back to the queue) -- get_public_receipt
-// genuinely returns null until that sync completes, which is usually a few
-// seconds away, not never. One retry loop instead of one shot: covers the
-// realistic sync window (near-instant on reconnect, worst case the 30s
-// background poll) without hanging forever on a truly bad/garbage id.
-const RECEIPT_RETRY_INTERVAL_MS = 3000;
-const RECEIPT_MAX_RETRIES = 8; // ~24s total
+// Sharing is gated at the source (useShareReceipt confirms a sale actually
+// exists server-side before a link is ever handed out -- see that hook), so
+// by the time anyone opens a link this app generated, get_public_receipt
+// returning null means genuinely not found, not "still syncing". There's no
+// eventual-consistency window to poll through either (a single Postgres
+// primary behind PostgREST, not a read replica) -- so the only thing worth a
+// bounded retry for is a real transient fetch error (network blip, brief
+// 5xx), never a clean null.
+const RECEIPT_ERROR_RETRY_DELAY_MS = 1500;
 
 function shortSaleId(saleId: string): string {
   return saleId.slice(0, 6).toUpperCase();
 }
 
-function ReceiptSkeleton({ checking }: { checking: boolean }) {
+function ReceiptSkeleton() {
   const { t } = useTranslation();
   return (
     <div className="animate-pulse">
-      <span className="sr-only">{t(checking ? "receiptPage.checking" : "receiptPage.loading")}</span>
+      <span className="sr-only">{t("receiptPage.loading")}</span>
       <div className="mx-auto mb-4 h-6 w-32 rounded bg-surface2" />
-      {checking && <p className="mb-3 text-center text-xs text-muted">{t("receiptPage.checking")}</p>}
       <div className="mx-auto mb-6 h-3 w-40 rounded bg-surface2" />
       <div className="flex flex-col gap-2 border-t border-dashed border-border pt-3">
         <div className="h-3 w-full rounded bg-surface2" />
@@ -87,25 +87,49 @@ function ReceiptSkeleton({ checking }: { checking: boolean }) {
 // can fully prevent -- see the fix to admin.salesHistory.shareText for the
 // specific trigger). Extracting just the UUID means a mangled param like
 // "8bfa72da-...-14c8646396ae Purchase receipt" still resolves the real
-// receipt instead of a false "not found".
+// receipt instead of a false "not found". Kept byte-for-byte identical to
+// supabase/functions/_shared/receipt.ts's own copy of this pattern -- there's
+// no shared-package boundary between the Deno edge runtime and this Vite
+// bundle, so the two must be updated together if this ever changes.
 const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 function extractSaleId(raw: string | undefined): string | undefined {
   return raw?.match(UUID_PATTERN)?.[0];
 }
 
+function mapPublicReceiptRow(row: PublicReceiptRow, unknownProductLabel: string): ReceiptData {
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    paymentMethod: row.payment_method,
+    totalAmount: row.total_amount,
+    status: row.status,
+    cashierName: row.cashier_name,
+    studentName: row.student_name,
+    items: row.items.map((item) => ({
+      productName: item.product_name ?? unknownProductLabel,
+      quantity: item.quantity,
+      unitPrice: item.unit_price,
+    })),
+  };
+}
+
+type RemoteState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "found"; data: ReceiptData }
+  | { status: "not-found" }
+  | { status: "error" };
+
 export function ReceiptPage() {
   const { saleId: rawSaleId } = useParams<{ saleId: string }>();
   const saleId = extractSaleId(rawSaleId);
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
+  const { prepareShareUrl } = useShareReceipt();
 
-  // undefined = not attempted yet, null = retries exhausted with no sale
-  // found, ReceiptData = found via the public RPC.
-  const [remoteReceipt, setRemoteReceipt] = useState<ReceiptData | null | undefined>(undefined);
-  // Purely for the "still checking" loading copy -- never read by any
-  // fetch/retry logic itself.
-  const [retryAttempt, setRetryAttempt] = useState(0);
+  const [remoteState, setRemoteState] = useState<RemoteState>({ status: "idle" });
+  const [isSharing, setIsSharing] = useState(false);
 
   const localResult = useLiveQuery<LocalLookup>(async () => {
     if (!saleId) return { found: false };
@@ -141,106 +165,86 @@ export function ReceiptPage() {
 
   // Sale isn't in this device's local Dexie -- either someone else's sale,
   // or a genuinely anonymous visitor with no local data at all. Fall back to
-  // the public get_public_receipt RPC (migration 6, extended in migration 9
-  // for student_name), which anon can call. Deliberately NOT the literal
+  // the public get_public_receipt RPC (migration 6/9, rebuilt in 21), which
+  // anon can call. Deliberately NOT the literal
   // `supabase.from('sales').select('*, sale_items(*), profiles(*))` this
   // phase's spec shows: anon has zero table grants on sales/sale_items/
   // profiles by design (see migration 1) -- that call would return nothing
   // for exactly the anonymous-visitor case it's meant to handle. The RPC is
   // the narrow, already-safe exception built for this.
+  const runFetch = useCallback(
+    async (id: string) => {
+      setRemoteState({ status: "loading" });
+
+      const attempt = () => supabase.rpc("get_public_receipt", { p_sale_id: id });
+
+      let { data, error } = await attempt();
+      if (error) {
+        await new Promise((resolve) => setTimeout(resolve, RECEIPT_ERROR_RETRY_DELAY_MS));
+        ({ data, error } = await attempt());
+      }
+
+      if (error) {
+        console.warn("[ReceiptPage] get_public_receipt failed", error);
+        setRemoteState({ status: "error" });
+        return;
+      }
+      if (!data) {
+        setRemoteState({ status: "not-found" });
+        return;
+      }
+      setRemoteState({
+        status: "found",
+        data: mapPublicReceiptRow(data as unknown as PublicReceiptRow, t("admin.salesHistory.unknownProduct")),
+      });
+    },
+    [t],
+  );
+
   useEffect(() => {
     if (!saleId || localResult === undefined || localResult.found) return;
+    void runFetch(saleId);
+  }, [saleId, localResult?.found, runFetch]);
 
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    let attempts = 0;
+  const receipt = localResult?.found ? localResult.data : remoteState.status === "found" ? remoteState.data : undefined;
+  const isLoading =
+    localResult === undefined ||
+    (localResult.found === false && (remoteState.status === "idle" || remoteState.status === "loading"));
+  const isError = !isLoading && !receipt && remoteState.status === "error";
+  const notFound = !isLoading && !receipt && !isError;
 
-    const attempt = async () => {
-      const { data, error } = await supabase.rpc("get_public_receipt", { p_sale_id: saleId });
-      if (cancelled) return;
-
-      if (!error && data) {
-        const row = data as unknown as PublicReceiptRow;
-        setRemoteReceipt({
-          id: row.id,
-          createdAt: row.created_at,
-          paymentMethod: row.payment_method,
-          totalAmount: row.total_amount,
-          status: row.status,
-          cashierName: row.cashier_name,
-          studentName: row.student_name,
-          items: row.items.map((item) => ({
-            productName: item.product_name ?? t("admin.salesHistory.unknownProduct"),
-            quantity: item.quantity,
-            unitPrice: item.unit_price,
-          })),
-        });
-        return;
-      }
-
-      // A real RPC/network error and a genuine "not yet synced" both land
-      // here -- logged so a persistent failure (misconfigured RPC, network
-      // issue) is at least visible in the console instead of silently
-      // looking identical to a not-yet-synced sale forever.
-      if (error) console.warn("[ReceiptPage] get_public_receipt failed", error);
-
-      attempts += 1;
-      if (attempts >= RECEIPT_MAX_RETRIES) {
-        setRemoteReceipt(null);
-        return;
-      }
-      setRetryAttempt(attempts);
-      timer = setTimeout(() => void attempt(), RECEIPT_RETRY_INTERVAL_MS);
-    };
-
-    void attempt();
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [saleId, localResult?.found, t]);
-
-  const receipt = localResult?.found ? localResult.data : (remoteReceipt ?? undefined);
-  const isLoading = localResult === undefined || (localResult.found === false && remoteReceipt === undefined);
-  const notFound = !isLoading && !receipt;
-
-  const buildShareUrl = () =>
-    // The share-receipt edge function (Phase 9.3) -- it detects real humans
-    // by User-Agent and 302s them straight to this same /receipt/:saleId
-    // route, but gives social scrapers (WhatsApp, Telegram, etc.) populated
-    // Open Graph / Twitter Card meta tags instead, so a shared link shows a
-    // rich preview with the actual amount and items in the chat app. Not
-    // this phase's literal `${window.location.origin}/receipt/${sale.id}`
-    // placeholder -- that's the pre-9.3 stand-in this exact file already
-    // moved on from once the real endpoint existed.
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/share-receipt?id=${saleId}`;
+  const buildShareContent = () => ({
+    title: t("receiptPage.shareTitle"),
+    text: t("receiptPage.shareText", { amount: receipt ? formatCurrency(receipt.totalAmount) : "" }),
+  });
 
   const handleShare = async () => {
     if (!saleId || !receipt) return;
-    const shareUrl = buildShareUrl();
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: t("receiptPage.shareTitle"),
-          text: t("receiptPage.shareText", { amount: formatCurrency(receipt.totalAmount) }),
-          url: shareUrl,
-        });
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") {
-          console.warn("[ReceiptPage] share failed", error);
-        }
-      }
-      return;
-    }
-
+    setIsSharing(true);
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      showToast("success", t("receiptPage.linkCopiedToast"));
-    } catch (error) {
-      console.warn("[ReceiptPage] clipboard copy failed", error);
-      showToast("error", t("receiptPage.shareError"));
+      const shareUrl = await prepareShareUrl(saleId);
+      if (!shareUrl) return; // the hook already showed a toast explaining why
+
+      if (navigator.share) {
+        try {
+          await navigator.share({ ...buildShareContent(), url: shareUrl });
+        } catch (error) {
+          if ((error as Error).name !== "AbortError") {
+            console.warn("[ReceiptPage] share failed", error);
+          }
+        }
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        showToast("success", t("receiptPage.linkCopiedToast"));
+      } catch (error) {
+        console.warn("[ReceiptPage] clipboard copy failed", error);
+        showToast("error", t("receiptPage.shareError"));
+      }
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -257,7 +261,24 @@ export function ReceiptPage() {
       <div className="mx-auto w-full sm:max-w-[380px]">
         <CardCustom className="receipt-card">
           {isLoading ? (
-            <ReceiptSkeleton checking={retryAttempt > 0} />
+            <ReceiptSkeleton />
+          ) : isError ? (
+            <div className="py-6 text-center">
+              <ReceiptIcon className="mx-auto h-10 w-10 text-muted" aria-hidden />
+              <p className="mt-3 text-sm font-semibold text-foreground">{t("receiptPage.errorTitle")}</p>
+              <p className="mt-1 text-xs text-muted">{t("receiptPage.errorMessage")}</p>
+              <ButtonCustom
+                variant="primary"
+                size="sm"
+                className="mt-4"
+                onClick={() => {
+                  if (saleId) void runFetch(saleId);
+                }}
+              >
+                <RotateCw className="h-4 w-4" aria-hidden />
+                {t("receiptPage.retryButton")}
+              </ButtonCustom>
+            </div>
           ) : notFound ? (
             <div className="py-6 text-center">
               <ReceiptIcon className="mx-auto h-10 w-10 text-muted" aria-hidden />
@@ -313,7 +334,7 @@ export function ReceiptPage() {
                 )}
 
                 <div className="receipt-actions mt-4 flex gap-2">
-                  <ButtonCustom variant="primary" className="flex-1" onClick={() => void handleShare()}>
+                  <ButtonCustom variant="primary" className="flex-1" isLoading={isSharing} onClick={() => void handleShare()}>
                     <Share2 className="h-4 w-4" aria-hidden />
                     {t("receiptPage.share")}
                   </ButtonCustom>

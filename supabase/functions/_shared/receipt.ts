@@ -12,7 +12,10 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 // something the sending client's own code can fully prevent). Extracting
 // just the UUID from the raw ?id= value means a mangled query param like
 // "8bfa72da-...-14c8646396ae Purchase receipt" still resolves the real
-// receipt instead of a false "not found".
+// receipt instead of a false "not found". Kept byte-for-byte identical to
+// apps/web/src/pages/ReceiptPage.tsx's own copy of this pattern -- there's no
+// shared-package boundary between this Deno edge runtime and the Vite web
+// bundle, so the two must be updated together if this ever changes.
 const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 export function extractSaleId(raw: string | null): string | null {
@@ -32,8 +35,22 @@ export interface ReceiptData {
   total_amount: number;
   status: string;
   cashier_name: string | null;
+  student_name: string | null;
   items: ReceiptItem[];
 }
+
+// A real RPC/network failure (misconfigured grant, outage, transient error)
+// and a genuine "no such sale" both used to collapse into the exact same
+// `null` here -- a caller had no way to tell "something is broken" from
+// "someone guessed a bad UUID", and neither ever got logged anywhere. Now
+// distinguished explicitly so both callers can log the real-error case
+// (visible in `supabase functions logs`) while still rendering the same
+// graceful fallback card either way -- a bot/anonymous visitor shouldn't see
+// a raw error regardless of which kind of failure it was.
+export type ReceiptLookupResult =
+  | { status: "found"; receipt: ReceiptData }
+  | { status: "not-found" }
+  | { status: "error"; error: unknown };
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: "Especes",
@@ -66,18 +83,20 @@ export function escapeMarkup(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-// Reuses the same narrow, anon-granted SECURITY DEFINER RPC (migration
-// 00006 get_public_receipt) that ReceiptPage.tsx itself falls back to when
-// offline -- this function never touches sales/sale_items/products
-// directly, so a scraper hitting it can never see more than an anonymous
-// client already could (no cashier_id, no student_wallet_id).
-export async function getReceiptData(saleId: string): Promise<ReceiptData | null> {
+// Reuses the same narrow, anon-granted SECURITY DEFINER RPC (migration 6,
+// rebuilt in migration 21) that ReceiptPage.tsx itself falls back to when
+// offline -- this function never touches sales/sale_items/products directly,
+// so a scraper hitting it can never see more than an anonymous client already
+// could (no cashier_id, no student_wallet id).
+export async function getReceiptData(saleId: string): Promise<ReceiptLookupResult> {
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const { data, error } = await supabase.rpc("get_public_receipt", { p_sale_id: saleId });
-  if (error || !data) return null;
-  const row = data as unknown as ReceiptData;
-  if (!row.id) return null;
-  return row;
+
+  if (error) return { status: "error", error };
+
+  const row = data as unknown as ReceiptData | null;
+  if (!row?.id) return { status: "not-found" };
+  return { status: "found", receipt: row };
 }
 
 // Common messaging/social link-preview crawlers, matched case-insensitively

@@ -8,6 +8,7 @@ import type {
   Sale,
   SaleItem,
   SalePayload,
+  SaleStatus,
   ShopStatus,
   StudentWallet,
   SyncAction,
@@ -285,6 +286,37 @@ export async function processSyncQueue(): Promise<SyncQueueSummary> {
   }
 
   return { completedSales, conflicts };
+}
+
+// On-demand, single-sale version of what processSyncQueue does for one SALE
+// item -- called when a share action needs a definitive synced/not-synced
+// answer right now, not on the next 30s cycle. Reuses pushSale directly (its
+// complete_sale RPC is idempotent, so this is always safe even if a queue
+// item for the same sale is mid-flight elsewhere) and mirrors pushItem's own
+// side effects exactly, including marking any matching pending/failed
+// sync_queue row so processSyncQueue's next cycle doesn't redundantly
+// reprocess something this call already resolved. Throws on a transient
+// error (network blip, timeout) without mutating anything -- same as
+// processSyncQueue's own catch branch, leaving status as "pending_sync",
+// safe to retry later.
+export async function confirmSaleSynced(saleId: string): Promise<QueueOutcome> {
+  const sale = await db.sales.get(saleId);
+  if (!sale) throw new Error(`confirmSaleSynced: no local sale ${saleId}`);
+  const items = await db.sale_items.where("sale_id").equals(saleId).toArray();
+
+  const outcome = await pushSale({ sale, items });
+  const nextStatus: SaleStatus = outcome === "completed" ? "completed" : "conflict_warning";
+  await db.sales.update(saleId, { status: nextStatus });
+
+  const pending = await db.sync_queue.where("status").anyOf(["pending", "failed"]).toArray();
+  for (const item of pending) {
+    if (item.id === undefined) continue;
+    if (item.action === "SALE" && item.payload.sale.id === saleId) {
+      await db.sync_queue.update(item.id, { status: nextStatus, errorMessage: undefined });
+    }
+  }
+
+  return outcome;
 }
 
 type PendingIdKind = "product_id" | "wallet_id" | "category_id" | "sale_id" | "profile_id" | "shop_status_id";

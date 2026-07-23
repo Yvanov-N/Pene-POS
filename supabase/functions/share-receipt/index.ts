@@ -10,6 +10,7 @@ import {
   getReceiptData,
   isSocialBot,
   paymentLabel,
+  type ReceiptData,
 } from "../_shared/receipt.ts";
 
 // Must point at the deployed PWA's real origin in production -- set via
@@ -55,6 +56,42 @@ function buildHtml(params: { pageTitle: string; ogTitle: string; ogDescription: 
 </html>`;
 }
 
+function buildUnavailableHtml(receiptUrl: string, fallbackImageUrl: string): Response {
+  // Bad/stale/deleted sale id, or a real lookup failure (logged separately by
+  // the caller before this runs) -- either way, a generic branded card still
+  // beats a broken preview or a raw error page inside the chat app.
+  const html = buildHtml({
+    pageTitle: "Recu Cite Shop",
+    ogTitle: "Recu Cite Shop",
+    ogDescription: "Ce recu n'est plus disponible.",
+    receiptUrl,
+    imageUrl: fallbackImageUrl,
+  });
+  return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
+}
+
+function buildReceiptHtml(receipt: ReceiptData, receiptUrl: string, saleId: string): Response {
+  const formattedTotal = formatAmount(receipt.total_amount);
+  const formattedDate = formatDate(receipt.created_at);
+  const totalItems = receipt.items.reduce((sum, item) => sum + item.quantity, 0);
+  const itemNamesList = buildItemNamesList(receipt.items);
+  const refundedSuffix = receipt.status === "refunded" ? " (Rembourse)" : "";
+
+  const ogTitle = `Recu Cite Shop #${receipt.id.slice(0, 6)} — ${formattedTotal} FCFA${refundedSuffix}`;
+  const ogDescription = `Achat du ${formattedDate}. Articles : ${itemNamesList} (${totalItems} articles). Paye via ${paymentLabel(receipt.payment_method)}.`;
+  const imageUrl = `${SUPABASE_URL}/functions/v1/receipt-og-image?id=${encodeURIComponent(saleId)}`;
+
+  const html = buildHtml({
+    pageTitle: `Recu Cite Shop - ${formattedTotal} FCFA${refundedSuffix}`,
+    ogTitle,
+    ogDescription,
+    receiptUrl,
+    imageUrl,
+  });
+
+  return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "GET") {
     return new Response("Method Not Allowed", { status: 405 });
@@ -71,43 +108,21 @@ Deno.serve(async (req: Request) => {
   const receiptUrl = `${PWA_URL}/receipt/${saleId}`;
 
   // Humans go straight to the real app -- no DB round trip needed here,
-  // ReceiptPage.tsx already handles its own not-found state client-side.
+  // ReceiptPage.tsx already handles its own not-found/error state client-side.
   if (!isSocialBot(userAgent)) {
     return Response.redirect(receiptUrl, 302);
   }
 
   const fallbackImageUrl = `${SUPABASE_URL}/functions/v1/receipt-og-image`;
-  const receipt = await getReceiptData(saleId);
+  const result = await getReceiptData(saleId);
 
-  if (!receipt) {
-    // Bad/stale/deleted sale id -- a generic branded card still beats a
-    // broken preview or a raw error page inside the chat app.
-    const html = buildHtml({
-      pageTitle: "Recu Cite Shop",
-      ogTitle: "Recu Cite Shop",
-      ogDescription: "Ce recu n'est plus disponible.",
-      receiptUrl,
-      imageUrl: fallbackImageUrl,
-    });
-    return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
+  if (result.status === "error") {
+    console.error("[share-receipt] get_public_receipt failed", saleId, result.error);
+    return buildUnavailableHtml(receiptUrl, fallbackImageUrl);
+  }
+  if (result.status === "not-found") {
+    return buildUnavailableHtml(receiptUrl, fallbackImageUrl);
   }
 
-  const formattedTotal = formatAmount(receipt.total_amount);
-  const formattedDate = formatDate(receipt.created_at);
-  const totalItems = receipt.items.reduce((sum, item) => sum + item.quantity, 0);
-  const itemNamesList = buildItemNamesList(receipt.items);
-
-  const ogTitle = `Recu Cite Shop #${receipt.id.slice(0, 6)} — ${formattedTotal} FCFA`;
-  const ogDescription = `Achat du ${formattedDate}. Articles : ${itemNamesList} (${totalItems} articles). Paye via ${paymentLabel(receipt.payment_method)}.`;
-  const imageUrl = `${SUPABASE_URL}/functions/v1/receipt-og-image?id=${encodeURIComponent(saleId)}`;
-
-  const html = buildHtml({
-    pageTitle: `Recu Cite Shop - ${formattedTotal} FCFA`,
-    ogTitle,
-    ogDescription,
-    receiptUrl,
-    imageUrl,
-  });
-
-  return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
+  return buildReceiptHtml(result.receipt, receiptUrl, saleId);
 });

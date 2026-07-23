@@ -9,6 +9,7 @@ import { usePaginatedQuery, type PageParams, type PageResult } from "@/hooks/use
 import { PaginationControls } from "@/components/admin/PaginationControls";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
+import { useShareReceipt } from "@/hooks/useShareReceipt";
 import { formatCurrency } from "@/lib/currency";
 import { getRangeForFilter, type CustomRange } from "@/lib/dateHelpers";
 import { PAYMENT_BADGE_CLASS, STATUS_BADGE_CLASS } from "@/lib/paymentMethodStyles";
@@ -134,6 +135,7 @@ function shortId(saleId: string): string {
 export function SalesHistoryPage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
+  const { prepareShareUrl } = useShareReceipt();
   const { triggerManualSync, isOnline } = useSyncEngine();
 
   const [searchTermState, setSearchTermState] = useState("");
@@ -224,43 +226,41 @@ export function SalesHistoryPage() {
   };
 
   const handleShare = async (sale: Sale) => {
-    // Targets the share-receipt edge function (Phase 9.3), not the PWA route
-    // directly -- that function is what detects a social-scraper User-Agent
-    // and serves populated Open Graph/Twitter Card tags, so a link shared to
-    // WhatsApp/Telegram shows a rich preview instead of a bare client shell
-    // with no meta tags at all. Same fix already applied in ReceiptPage.tsx.
-    const shareUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/share-receipt?id=${sale.id}`;
-
-    // Sharing is never blocked on sync status -- but a recipient opening the
-    // link before this device's own push has landed server-side will
-    // genuinely see a "checking" state for a few seconds (ReceiptPage.tsx
-    // retries get_public_receipt instead of giving up on one null). Purely
-    // informative, so the cashier isn't left thinking the link is broken.
-    if (sale.status !== "completed") {
-      showToast("warning", t("admin.salesHistory.shareUnsyncedHint"));
-    }
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: t("admin.salesHistory.shareTitle"),
-          text: t("admin.salesHistory.shareText", { id: shortId(sale.id), amount: formatCurrency(sale.total_amount) }),
-          url: shareUrl,
-        });
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") {
-          console.warn("[SalesHistoryPage] share failed", error);
-        }
-      }
-      return;
-    }
-
+    // prepareShareUrl (useShareReceipt) is what actually gates this: a sale
+    // that isn't confirmed server-side yet gets synced on demand before a
+    // link is ever generated, rather than handing out a link that might be
+    // dead and hoping the recipient's client retries it into existence. It
+    // returns null (having already shown a toast explaining why) if sharing
+    // isn't currently possible.
+    setBusyId(sale.id);
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      showToast("success", t("admin.salesHistory.shareLinkCopiedToast"));
-    } catch (error) {
-      console.warn("[SalesHistoryPage] clipboard copy failed", error);
-      showToast("error", t("admin.salesHistory.shareError"));
+      const shareUrl = await prepareShareUrl(sale.id);
+      if (!shareUrl) return;
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: t("admin.salesHistory.shareTitle"),
+            text: t("admin.salesHistory.shareText", { id: shortId(sale.id), amount: formatCurrency(sale.total_amount) }),
+            url: shareUrl,
+          });
+        } catch (error) {
+          if ((error as Error).name !== "AbortError") {
+            console.warn("[SalesHistoryPage] share failed", error);
+          }
+        }
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        showToast("success", t("admin.salesHistory.shareLinkCopiedToast"));
+      } catch (error) {
+        console.warn("[SalesHistoryPage] clipboard copy failed", error);
+        showToast("error", t("admin.salesHistory.shareError"));
+      }
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -402,7 +402,7 @@ export function SalesHistoryPage() {
                             <button type="button" disabled={isBusy} onClick={() => void handleReprint(sale)} className={NEUTRAL_BUTTON_CLASS}>
                               {t("admin.salesHistory.reprint")}
                             </button>
-                            <button type="button" onClick={() => void handleShare(sale)} className={NEUTRAL_BUTTON_CLASS}>
+                            <button type="button" disabled={isBusy} onClick={() => void handleShare(sale)} className={NEUTRAL_BUTTON_CLASS}>
                               {t("admin.salesHistory.share")}
                             </button>
                             {!isRefunded && (
