@@ -486,9 +486,11 @@
   },
   "receiptPage": {
     "loading": "Chargement du recu...",
-    "checking": "Verification de votre recu...",
     "notFoundTitle": "Recu introuvable",
     "notFound": "Ce lien ne correspond a aucun recu connu.",
+    "errorTitle": "Impossible de charger ce recu",
+    "errorMessage": "Un probleme est survenu en contactant le serveur. Verifiez votre connexion et reessayez.",
+    "retryButton": "Reessayer",
     "share": "Partager",
     "print": "Imprimer / PDF",
     "shareTitle": "Recu Cite Shop",
@@ -497,6 +499,11 @@
     "shareError": "Impossible de partager le recu",
     "studentLabel": "Client / Etudiant : {{name}}",
     "timestampFormat": "{{date}} a {{time}}"
+  },
+  "shareReceipt": {
+    "blockedOfflineToast": "Vous etes hors ligne -- connectez-vous a internet pour partager ce recu",
+    "blockedConflictToast": "Cette vente doit etre revue par un administrateur avant de pouvoir etre partagee",
+    "blockedErrorToast": "Impossible de confirmer la synchronisation de cette vente -- reessayez de partager"
   },
   "receipt": {
     "shopName": "Cite Shop",

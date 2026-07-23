@@ -486,9 +486,11 @@
   },
   "receiptPage": {
     "loading": "Loading receipt...",
-    "checking": "Verifying your receipt...",
     "notFoundTitle": "Receipt not found",
     "notFound": "This link doesn't match any known receipt.",
+    "errorTitle": "Couldn't load this receipt",
+    "errorMessage": "Something went wrong reaching the server. Check your connection and try again.",
+    "retryButton": "Try again",
     "share": "Share",
     "print": "Print / PDF",
     "shareTitle": "Cite Shop receipt",
@@ -497,6 +499,11 @@
     "shareError": "Couldn't share the receipt",
     "studentLabel": "Customer / Student: {{name}}",
     "timestampFormat": "{{date}} at {{time}}"
+  },
+  "shareReceipt": {
+    "blockedOfflineToast": "You're offline -- connect to the internet to share this receipt",
+    "blockedConflictToast": "This sale needs admin review before it can be shared",
+    "blockedErrorToast": "Couldn't confirm this sale synced -- try sharing again"
   },
   "receipt": {
     "shopName": "Cite Shop",
