@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.11.2",
+    "date": "2026-07-23",
+    "changes": [
+      "stop paginated tables from freezing on a stale server snapshot after edits"
+    ]
+  },
+  {
     "version": "1.11.1",
     "date": "2026-07-22",
     "changes": [

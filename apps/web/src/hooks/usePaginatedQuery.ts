@@ -57,16 +57,27 @@ export function usePaginatedQuery<T, TSort extends string, TFilters>({
   const rawKey = JSON.stringify(params);
   const debouncedKey = JSON.stringify(debouncedParams);
 
+  // Always the reactive, Dexie-backed value -- rows render from this and
+  // ONLY this, so any local write (this page's own edit, another tab's, or
+  // the fetch below writing a fresher page into Dexie) shows up the instant
+  // useLiveQuery re-runs. Never shadowed by a one-time server snapshot --
+  // that was the earlier bug here (see Phase 15): once a server fetch
+  // landed, its frozen rows kept rendering forever, silently ignoring every
+  // subsequent local edit until something changed page/search/sort/filter
+  // or the whole page was reloaded.
   const localResult = useLiveQuery(() => queryLocal(params), [rawKey]);
 
-  const [serverResult, setServerResult] = useState<{ key: string; data: PageResult<T> } | null>(null);
+  // The one thing local data can legitimately be missing is an accurate
+  // GLOBAL count on a large/partially-synced table -- that's the only
+  // reason to trust the server over local here, never for the rows.
+  const [serverCount, setServerCount] = useState<{ key: string; totalCount: number } | null>(null);
   useEffect(() => {
     if (!enabled || !getIsOnlineSnapshot()) return;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), NETWORK_FIRST_TIMEOUT_MS);
     fetchServer(debouncedParams, controller.signal)
       .then(async (data) => {
-        setServerResult({ key: debouncedKey, data });
+        setServerCount({ key: debouncedKey, totalCount: data.totalCount });
         await writeBack(data.rows);
       })
       .catch(() => {
@@ -77,16 +88,14 @@ export function usePaginatedQuery<T, TSort extends string, TFilters>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedKey, enabled]);
 
-  // Only trust the server result once its key matches the CURRENT raw
-  // params -- mid-debounce, or after the admin has since changed page/sort/
-  // filter, this falls straight back to the local result. This is what
-  // makes both paths transparent to the caller.
-  const usingServer = serverResult?.key === rawKey;
-  const active = usingServer ? serverResult.data : localResult;
+  // Only trust the server count once its key matches the CURRENT raw params
+  // -- mid-debounce, or after the admin has since changed page/sort/filter,
+  // this falls straight back to what queryLocal already computed.
+  const totalCount = serverCount?.key === rawKey ? serverCount.totalCount : (localResult?.totalCount ?? 0);
 
   return {
-    rows: active?.rows,
-    totalCount: active?.totalCount ?? 0,
-    totalPages: active ? Math.max(1, Math.ceil(active.totalCount / params.pageSize)) : 1,
+    rows: localResult?.rows,
+    totalCount,
+    totalPages: Math.max(1, Math.ceil(totalCount / params.pageSize)),
   };
 }
