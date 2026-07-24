@@ -262,7 +262,7 @@ export function SidebarNav() {
   };
 
   const conflictCount = useLiveQuery(
-    () => db.sales.where("status").equals("conflict_warning").count(),
+    () => db.sync_outbox.where("status").equals("conflict").count(),
     [],
   );
 

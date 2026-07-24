@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { db } from "@/lib/db";
 import { getIsOnlineSnapshot } from "@/lib/networkStatusStore";
-import { confirmSaleSynced, getPendingIds } from "@/services/syncService";
+import { confirmSaleSynced } from "@/services/sync/drain";
 import { useToast } from "@/hooks/useToast";
 
 export function buildShareReceiptUrl(saleId: string): string {
@@ -37,7 +37,22 @@ export function useShareReceipt() {
     async (saleId: string): Promise<string | null> => {
       const sale = await db.sales.get(saleId);
 
-      if (sale?.status === "pending_sync") {
+      if (sale?.status === "refunded") {
+        // Voiding a still-unsynced sale (refundService.ts) deletes its
+        // pending outbox entry entirely by design, so that sale is
+        // deliberately never going to reach the server -- forcing a sync
+        // here would wrongly resurrect a voided sale. Soft, non-blocking:
+        // still let the link be generated, same as the historical behavior.
+        return buildShareReceiptUrl(saleId);
+      }
+
+      if (sale) {
+        // Sale.status is always "completed" the instant it's committed
+        // locally now (types/db.ts) -- it no longer distinguishes
+        // synced-vs-not, so that answer always has to come from the outbox,
+        // not this field. confirmSaleSynced itself resolves instantly, with
+        // no network call, when the matching outbox entry is already
+        // "synced" -- this isn't a network round trip for the common case.
         if (!getIsOnlineSnapshot()) {
           showToast("error", t("shareReceipt.blockedOfflineToast"));
           return null;
@@ -52,24 +67,6 @@ export function useShareReceipt() {
           console.warn("[useShareReceipt] confirmSaleSynced failed", error);
           showToast("error", t("shareReceipt.blockedErrorToast"));
           return null;
-        }
-      } else if (sale?.status === "conflict_warning") {
-        // Resolving a conflict (conflictResolver.ts) flips the local status
-        // straight back to "completed" without ever re-calling complete_sale
-        // -- retrying the push here would just hit the same violation again,
-        // so this is a hard stop, not a "try once more" case.
-        showToast("error", t("shareReceipt.blockedConflictToast"));
-        return null;
-      } else if (sale?.status === "refunded") {
-        // Voiding a still-pending sale (refundService.ts) deletes its queued
-        // push entirely by design, so the sale is deliberately never going to
-        // reach the server -- forcing a sync here would wrongly resurrect a
-        // voided sale. Keep this the one soft, non-blocking case: still let
-        // the link be generated, just warn if a queue entry is somehow still
-        // sitting there (stale/edge case), same as the historical behavior.
-        const pendingIds = await getPendingIds("sale_id");
-        if (pendingIds.has(saleId)) {
-          showToast("warning", t("admin.salesHistory.shareUnsyncedHint"));
         }
       }
 

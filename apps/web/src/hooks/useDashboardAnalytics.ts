@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { getRangeForFilter, type CustomRange, type TimeRangeFilter } from "@/lib/dateHelpers";
 import { isRevenueRelevant, buildProductTotals } from "@/lib/salesAggregation";
-import type { PaymentMethod, SyncQueueItem } from "@/types/db";
+import type { OutboxOperation, PaymentMethod } from "@/types/db";
 
 export type { TimeRangeFilter, CustomRange };
 
@@ -70,21 +70,22 @@ async function sumRevenueForRange(start: string, end: string): Promise<number> {
 }
 
 // No dedicated recharge-history table exists anywhere (server or local) --
-// sync_queue is the only durable record of a WALLET_RECHARGE mutation,
-// since nothing prunes completed queue items. That necessarily also counts
-// refund credits bounced back to a wallet (refundService.voidSale enqueues
-// the exact same {action: "WALLET_RECHARGE", payload: {wallet_id, delta}}
-// shape when reversing a student_wallet sale) -- there's no field
-// distinguishing "new money loaded by an admin" from "money returned by a
-// void", so this is a volume-of-adjustments figure, not a pure top-ups
-// total. Flagged here rather than silently presented as more precise than
-// the data actually supports.
+// db.sync_outbox is the durable local record of an adjust_wallet_balance
+// mutation, since nothing prunes synced outbox entries. Filtered to
+// reason === "recharge" specifically (StudentProfileDrawer tags every
+// standalone wallet top-up this way) -- unlike the old sync_queue-based
+// version of this query, a checkout wallet debit or a refund credit-back no
+// longer produces a standalone outbox entry at all (complete_sale/void_sale
+// apply those deltas atomically server-side now, bundled into the sale/
+// refund's own single outbox entry), so this is now a clean top-ups-only
+// total instead of a volume-of-all-adjustments figure that used to silently
+// mix in negative checkout debits.
 async function sumWalletRechargesForRange(start: string, end: string): Promise<number> {
-  const items = await db.sync_queue.where("created_at").between(start, end, true, true).toArray();
+  const items = await db.sync_outbox.where("createdAt").between(start, end, true, true).toArray();
   return items
     .filter(
-      (item): item is Extract<SyncQueueItem, { action: "WALLET_RECHARGE" | "WALLET_WITHDRAWAL" }> =>
-        item.action === "WALLET_RECHARGE",
+      (item): item is Extract<OutboxOperation, { opType: "adjust_wallet_balance" }> =>
+        item.opType === "adjust_wallet_balance" && item.payload.reason === "recharge",
     )
     .reduce((sum, item) => sum + (Number(item.payload.delta) || 0), 0);
 }

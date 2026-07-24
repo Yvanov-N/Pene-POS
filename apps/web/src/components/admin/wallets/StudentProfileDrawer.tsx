@@ -3,9 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { GraduationCap, Wallet, ShoppingCart, Receipt, X } from "lucide-react";
 import { db } from "@/lib/db";
-import { enqueueMutation } from "@/services/syncService";
-import { submitWalletAdjustmentNetworkFirst } from "@/services/repository";
-import { useSyncEngine } from "@/hooks/useSyncEngine";
+import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
 import { printService } from "@/services/hardware/printService";
@@ -28,7 +27,6 @@ interface StudentProfileDrawerProps {
 export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerProps) {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { triggerManualSync } = useSyncEngine();
 
   const [tab, setTab] = useState<Tab>("analytics");
   const [rechargeAmount, setRechargeAmount] = useState("");
@@ -117,12 +115,21 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
       }
       setRechargeError(null);
 
-      const mode = await submitWalletAdjustmentNetworkFirst({ wallet_id: wallet.id, delta });
+      // reason: "recharge" -- tags this as a genuine admin top-up, distinct
+      // from a checkout debit or refund credit-back (which are no longer
+      // standalone outbox entries at all now -- complete_sale/void_sale
+      // apply those wallet deltas atomically server-side, in the same
+      // transaction as the sale/refund itself). useDashboardAnalytics'
+      // wallet-recharge widget relies on this tag to only sum real top-ups.
+      const entry = makeOutboxEntry("adjust_wallet_balance", "student_wallets", {
+        wallet_id: wallet.id,
+        delta,
+        reason: "recharge",
+      });
       const nextBalance = wallet.balance + delta;
-      await db.student_wallets.update(wallet.id, { balance: nextBalance });
-      if (mode === "local") {
-        await enqueueMutation("WALLET_RECHARGE", "student_wallets", { wallet_id: wallet.id, delta });
-        void triggerManualSync();
+      await commitLocal(db.student_wallets, () => db.student_wallets.update(wallet.id, { balance: nextBalance }), entry);
+      const outcome = await pushOutbox(entry);
+      if (outcome !== "synced") {
         showToast("warning", t("sync.offlineFallbackToast"));
       }
 
@@ -159,12 +166,15 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
       }
       setWithdrawError(null);
 
-      const mode = await submitWalletAdjustmentNetworkFirst({ wallet_id: wallet.id, delta: -amount });
+      const entry = makeOutboxEntry("adjust_wallet_balance", "student_wallets", {
+        wallet_id: wallet.id,
+        delta: -amount,
+        reason: "withdrawal",
+      });
       const nextBalance = wallet.balance - amount;
-      await db.student_wallets.update(wallet.id, { balance: nextBalance });
-      if (mode === "local") {
-        await enqueueMutation("WALLET_WITHDRAWAL", "student_wallets", { wallet_id: wallet.id, delta: -amount });
-        void triggerManualSync();
+      await commitLocal(db.student_wallets, () => db.student_wallets.update(wallet.id, { balance: nextBalance }), entry);
+      const outcome = await pushOutbox(entry);
+      if (outcome !== "synced") {
         showToast("warning", t("sync.offlineFallbackToast"));
       }
 

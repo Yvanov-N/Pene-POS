@@ -122,10 +122,10 @@ export function SyncConflictStatusBar() {
   const [conflictsOpen, setConflictsOpen] = useState(false);
 
   const pendingCount = useLiveQuery(
-    () => db.sync_queue.where("status").anyOf(["pending", "failed"]).count(),
+    () => db.sync_outbox.where("status").anyOf(["pending", "syncing", "error"]).count(),
     [],
   );
-  const conflictCount = useLiveQuery(() => db.sales.where("status").equals("conflict_warning").count(), []);
+  const conflictCount = useLiveQuery(() => db.sync_outbox.where("status").equals("conflict").count(), []);
 
   return (
     <CardCustom title={t("admin.dashboard.syncStatusTitle")}>

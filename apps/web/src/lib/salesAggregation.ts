@@ -1,13 +1,18 @@
 import { db } from "@/lib/db";
 import type { Sale } from "@/types/db";
 
-// A rejected MoMo sale keeps status completed/pending_sync (rejection is
-// tracked separately via momo_verification_status) and a refunded sale
-// already carries its own distinct "refunded" status -- both excluded here.
-// Single source of truth: was duplicated identically in useDashboardAnalytics,
+// A rejected MoMo sale keeps status "completed" (rejection is tracked
+// separately via momo_verification_status) and a refunded sale already
+// carries its own distinct "refunded" status -- excluded here. Single source
+// of truth: was duplicated identically in useDashboardAnalytics,
 // StudentWalletsPage, and StudentProfileDrawer before this extraction.
+//
+// No "pending_sync" branch anymore -- every locally-committed sale is
+// "completed" the instant it's created now (sync state moved out of this
+// field entirely, see types/db.ts's Sale.status comment), so there's nothing
+// left for that branch to match.
 export function isRevenueRelevant(sale: Sale): boolean {
-  return (sale.status === "completed" || sale.status === "pending_sync") && sale.momo_verification_status !== "rejected";
+  return sale.status === "completed" && sale.momo_verification_status !== "rejected";
 }
 
 export interface ProductTotals {

@@ -6,10 +6,12 @@ import type {
   Sale,
   SaleItem,
   StudentWallet,
-  SyncQueueItem,
   Profile,
   LocalSettings,
   ShopStatus,
+  OutboxOperation,
+  OutboxOpType,
+  SyncCursor,
 } from "@/types/db";
 
 export class PosDatabase extends Dexie {
@@ -19,7 +21,8 @@ export class PosDatabase extends Dexie {
   sales!: Table<Sale, string>;
   sale_items!: Table<SaleItem, string>;
   student_wallets!: Table<StudentWallet, string>;
-  sync_queue!: Table<SyncQueueItem, number>;
+  sync_outbox!: Table<OutboxOperation, number>;
+  sync_cursors!: Table<SyncCursor, string>;
   profiles!: Table<Profile, string>;
   local_settings!: Table<LocalSettings, string>;
   shop_status!: Table<ShopStatus, number>;
@@ -81,6 +84,106 @@ export class PosDatabase extends Dexie {
     // local-write-then-sync pattern as everything else.
     this.version(7).stores({
       shop_status: "id",
+    });
+
+    // Sync rebuild: the outbox replaces sync_queue outright (single
+    // OutboxStatus vocabulary instead of the old dual Sale.status/
+    // SyncQueueItem.status split -- see types/db.ts). sync_cursors backs
+    // the new incremental, sync_seq-based pull (services/sync/pull.ts) in
+    // place of the old full-table select("*") on every cycle.
+    //
+    // sync_queue is deliberately still declared as of THIS version (its v1
+    // definition carries forward unchanged, Dexie only needs a table
+    // re-listed when its own schema/indexes change) so the upgrade() below
+    // can read it -- only version 9 actually drops it. Dropping and reading
+    // the same store within one version's upgrade() is not a safe Dexie
+    // pattern; splitting across two versions is.
+    this.version(8)
+      .stores({
+        // operationId indexed -- it's the primary correlation key now
+        // (confirmSynced, push-result matching, telemetry), looked up far
+        // more often than any other field besides status/createdAt.
+        sync_outbox: "++id, operationId, status, createdAt",
+        sync_cursors: "tableName",
+      })
+      .upgrade(async (tx) => {
+        const oldQueue = await tx.table("sync_queue").toArray();
+
+        // Only actually-unresolved work carries forward -- a "completed"
+        // queue row is historical noise under the old model (never pruned,
+        // per that table's own comment), not something the new drain needs
+        // to see. This does mean any dashboard metric that used to scan
+        // *completed* sync_queue rows for history (useDashboardAnalytics'
+        // wallet-recharge widget) starts its window fresh from this
+        // migration forward rather than replaying old data -- an accepted,
+        // explicit trade-off (that widget's own definition is changing
+        // anyway under the new architecture, see that file's comments) over
+        // migrating stale rows just to preserve a number.
+        const migrated: OutboxOperation[] = oldQueue
+          .filter((item) => item.status === "pending" || item.status === "failed" || item.status === "conflict_warning")
+          .map((item): OutboxOperation => {
+            const opType: OutboxOpType =
+              item.action === "SALE"
+                ? "complete_sale"
+                : item.action === "WALLET_RECHARGE" || item.action === "WALLET_WITHDRAWAL"
+                  ? "adjust_wallet_balance"
+                  : item.action === "INSERT"
+                    ? "generic_insert"
+                    : item.action === "DELETE"
+                      ? "generic_delete"
+                      : "generic_update";
+
+            const payload =
+              item.action === "SALE"
+                ? { sale: item.payload.sale, items: item.payload.items }
+                : item.action === "WALLET_RECHARGE" || item.action === "WALLET_WITHDRAWAL"
+                  ? { wallet_id: item.payload.wallet_id, delta: item.payload.delta }
+                  : item.payload;
+
+            return {
+              // A fresh operation id, not carried over from the old queue
+              // row (which never had one) -- safe: this row never
+              // successfully synced under the old id-less scheme either, so
+              // there's no prior server-side idempotency record for it to
+              // collide with.
+              operationId: crypto.randomUUID(),
+              opType,
+              tableName: item.table_name,
+              payload,
+              // A migrated conflict stays a conflict -- still needs the same
+              // admin resolution it did before, just surfaced through the
+              // new Sync Health view instead of the old dashboard.
+              status: item.status === "conflict_warning" ? "conflict" : "pending",
+              retryCount: item.retryCount ?? 0,
+              maxRetries: item.maxRetries,
+              errorMessage: item.errorMessage,
+              createdAt: item.created_at,
+            } as OutboxOperation;
+          });
+
+        if (migrated.length > 0) {
+          await tx.table("sync_outbox").bulkAdd(migrated);
+        }
+
+        // sales.status no longer has "pending_sync"/"conflict_warning" in
+        // its type (those were always a purely local sync-bookkeeping
+        // concept smuggled into a business column) -- normalize any
+        // existing local row still carrying one of those values. The
+        // outbox migration above already preserved the "still needs
+        // attention" signal for a genuine conflict via its own status, so
+        // nothing is lost by flipping the sale itself to "completed" here.
+        const staleSales = await tx
+          .table("sales")
+          .where("status")
+          .anyOf(["pending_sync", "conflict_warning"])
+          .toArray();
+        for (const sale of staleSales) {
+          await tx.table("sales").update(sale.id, { status: "completed" });
+        }
+      });
+
+    this.version(9).stores({
+      sync_queue: null,
     });
   }
 }

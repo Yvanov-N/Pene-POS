@@ -1,8 +1,16 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { installGlobalErrorTelemetry } from "@/services/sync/telemetry";
 import "./i18n";
 import "./index.css";
+
+// Closes the "zero telemetry anywhere in this app" gap the sync rebuild's
+// observability requirement calls out directly -- every uncaught exception/
+// unhandled rejection now leaves a durable trace (public.sync_events, via
+// the same outbox every business mutation uses), not just a browser console
+// line nobody but a developer actively watching that one device ever sees.
+installGlobalErrorTelemetry();
 
 // Dev-only console diagnostic -- never included in a production build (the
 // whole testOfflineSync module, and its Supabase/db imports, get tree-shaken

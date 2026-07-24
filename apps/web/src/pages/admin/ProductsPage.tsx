@@ -4,7 +4,9 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { enqueueMutation, getPendingIds, mapProductRow } from "@/services/syncService";
+import { mapProductRow, writeBackIfNewer } from "@/services/sync/pull";
+import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
 import { usePaginatedQuery, type PageParams, type PageResult } from "@/hooks/usePaginatedQuery";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
@@ -73,7 +75,11 @@ async function fetchServerProducts(
   signal: AbortSignal,
 ): Promise<PageResult<Product>> {
   const offset = (params.page - 1) * params.pageSize;
-  let query = supabase.from("products").select("*", { count: "exact" });
+  // deleted_at is null: soft-deleted products (migration 00023) must not
+  // reappear in the admin list -- the tombstone row only exists so a
+  // cursor-based pull can propagate the deletion to other devices, it was
+  // never meant to be user-visible.
+  let query = supabase.from("products").select("*", { count: "exact" }).is("deleted_at", null);
   if (params.filters.category !== ALL_CATEGORIES_VALUE) query = query.eq("category_id", params.filters.category);
   const term = params.searchTerm.trim().replace(/[%,()]/g, "");
   if (term) query = query.or(`name.ilike.%${term}%,barcode.ilike.%${term}%`);
@@ -87,17 +93,17 @@ async function fetchServerProducts(
 }
 
 async function writeBackProducts(rows: Product[]): Promise<void> {
-  // Never clobber a row with a still-unsynced local edit (e.g. a queued
-  // restock) with a stale server value -- same guard pullFromSupabase uses.
-  const pendingIds = await getPendingIds("product_id");
-  const toPut = rows.filter((row) => !pendingIds.has(row.id));
-  if (toPut.length > 0) await db.products.bulkPut(toPut);
+  // "Only accept if newer" (by sync_seq) -- same rule the main pull cycle
+  // uses (services/sync/pull.ts), applied here too so a still-unsynced
+  // local edit (e.g. a queued restock) can't be clobbered by a stale server
+  // value from this page's own direct search fetch.
+  await writeBackIfNewer(db.products, rows, (row) => row);
 }
 
 export function ProductsPage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { triggerManualSync, isOnline } = useSyncEngine();
+  const { isOnline } = useSyncEngine();
 
   const categories = useLiveQuery(() => db.categories.toArray(), []);
   const categoryNameById = useMemo(
@@ -167,14 +173,14 @@ export function ProductsPage() {
   };
 
   const handleDelete = async (product: Product) => {
-    // The server rejects deleting a product referenced by historical
-    // sale_items (no ON DELETE clause -> RESTRICT); checking locally first
-    // gives a clear reason instead of a silent local delete that later sits
-    // as an unresolved sync conflict (syncService already treats that FK
-    // violation as "conflict", but the product would already look gone from
-    // this device's own catalog by then). A product still sitting in the
-    // shared active cart is blocked for the same reason: cart_items would
-    // dangle after PosCart looks up a product that no longer exists.
+    // A deleted product is soft-deleted server-side now (deleted_at, not an
+    // actual DELETE -- migration 00023), so the historical FK-RESTRICT
+    // concern this guard originally existed for no longer technically
+    // applies. Kept anyway as a deliberate business rule: a product with
+    // real sale history stays out of the deletable set, not just avoiding a
+    // sync conflict. A product still sitting in the shared active cart is
+    // blocked for a real technical reason though -- cart_items would dangle
+    // after PosCart looks up a product that no longer exists locally.
     const [cartUsage, saleUsage] = await Promise.all([
       db.cart_items.where("product_id").equals(product.id).count(),
       db.sale_items.where("product_id").equals(product.id).count(),
@@ -189,9 +195,9 @@ export function ProductsPage() {
       return;
     }
 
-    await db.products.delete(product.id);
-    await enqueueMutation("DELETE", "products", { id: product.id });
-    void triggerManualSync();
+    const entry = makeOutboxEntry("generic_delete", "products", { id: product.id });
+    await commitLocal(db.products, () => db.products.delete(product.id), entry);
+    void pushOutbox(entry);
     showToast("success", t("admin.products.deleteSuccessToast"));
   };
 

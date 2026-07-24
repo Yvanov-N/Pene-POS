@@ -4,9 +4,8 @@ import { useNavigate } from "react-router-dom";
 import type { TFunction } from "i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { enqueueMutation } from "@/services/syncService";
-import { submitGenericMutationNetworkFirst } from "@/services/repository";
-import { useSyncEngine } from "@/hooks/useSyncEngine";
+import { makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
@@ -31,7 +30,6 @@ function getExpiryBadge(t: TFunction, expiryDate?: string): { label: string; cla
 export function RestockingPage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { triggerManualSync } = useSyncEngine();
   const navigate = useNavigate();
 
   const [selected, setSelected] = useState<Product | null>(null);
@@ -77,18 +75,37 @@ export function RestockingPage() {
         return;
       }
 
-      const updated: Product = {
-        ...fresh,
-        stock: fresh.stock + quantity,
-        expiry_date: expiryInput ? new Date(expiryInput).toISOString() : fresh.expiry_date,
-        updated_at: new Date().toISOString(),
-      };
+      // Stock is pushed as an atomic delta (adjust_product_stock), not part
+      // of a whole-row update -- the old code here read `fresh.stock` into a
+      // local snapshot and pushed `stock: fresh.stock + quantity` back as a
+      // last-write-wins UPDATE, the same stale-clobber shape confirmed
+      // elsewhere (refundService.voidSale, MoMoVerificationCard's reject
+      // flow) as a real cause of stock mismatches: a sale ringing up on
+      // another terminal between this read and this write would be silently
+      // overwritten. expiry_date has no such concurrent-writer risk (nothing
+      // else in this app ever changes it), so it stays a plain field update,
+      // only pushed at all when it actually changed.
+      const nextExpiry = expiryInput ? new Date(expiryInput).toISOString() : fresh.expiry_date;
+      const expiryChanged = nextExpiry !== fresh.expiry_date;
+      const updated: Product = { ...fresh, stock: fresh.stock + quantity, expiry_date: nextExpiry, updated_at: new Date().toISOString() };
 
-      const mode = await submitGenericMutationNetworkFirst("UPDATE", "products", { ...updated });
-      await db.products.put(updated);
-      if (mode === "local") {
-        await enqueueMutation("UPDATE", "products", { ...updated });
-        void triggerManualSync();
+      const stockEntry = makeOutboxEntry("adjust_product_stock", "products", {
+        product_id: selected.id,
+        delta: quantity,
+        reason: "restock",
+      });
+      const expiryEntry = expiryChanged
+        ? makeOutboxEntry("generic_update", "products", { id: selected.id, expiry_date: nextExpiry ?? null })
+        : null;
+
+      await db.transaction("rw", db.products, db.sync_outbox, async () => {
+        await db.products.put(updated);
+        await recordOutbox(stockEntry);
+        if (expiryEntry) await recordOutbox(expiryEntry);
+      });
+
+      const outcomes = await Promise.all([pushOutbox(stockEntry), ...(expiryEntry ? [pushOutbox(expiryEntry)] : [])]);
+      if (outcomes.some((outcome) => outcome !== "synced")) {
         showToast("warning", t("sync.offlineFallbackToast"));
       }
 

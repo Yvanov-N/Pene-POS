@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { pullFromSupabase } from "@/services/syncService";
+import { pullAll } from "@/services/sync/pull";
 
 const DEBOUNCE_MS = 500;
 const REALTIME_TABLES = ["products", "sales", "student_wallets"] as const;
@@ -19,7 +19,7 @@ export function useRealtimeSync(): void {
   useEffect(() => {
     const schedulePull = () => {
       if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
-      debounceRef.current = window.setTimeout(() => void pullFromSupabase(), DEBOUNCE_MS);
+      debounceRef.current = window.setTimeout(() => void pullAll(), DEBOUNCE_MS);
     };
 
     let channel = supabase.channel("realtime-sync");

@@ -1,7 +1,7 @@
 import { useNetworkFirstQuery } from "@/hooks/useNetworkFirstQuery";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { getPendingIds, mapProductRow, mapWalletRow } from "@/services/syncService";
+import { mapProductRow, mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
 import type { StudentWallet } from "@/types/db";
 
 // Same "owing >= 5,000 FCFA" threshold as CriticalDebtWidget's own business
@@ -21,20 +21,19 @@ async function fetchWalletsRemote(signal: AbortSignal) {
   return data;
 }
 async function writeBackWallets(rows: Awaited<ReturnType<typeof fetchWalletsRemote>>) {
-  const pendingIds = await getPendingIds("wallet_id");
-  const toPut = rows.filter((row) => !pendingIds.has(row.id)).map(mapWalletRow);
-  if (toPut.length > 0) await db.student_wallets.bulkPut(toPut);
+  await writeBackIfNewer(db.student_wallets, rows, mapWalletRow);
 }
 
 async function fetchProductsRemote(signal: AbortSignal) {
-  const { data, error } = await supabase.from("products").select("*").abortSignal(signal);
+  // deleted_at is null: a soft-deleted product (migration 00023) must not
+  // reappear in this stock-value widget -- the tombstone row only exists
+  // for cursor-based pull propagation, it was never meant to be counted.
+  const { data, error } = await supabase.from("products").select("*").is("deleted_at", null).abortSignal(signal);
   if (error) throw error;
   return data;
 }
 async function writeBackProducts(rows: Awaited<ReturnType<typeof fetchProductsRemote>>) {
-  const pendingIds = await getPendingIds("product_id");
-  const toPut = rows.filter((row) => !pendingIds.has(row.id)).map(mapProductRow);
-  if (toPut.length > 0) await db.products.bulkPut(toPut);
+  await writeBackIfNewer(db.products, rows, mapProductRow);
 }
 
 // "balance" isn't indexed in the Dexie schema -- DashboardPage's total-debt

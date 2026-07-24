@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { CircleUserRound, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { enqueueMutation } from "@/services/syncService";
-import { useSyncEngine } from "@/hooks/useSyncEngine";
+import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import type { Profile } from "@/types/db";
@@ -35,7 +35,6 @@ interface AvatarEditModalProps {
 export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { triggerManualSync } = useSyncEngine();
 
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(
     isOwnUploadedAvatar(profile.avatar_url, profile.id) ? profile.avatar_url! : null,
@@ -90,9 +89,9 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
   };
 
   const persistAvatarUrl = async (url: string | undefined) => {
-    await db.profiles.update(profile.id, { avatar_url: url });
-    await enqueueMutation("UPDATE", "profiles", { id: profile.id, avatar_url: url ?? null });
-    void triggerManualSync();
+    const entry = makeOutboxEntry("generic_update", "profiles", { id: profile.id, avatar_url: url ?? null });
+    await commitLocal(db.profiles, () => db.profiles.update(profile.id, { avatar_url: url }), entry);
+    void pushOutbox(entry);
   };
 
   const handleSave = async () => {

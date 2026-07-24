@@ -4,7 +4,9 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { X } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { enqueueMutation, getPendingIds, mapWalletRow } from "@/services/syncService";
+import { mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
+import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
 import { usePaginatedQuery, type PageParams, type PageResult } from "@/hooks/usePaginatedQuery";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
@@ -61,9 +63,7 @@ async function fetchServerWallets(
 }
 
 async function writeBackWallets(rows: StudentWallet[]): Promise<void> {
-  const pendingIds = await getPendingIds("wallet_id");
-  const toPut = rows.filter((row) => !pendingIds.has(row.id));
-  if (toPut.length > 0) await db.student_wallets.bulkPut(toPut);
+  await writeBackIfNewer(db.student_wallets, rows, (row) => row);
 }
 
 interface FormState {
@@ -89,7 +89,7 @@ function walletToForm(wallet: StudentWallet): FormState {
 export function StudentWalletsPage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { triggerManualSync, isOnline } = useSyncEngine();
+  const { isOnline } = useSyncEngine();
 
   const [searchTerm, setSearchTermState] = useState("");
   const [page, setPage] = useState(1);
@@ -155,9 +155,9 @@ export function StudentWalletsPage() {
   };
 
   const setEmailOptIn = async (walletId: string, value: boolean) => {
-    await db.student_wallets.update(walletId, { email_opt_in: value });
-    await enqueueMutation("UPDATE", "student_wallets", { id: walletId, email_opt_in: value });
-    void triggerManualSync();
+    const entry = makeOutboxEntry("generic_update", "student_wallets", { id: walletId, email_opt_in: value });
+    await commitLocal(db.student_wallets, () => db.student_wallets.update(walletId, { email_opt_in: value }), entry);
+    void pushOutbox(entry);
   };
 
   const handleToggleEmailOptIn = async (wallet: StudentWallet) => {
@@ -221,11 +221,14 @@ export function StudentWalletsPage() {
         email: form.email.trim(),
         email_opt_in: existing?.email_opt_in ?? true,
         phone: form.phone.trim(),
+        updated_at: new Date().toISOString(),
       };
 
-      await db.student_wallets.put(wallet);
-      await enqueueMutation(editingId ? "UPDATE" : "INSERT", "student_wallets", { ...wallet });
-      void triggerManualSync();
+      const entry = makeOutboxEntry(editingId ? "generic_update" : "generic_insert", "student_wallets", {
+        ...wallet,
+      });
+      await commitLocal(db.student_wallets, () => db.student_wallets.put(wallet), entry);
+      void pushOutbox(entry);
 
       showToast("success", t(editingId ? "admin.wallets.updateSuccessToast" : "admin.wallets.createSuccessToast", { name: studentName }));
       setFormOpen(false);

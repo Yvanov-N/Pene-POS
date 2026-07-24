@@ -6,10 +6,11 @@ import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { enqueueMutation, getPendingIds, mapWalletRow } from "@/services/syncService";
-import { submitSaleNetworkFirst, submitWalletAdjustmentNetworkFirst, type WriteMode } from "@/services/repository";
+import { makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
+import { mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
 import { printService } from "@/services/hardware/printService";
-import type { CartItem, PaymentMethod, Profile, Sale, SaleItem, SalePayload, StudentWallet } from "@/types/db";
+import type { CartItem, PaymentMethod, Profile, Sale, SaleItem, StudentWallet } from "@/types/db";
 
 const SETTINGS_ID = "default";
 
@@ -22,9 +23,14 @@ async function fetchWalletsRemote(signal: AbortSignal) {
   return data;
 }
 async function writeBackWallets(rows: Awaited<ReturnType<typeof fetchWalletsRemote>>) {
-  const pendingIds = await getPendingIds("wallet_id");
-  const toPut = rows.filter((row) => !pendingIds.has(row.id)).map(mapWalletRow);
-  if (toPut.length > 0) await db.student_wallets.bulkPut(toPut);
+  // "Only accept if newer" (by sync_seq) -- this is a separate, direct
+  // stale-while-revalidate fetch (useNetworkFirstQuery), not the cursor-
+  // gated main pull, so it has no cursor-advance protection of its own.
+  // Without this, a wallet search's background refetch landing right after
+  // a wallet-payment checkout (optimistic local balance already
+  // decremented, outbox push not necessarily landed yet) could overwrite
+  // that fresher local balance with the stale pre-checkout one.
+  await writeBackIfNewer(db.student_wallets, rows, mapWalletRow);
 }
 
 export const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
@@ -111,8 +117,6 @@ export function usePosCheckout() {
   const completeCheckout = async (profile: Profile) => {
     const saleId = crypto.randomUUID();
     const now = new Date().toISOString();
-    let committedSale: Sale | null = null;
-    let committedItems: SaleItem[] = [];
     // Snapshotted before the transaction clears db.cart_items -- cart.items
     // itself is about to be emptied out from under us.
     const cartItemsSnapshot = cart.items;
@@ -125,11 +129,16 @@ export function usePosCheckout() {
       total_amount: cart.totalAmount,
       payment_method: paymentMethod!,
       student_id: selectedStudent?.id,
-      status: "pending_sync",
+      // Always "completed" the instant it's committed locally, whether or
+      // not the outbox push below has landed server-side yet -- sync state
+      // lives entirely in the outbox now, never in this business field
+      // (see types/db.ts's Sale.status comment).
+      status: "completed",
       // Only Mobile Money sales need a shop-phone SMS checked before
       // they're considered settled -- cash and student_wallet sales
       // never enter this workflow at all.
       momo_verification_status: paymentMethod === "momo_mtn" || paymentMethod === "momo_orange" ? "pending" : undefined,
+      updated_at: now,
     };
     const saleItems: SaleItem[] = cart.items.map((item) => ({
       id: crypto.randomUUID(),
@@ -137,38 +146,42 @@ export function usePosCheckout() {
       product_id: item.product_id,
       quantity: item.quantity,
       unit_price: item.price,
+      updated_at: now,
     }));
-    const salePayload: SalePayload = { sale, items: saleItems };
+    const entry = makeOutboxEntry("complete_sale", "sales", { sale, items: saleItems });
 
-    // Network-first: attempt the direct Supabase write before touching Dexie
-    // at all. On "cloud", the sale/wallet delta is already durably committed
-    // server-side, so the local write below just mirrors that confirmed
-    // state and skips enqueueing entirely -- there's nothing left to sync.
-    // On "local" (offline, timed out, or a genuine conflict), this falls
-    // back to exactly the local-first flow this app has always used.
-    const saleMode = await submitSaleNetworkFirst(salePayload);
-    let walletMode: WriteMode | null = null;
-    if (isWalletPayment && selectedStudent) {
-      walletMode = await submitWalletAdjustmentNetworkFirst({
-        wallet_id: selectedStudent.id,
-        delta: -cart.totalAmount,
-      });
-    }
-
+    // Commit-local-then-push-eager: everything below -- sale, items, stock
+    // decrements, the optimistic wallet debit, and the outbox record itself
+    // -- lands in ONE Dexie transaction before any network attempt. This is
+    // the fix for the "lost sale" root cause this rebuild exists to close:
+    // the old code awaited a direct Supabase call BEFORE ever touching
+    // Dexie, so a tab closing mid-await could lose a sale that may have
+    // already committed server-side, and a re-rung retry under a new id
+    // would be a genuine duplicate. Here, the instant this transaction
+    // resolves, the sale is fully durable locally and guaranteed to reach
+    // Supabase eventually -- via the eager push right below, or the
+    // periodic drain/reconnect backstop otherwise -- regardless of what
+    // happens to the network next.
+    //
+    // The wallet debit for a student_wallet sale is deliberately NOT a
+    // second, separate outbox entry: complete_sale (migration 00028) now
+    // applies it server-side in the SAME transaction as the sale itself, so
+    // a failure between "sale recorded" and "wallet debited" -- the old
+    // code's two independent network calls -- can no longer happen.
     await db.transaction(
       "rw",
       // Array form -- Dexie's variadic-table-argument overloads cap out
       // below the 6 tables this transaction touches (adding student_wallets
       // pushed it over that limit).
-      [db.sales, db.sale_items, db.products, db.student_wallets, db.sync_queue, db.cart_items],
+      [db.sales, db.sale_items, db.products, db.student_wallets, db.sync_outbox, db.cart_items],
       async () => {
-        await db.sales.put({ ...sale, status: saleMode === "cloud" ? "completed" : "pending_sync" });
+        await db.sales.put(sale);
         await db.sale_items.bulkPut(saleItems);
 
         for (const item of cart.items) {
           const product = await db.products.get(item.product_id);
           if (product) {
-            // No clamp to 0 -- a genuine cross-terminal oversell is now
+            // No clamp to 0 -- a genuine cross-terminal oversell is
             // expected to settle negative (migration 00019), surfaced via
             // the product grid/table's "Negative stock" badge, not hidden
             // locally until the next pull.
@@ -176,59 +189,48 @@ export function usePosCheckout() {
           }
         }
 
-        if (saleMode === "local") await enqueueMutation("SALE", "sales", salePayload);
-
         if (isWalletPayment && selectedStudent) {
           const nextBalance = selectedStudent.balance - cart.totalAmount;
           await db.student_wallets.update(selectedStudent.id, { balance: nextBalance });
-          if (walletMode === "local") {
-            await enqueueMutation("WALLET_RECHARGE", "student_wallets", {
-              wallet_id: selectedStudent.id,
-              delta: -cart.totalAmount,
-            });
-          }
         }
 
+        await recordOutbox(entry);
         await db.cart_items.clear();
-
-        committedSale = { ...sale, status: saleMode === "cloud" ? "completed" : "pending_sync" };
-        committedItems = saleItems;
       },
     );
 
-    if (saleMode === "local" || walletMode === "local") {
+    const outcome = await pushOutbox(entry);
+    if (outcome !== "synced") {
       showToast("warning", t("sync.offlineFallbackToast"));
       // Every other write path in this app already fires this after
       // enqueueing; checkout was the one exception -- fixed here since the
-      // new fallback branch needs it to actually flush promptly.
+      // fallback branch needs it to actually flush promptly.
       void triggerManualSync();
     }
 
     setPaymentMethod(null);
     setSelectedStudent(null);
 
-    if (committedSale) {
-      setLastReceipt({
-        sale: committedSale,
-        items: committedItems,
-        cartItems: cartItemsSnapshot,
-        cashierName: profile.full_name,
-        studentName: studentNameSnapshot,
-      });
+    setLastReceipt({
+      sale,
+      items: saleItems,
+      cartItems: cartItemsSnapshot,
+      cashierName: profile.full_name,
+      studentName: studentNameSnapshot,
+    });
 
-      // Auto-print is opt-in (admin.settings.autoPrintReceiptsLabel, off by
-      // default) -- the receipt modal above is the new default confirmation
-      // UI; printing is now something a cashier chooses per-terminal, not a
-      // silent side effect on every sale. Still best-effort when enabled --
-      // the sale already succeeded, so a printer being unplugged/unpaired
-      // must never surface as a checkout failure.
-      const settings = await db.local_settings.get(SETTINGS_ID);
-      if (settings?.autoPrintReceipts) {
-        try {
-          await printService.printReceipt(committedSale, committedItems, settings.printMode ?? "browser");
-        } catch (error) {
-          console.warn("[usePosCheckout] receipt print failed", error);
-        }
+    // Auto-print is opt-in (admin.settings.autoPrintReceiptsLabel, off by
+    // default) -- the receipt modal above is the default confirmation UI;
+    // printing is something a cashier chooses per-terminal, not a silent
+    // side effect on every sale. Still best-effort when enabled -- the sale
+    // already succeeded, so a printer being unplugged/unpaired must never
+    // surface as a checkout failure.
+    const settings = await db.local_settings.get(SETTINGS_ID);
+    if (settings?.autoPrintReceipts) {
+      try {
+        await printService.printReceipt(sale, saleItems, settings.printMode ?? "browser");
+      } catch (error) {
+        console.warn("[usePosCheckout] receipt print failed", error);
       }
     }
   };
