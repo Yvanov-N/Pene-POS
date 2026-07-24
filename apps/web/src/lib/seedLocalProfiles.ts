@@ -8,7 +8,7 @@ import { computeFullName } from "@/types/db";
 //
 // The admin mock deliberately uses the SAME id as the real seeded Supabase
 // admin (supabase/seed.sql: 00000000-0000-0000-0000-000000000001), not a
-// random one. pullFromSupabase() already has logic to preserve whatever
+// random one. pullAll() (services/sync/pull.ts) already has logic to preserve whatever
 // pin_hash a local profile row has when it re-pulls that same row ("a
 // brand-new pulled profile has none yet and fails closed... an empty string
 // never matches a real digest") -- but that preservation is keyed by id, so

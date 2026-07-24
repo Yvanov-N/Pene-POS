@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { enqueueMutation } from "@/services/syncService";
-import { useSyncEngine } from "@/hooks/useSyncEngine";
+import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
 import type { Profile } from "@/types/db";
 
 export interface ToggleShopStatusResult {
@@ -21,8 +21,6 @@ interface ShopStatusContextValue {
 const ShopStatusContext = createContext<ShopStatusContextValue | null>(null);
 
 export function ShopStatusProvider({ children }: { children: ReactNode }) {
-  const { triggerManualSync } = useSyncEngine();
-
   // Phase 12 offline-first audit: this used to be a plain useState fetched
   // once via a direct supabase.from("shop_status") call -- the one hook in
   // the app that read AND wrote straight against Supabase with no local
@@ -54,25 +52,29 @@ export function ShopStatusProvider({ children }: { children: ReactNode }) {
       const now = new Date().toISOString();
 
       try {
-        // put(), not update(): guarantees a full, valid row even in the
-        // (should-be-impossible-per-the-guard-above, but defensive anyway)
-        // case where the local row is somehow missing -- update() on a
-        // nonexistent key is a silent no-op in Dexie, not an error.
-        await db.shop_status.put({ id: 1, is_open: nextOpen, updated_by: profile.id, updated_at: now });
-        await enqueueMutation("UPDATE", "shop_status", {
+        const entry = makeOutboxEntry("generic_update", "shop_status", {
           id: 1,
           is_open: nextOpen,
           updated_by: profile.id,
           updated_at: now,
         });
-        void triggerManualSync();
+        // put(), not update(): guarantees a full, valid row even in the
+        // (should-be-impossible-per-the-guard-above, but defensive anyway)
+        // case where the local row is somehow missing -- update() on a
+        // nonexistent key is a silent no-op in Dexie, not an error.
+        await commitLocal(
+          db.shop_status,
+          () => db.shop_status.put({ id: 1, is_open: nextOpen, updated_by: profile.id, updated_at: now }),
+          entry,
+        );
+        void pushOutbox(entry);
         return { success: true, nextOpen };
       } catch (error) {
         console.error("[useShopStatus] local write failed", error);
         return { success: false, nextOpen };
       }
     },
-    [shopOpen, triggerManualSync],
+    [shopOpen],
   );
 
   const value = useMemo<ShopStatusContextValue>(

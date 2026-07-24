@@ -5,7 +5,7 @@ import type { TFunction } from "i18next";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { useNetworkFirstQuery } from "@/hooks/useNetworkFirstQuery";
-import { getPendingIds, mapProductRow } from "@/services/syncService";
+import { mapProductRow, writeBackIfNewer } from "@/services/sync/pull";
 import { isRevenueRelevant, buildProductTotals } from "@/lib/salesAggregation";
 import type { Product } from "@/types/db";
 import { formatCurrency } from "@/lib/currency";
@@ -72,10 +72,13 @@ export function ProductGrid({ searchTerm, category, onProductSelect }: ProductGr
   // stock counts here are exactly what causes a cross-terminal oversell.
   const fetchRemote = useCallback(
     async (signal: AbortSignal) => {
+      // deleted_at is null: a soft-deleted product (migration 00023) must
+      // not reappear on the POS grid -- the tombstone row only exists for
+      // cursor-based pull propagation.
       const query =
         category === ALL_CATEGORIES_VALUE
-          ? supabase.from("products").select("*")
-          : supabase.from("products").select("*").eq("category_id", category);
+          ? supabase.from("products").select("*").is("deleted_at", null)
+          : supabase.from("products").select("*").is("deleted_at", null).eq("category_id", category);
       const { data, error } = await query.abortSignal(signal);
       if (error) throw error;
       return data;
@@ -83,11 +86,10 @@ export function ProductGrid({ searchTerm, category, onProductSelect }: ProductGr
     [category],
   );
   const writeBack = useCallback(async (rows: Awaited<ReturnType<typeof fetchRemote>>) => {
-    // Never clobber a row with a still-unsynced local edit (e.g. a queued
-    // restock) with a stale server value -- same guard pullFromSupabase uses.
-    const pendingIds = await getPendingIds("product_id");
-    const toPut = rows.filter((row) => !pendingIds.has(row.id)).map(mapProductRow);
-    if (toPut.length > 0) await db.products.bulkPut(toPut);
+    // "Only accept if newer" (by sync_seq) -- never clobber a row with a
+    // still-unsynced local edit (e.g. a queued restock) with a stale server
+    // value, same rule the main pull cycle uses (services/sync/pull.ts).
+    await writeBackIfNewer(db.products, rows, mapProductRow);
   }, []);
 
   const products = useNetworkFirstQuery(

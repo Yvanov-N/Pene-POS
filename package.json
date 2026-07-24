@@ -12,6 +12,7 @@
     "dev": "supabase start && pnpm --filter web dev",
     "build": "pnpm --filter web build",
     "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "db:types": "supabase gen types typescript --local > apps/web/src/types/supabase-generated.ts"
   }
 }

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Wifi, WifiOff, AlertTriangle, RefreshCw, type LucideIcon } from "lucide-react";
 import { db } from "@/lib/db";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
-import { MAX_RETRIES } from "@/services/syncService";
+import { MAX_RETRIES } from "@/services/sync/outbox";
 
 type Tone = "online" | "offline" | "error" | "resyncing";
 
@@ -41,17 +41,16 @@ export function SyncStatusIndicator({ compact = false, onErrorClick }: SyncStatu
   const { isOnline, isSyncing, triggerManualSync, checkNow } = useSyncEngine();
 
   const pendingCount =
-    useLiveQuery(() => db.sync_queue.where("status").anyOf(["pending", "failed"]).count(), []) ?? 0;
-  const conflictCount =
-    useLiveQuery(() => db.sync_queue.where("status").equals("conflict_warning").count(), []) ?? 0;
+    useLiveQuery(() => db.sync_outbox.where("status").anyOf(["pending", "syncing", "error"]).count(), []) ?? 0;
+  const conflictCount = useLiveQuery(() => db.sync_outbox.where("status").equals("conflict").count(), []) ?? 0;
   // "stuck" items: retried up to their budget and still failing -- distinct
-  // from a normal "failed", which just means "will retry next cycle".
+  // from a normal "error", which just means "will retry next cycle".
   const exhaustedCount =
     useLiveQuery(
       () =>
-        db.sync_queue
+        db.sync_outbox
           .where("status")
-          .equals("failed")
+          .equals("error")
           .and((item) => item.retryCount >= (item.maxRetries ?? MAX_RETRIES))
           .count(),
       [],

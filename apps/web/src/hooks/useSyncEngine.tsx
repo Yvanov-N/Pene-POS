@@ -12,7 +12,8 @@ import { useTranslation } from "react-i18next";
 import { useNetworkStatus } from "./useNetworkStatus";
 import { useToast } from "./useToast";
 import { useRealtimeSync } from "./useRealtimeSync";
-import { processSyncQueue, pullFromSupabase } from "@/services/syncService";
+import { drainOutbox } from "@/services/sync/drain";
+import { pullAll } from "@/services/sync/pull";
 
 const SYNC_INTERVAL_MS = 30000;
 const LAST_SYNCED_STORAGE_KEY = "pene-pos-last-synced-at";
@@ -68,18 +69,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const reachable = await checkNow();
       if (!reachable) return;
 
-      const { completedSales, conflicts } = await processSyncQueue();
-      await pullFromSupabase();
+      const { syncedSales, conflicts } = await drainOutbox();
+      await pullAll();
 
       // Only toast when something actually happened this cycle -- the
       // interval fires every 30s (SYNC_INTERVAL_MS) regardless of whether
-      // the queue had anything in it, and a still-unresolved conflict is
-      // never re-counted
-      // (processSyncQueue only selects pending/failed items, and a conflict
-      // transitions straight to conflict_warning, so it can't show up here
-      // again on a later cycle and re-toast forever).
-      if (completedSales > 0) {
-        showToast("success", t("sync.toastSuccess", { count: completedSales }));
+      // the outbox had anything pending in it, and a still-unresolved
+      // conflict is never re-counted (drainOutbox only selects pending/
+      // error items, and a conflict transitions straight to "conflict"
+      // status, so it can't show up here again on a later cycle and
+      // re-toast forever).
+      if (syncedSales > 0) {
+        showToast("success", t("sync.toastSuccess", { count: syncedSales }));
       }
       if (conflicts > 0) {
         showToast("error", t("sync.toastConflict"), CONFLICT_TOAST_DURATION_MS);

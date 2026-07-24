@@ -5,8 +5,8 @@ import { CircleUserRound } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { hashPin } from "@/lib/hashPin";
-import { enqueueMutation } from "@/services/syncService";
-import { useSyncEngine } from "@/hooks/useSyncEngine";
+import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useToast } from "@/hooks/useToast";
 import { CardCustom } from "@/components/ui/card-custom";
@@ -46,7 +46,6 @@ function profileToForm(profile: { first_name: string; last_name: string }): Form
 export function ProfileSettingsCard() {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { triggerManualSync } = useSyncEngine();
   const profile = useCurrentProfile();
 
   const [form, setForm] = useState<FormState | null>(null);
@@ -136,17 +135,22 @@ export function ProfileSettingsCard() {
       // deliberately left OUT of the enqueued Supabase payload below
       // (Postgres rejects an UPDATE that references a generated column at
       // all, even with a matching value).
-      await db.profiles.update(profile.id, {
-        first_name: firstName,
-        last_name: lastName,
-        full_name: computeFullName(firstName, lastName),
-      });
-      await enqueueMutation("UPDATE", "profiles", {
+      const entry = makeOutboxEntry("generic_update", "profiles", {
         id: profile.id,
         first_name: firstName,
         last_name: lastName,
       });
-      void triggerManualSync();
+      await commitLocal(
+        db.profiles,
+        () =>
+          db.profiles.update(profile.id, {
+            first_name: firstName,
+            last_name: lastName,
+            full_name: computeFullName(firstName, lastName),
+          }),
+        entry,
+      );
+      void pushOutbox(entry);
 
       showToast("success", t("admin.profile.saveSuccessToast"));
     } finally {

@@ -224,8 +224,6 @@
       "columnActions": "Actions",
       "status": {
         "completed": "Completed",
-        "pending_sync": "Syncing",
-        "conflict_warning": "Conflict",
         "refunded": "Refunded"
       }
     },
@@ -314,18 +312,15 @@
       "badge_one": "{{count}} Conflict",
       "badge_other": "{{count}} Conflicts",
       "pinTitle": "Administrator authorization required",
-      "title": "Sync conflicts",
-      "loading": "Loading conflicts...",
-      "empty": "No pending conflicts.",
-      "resolveAll": "Resolve all",
-      "lineDescription": "Product: {{product}} — Negative stock ({{stock}}) detected following a delayed offline sale sync.",
-      "adjustToZero": "Adjust to 0",
-      "forceIgnore": "Force / Ignore",
-      "otherStuckTitle": "Other stuck items",
+      "title": "Sync health",
+      "loading": "Loading sync status...",
+      "empty": "Nothing needs attention.",
+      "otherStuckTitle": "Stuck items",
       "otherStatusConflict": "Conflict during sync.",
       "otherStatusExhausted": "Failed after {{count}} attempts.",
       "retry": "Retry",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "recentEventsTitle": "Recent stock/balance events"
     },
     "profile": {
       "title": "My profile & linked accounts",

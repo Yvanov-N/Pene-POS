@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { X } from "lucide-react";
 import { db } from "@/lib/db";
-import { enqueueMutation } from "@/services/syncService";
-import { useSyncEngine } from "@/hooks/useSyncEngine";
+import { commitLocal, makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import type { Category } from "@/types/db";
@@ -16,7 +16,6 @@ interface CategoryManagerModalProps {
 export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { triggerManualSync } = useSyncEngine();
 
   const categories = useLiveQuery(() => db.categories.orderBy("name").toArray(), []);
   const productCounts = useLiveQuery(async () => {
@@ -70,9 +69,9 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
 
       setAddError(null);
       const category: Category = { id: crypto.randomUUID(), name, updated_at: new Date().toISOString() };
-      await db.categories.put(category);
-      await enqueueMutation("INSERT", "categories", { ...category });
-      void triggerManualSync();
+      const entry = makeOutboxEntry("generic_insert", "categories", { ...category });
+      await commitLocal(db.categories, () => db.categories.put(category), entry);
+      void pushOutbox(entry);
 
       showToast("success", t("admin.categories.addSuccessToast", { name }));
       setNewName("");
@@ -101,9 +100,9 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
 
       setEditError(null);
       const updated: Category = { ...category, name, updated_at: new Date().toISOString() };
-      await db.categories.put(updated);
-      await enqueueMutation("UPDATE", "categories", { ...updated });
-      void triggerManualSync();
+      const entry = makeOutboxEntry("generic_update", "categories", { ...updated });
+      await commitLocal(db.categories, () => db.categories.put(updated), entry);
+      void pushOutbox(entry);
 
       showToast("success", t("admin.categories.renameSuccessToast", { name }));
       setEditingId(null);
@@ -116,19 +115,25 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
   const handleDelete = async (category: Category) => {
     const affectedProducts = await db.products.where("category_id").equals(category.id).toArray();
 
-    await db.transaction("rw", db.products, db.categories, db.sync_queue, async () => {
-      for (const product of affectedProducts) {
+    const productEntries = affectedProducts.map((product) =>
+      // Explicit null (not undefined) -- the payload is JSON-serialized for
+      // the Supabase push, and an undefined key is dropped rather than
+      // clearing the column server-side.
+      makeOutboxEntry("generic_update", "products", { id: product.id, category_id: null }),
+    );
+    const categoryEntry = makeOutboxEntry("generic_delete", "categories", { id: category.id });
+
+    await db.transaction("rw", db.products, db.categories, db.sync_outbox, async () => {
+      for (let i = 0; i < affectedProducts.length; i += 1) {
+        const product = affectedProducts[i];
         await db.products.put({ ...product, category_id: undefined });
-        // Explicit null (not undefined) -- the payload is JSON-serialized
-        // for the Supabase push, and an undefined key is dropped rather
-        // than clearing the column server-side.
-        await enqueueMutation("UPDATE", "products", { id: product.id, category_id: null });
+        await recordOutbox(productEntries[i]);
       }
       await db.categories.delete(category.id);
-      await enqueueMutation("DELETE", "categories", { id: category.id });
+      await recordOutbox(categoryEntry);
     });
 
-    void triggerManualSync();
+    void Promise.all([...productEntries.map((e) => pushOutbox(e)), pushOutbox(categoryEntry)]);
     showToast(
       "success",
       affectedProducts.length > 0

@@ -13,9 +13,11 @@ export const PAYMENT_BADGE_CLASS: Record<PaymentMethod, string> = {
 
 // Shared between SalesHistoryPage and StudentProfileDrawer (a sale's purchase
 // history is shown in both places and should read the same way in either).
+// SaleStatus is a pure business enum now (types/db.ts) -- "is this synced
+// yet" no longer lives here at all, so there's no amber/red "still syncing"
+// state to render for this field specifically anymore (see
+// SyncStatusIndicator for that).
 export const STATUS_BADGE_CLASS: Record<SaleStatus, string> = {
   completed: "badge-green",
-  pending_sync: "badge-amber",
-  conflict_warning: "badge-red",
   refunded: "badge-red",
 };

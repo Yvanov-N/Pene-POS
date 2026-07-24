@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { enqueueMutation } from "@/services/syncService";
-import { useSyncEngine } from "@/hooks/useSyncEngine";
+import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { scannerService } from "@/services/hardware/scannerService";
@@ -57,7 +57,6 @@ interface ProductFormDrawerProps {
 export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { triggerManualSync } = useSyncEngine();
 
   const [form, setForm] = useState<FormState>(product ? productToForm(product) : EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
@@ -177,9 +176,9 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
         updated_at: new Date().toISOString(),
       };
 
-      await db.products.put(saved);
-      await enqueueMutation(product ? "UPDATE" : "INSERT", "products", { ...saved });
-      void triggerManualSync();
+      const entry = makeOutboxEntry(product ? "generic_update" : "generic_insert", "products", { ...saved });
+      await commitLocal(db.products, () => db.products.put(saved), entry);
+      void pushOutbox(entry);
 
       showToast("success", t("admin.products.savedToast"));
       onClose();

@@ -1,232 +1,47 @@
-// Hand-authored to mirror supabase/migrations/00001_initial_schema.sql through
-// 00015_atomic_complete_sale.sql.
-// Regenerate from the real database once it's stable:
-//   supabase gen types typescript --local > src/types/supabase.ts
+// Hand-maintained wrapper around the CLI-generated supabase-generated.ts
+// (regenerate that file with `pnpm db:types`, never hand-edit it directly).
+// This file exists so the rest of the app can keep importing a small set of
+// stable, narrowed names (UserRole, PaymentMethod, SaleStatus, ...) instead
+// of reaching into Database["public"]["Enums"][...] everywhere, and so a
+// migration can't silently drift these two representations apart the way
+// the old hand-authored supabase.ts drifted from the real schema (it was
+// missing sales.id_text, added in migration 00020, among other gaps).
 
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+import type { Database as GeneratedDatabase, Json } from "@/types/supabase-generated";
 
-// Canonical source for these enums -- types/db.ts imports and re-exports all
-// five rather than redeclaring them, so a future migration can't let the two
-// files' unions silently drift apart.
-export type UserRole = "admin" | "cashier";
-export type PaymentMethod = "cash" | "momo_mtn" | "momo_orange" | "student_wallet";
-export type SaleStatus = "completed" | "pending_sync" | "conflict_warning" | "refunded";
+export type { Json };
+export type Database = GeneratedDatabase;
+
+export type UserRole = Database["public"]["Enums"]["user_role"];
+export type PaymentMethod = Database["public"]["Enums"]["payment_method"];
+
+// The raw Postgres enum still has all 4 historical values (migrations are
+// additive-only -- an enum value, once added, is never removed). This
+// narrower alias is what the client actually ever writes or expects to see
+// server-side now: complete_sale/void_sale force 'completed'/'refunded'
+// respectively, and 'pending_sync'/'conflict_warning' were always a purely
+// local Dexie concept (see the old syncService.ts's processSyncQueue) that
+// never actually got pushed to the remote sales.status column. Sync state
+// itself now lives entirely in the local outbox (types/db.ts's
+// OutboxOperation), never in this business-status field.
+export type SaleStatus = "completed" | "refunded";
+
+// CHECK-constrained text columns, not real Postgres enum types (see
+// migrations 00004, 00010) -- the generator types these as plain `string`,
+// so the narrower literal unions are hand-maintained here for the same
+// reason SaleStatus is: real type safety at every read/write site.
 export type MomoVerificationStatus = "pending" | "confirmed" | "rejected";
 export type PreferredLanguage = "fr" | "en";
 
-export interface Database {
-  public: {
-    Tables: {
-      profiles: {
-        Row: {
-          id: string;
-          email: string;
-          // Generated always as trim(first_name || ' ' || last_name) --
-          // never sent in an Insert/Update, only ever read back.
-          full_name: string;
-          first_name: string;
-          last_name: string;
-          avatar_url: string | null;
-          preferred_language: PreferredLanguage;
-          role: UserRole;
-          pin_code: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id: string;
-          email: string;
-          first_name?: string;
-          last_name?: string;
-          avatar_url?: string | null;
-          preferred_language?: PreferredLanguage;
-          role: UserRole;
-          pin_code: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
-        Relationships: [];
-      };
-      categories: {
-        Row: {
-          id: string;
-          name: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["categories"]["Insert"]>;
-        Relationships: [];
-      };
-      products: {
-        Row: {
-          id: string;
-          name: string;
-          price: number;
-          stock: number;
-          barcode: string | null;
-          category_id: string | null;
-          image_url: string | null;
-          emoji: string | null;
-          expiry_date: string | null;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          price: number;
-          stock?: number;
-          barcode?: string | null;
-          category_id?: string | null;
-          image_url?: string | null;
-          emoji?: string | null;
-          expiry_date?: string | null;
-          updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
-        Relationships: [];
-      };
-      sales: {
-        Row: {
-          id: string;
-          created_at: string;
-          cashier_id: string;
-          total_amount: number;
-          payment_method: PaymentMethod;
-          student_id: string | null;
-          status: SaleStatus;
-          momo_verification_status: MomoVerificationStatus | null;
-        };
-        Insert: {
-          id?: string;
-          created_at?: string;
-          cashier_id: string;
-          total_amount: number;
-          payment_method: PaymentMethod;
-          student_id?: string | null;
-          status?: SaleStatus;
-          momo_verification_status?: MomoVerificationStatus | null;
-        };
-        Update: Partial<Database["public"]["Tables"]["sales"]["Insert"]>;
-        Relationships: [];
-      };
-      sale_items: {
-        Row: {
-          id: string;
-          sale_id: string;
-          product_id: string;
-          quantity: number;
-          unit_price: number;
-        };
-        Insert: {
-          id?: string;
-          sale_id: string;
-          product_id: string;
-          quantity: number;
-          unit_price: number;
-        };
-        Update: Partial<Database["public"]["Tables"]["sale_items"]["Insert"]>;
-        Relationships: [];
-      };
-      student_wallets: {
-        Row: {
-          id: string;
-          student_name: string;
-          badge_code: string;
-          balance: number;
-          email: string | null;
-          email_opt_in: boolean;
-          phone: string | null;
-        };
-        Insert: {
-          id?: string;
-          student_name: string;
-          badge_code: string;
-          balance?: number;
-          email?: string | null;
-          email_opt_in?: boolean;
-          phone?: string | null;
-        };
-        Update: Partial<Database["public"]["Tables"]["student_wallets"]["Insert"]>;
-        Relationships: [];
-      };
-      shop_status: {
-        Row: {
-          id: number;
-          is_open: boolean;
-          updated_at: string;
-          updated_by: string | null;
-        };
-        Insert: {
-          id?: number;
-          is_open?: boolean;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Update: Partial<Database["public"]["Tables"]["shop_status"]["Insert"]>;
-        Relationships: [];
-      };
-      push_subscriptions: {
-        Row: {
-          id: string;
-          user_id: string;
-          endpoint: string;
-          p256dh: string;
-          auth: string;
-          device_label: string | null;
-          created_at: string;
-          last_used_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          endpoint: string;
-          p256dh: string;
-          auth: string;
-          device_label?: string | null;
-          created_at?: string;
-          last_used_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Insert"]>;
-        Relationships: [];
-      };
-    };
-    Views: Record<string, never>;
-    Functions: {
-      decrement_product_stock: {
-        Args: { p_product_id: string; p_quantity: number };
-        Returns: Database["public"]["Tables"]["products"]["Row"];
-      };
-      complete_sale: {
-        Args: { p_sale: Json; p_items: Json };
-        Returns: Database["public"]["Tables"]["sales"]["Row"];
-      };
-      adjust_wallet_balance: {
-        Args: { p_wallet_id: string; p_delta: number };
-        Returns: Database["public"]["Tables"]["student_wallets"]["Row"];
-      };
-      get_public_receipt: {
-        Args: { p_sale_id: string };
-        Returns: Json | null;
-      };
-      update_own_pin_code: {
-        Args: { new_pin: string };
-        Returns: void;
-      };
-      oauth_provider_linked: {
-        Args: { provider_name: string };
-        Returns: boolean;
-      };
-    };
-    Enums: {
-      user_role: UserRole;
-      payment_method: PaymentMethod;
-      sale_status: SaleStatus;
-    };
-    CompositeTypes: Record<string, never>;
-  };
+// Structured RPC outcomes (sync rebuild) -- every mutating RPC added this
+// phase (complete_sale, adjust_wallet_balance, adjust_product_stock,
+// void_sale, all 4-arg/operation_id overloads) returns one of these jsonb
+// shapes instead of relying on the caller to sniff a Postgres SQLSTATE.
+export type SyncRpcOutcome = "completed" | "replayed" | "conflict";
+
+export interface SyncRpcResult {
+  outcome: SyncRpcOutcome;
+  operation_id: string;
+  reason?: string;
+  [key: string]: unknown;
 }

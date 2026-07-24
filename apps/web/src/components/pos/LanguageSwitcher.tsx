@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { SUPPORTED_LANGUAGES } from "@/i18n";
 import { db } from "@/lib/db";
-import { enqueueMutation } from "@/services/syncService";
-import { useSyncEngine } from "@/hooks/useSyncEngine";
+import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
+import { pushOutbox } from "@/services/sync/push";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import type { PreferredLanguage } from "@/types/db";
 
@@ -16,7 +16,6 @@ interface LanguageSwitcherProps {
 
 export function LanguageSwitcher({ stacked = false }: LanguageSwitcherProps) {
   const { t, i18n } = useTranslation();
-  const { triggerManualSync } = useSyncEngine();
   const profile = useCurrentProfile();
   // Applies the profile's saved language once when it first resolves (e.g.
   // this device's account prefers "en" but the browser/localStorage default
@@ -39,9 +38,9 @@ export function LanguageSwitcher({ stacked = false }: LanguageSwitcherProps) {
     // reopen in the language it was last switched to, not silently drift
     // back to the browser default. Never blocks the actual language switch,
     // which already happened above regardless of whether a profile exists.
-    await db.profiles.update(profile.id, { preferred_language: lang });
-    await enqueueMutation("UPDATE", "profiles", { id: profile.id, preferred_language: lang });
-    void triggerManualSync();
+    const entry = makeOutboxEntry("generic_update", "profiles", { id: profile.id, preferred_language: lang });
+    await commitLocal(db.profiles, () => db.profiles.update(profile.id, { preferred_language: lang }), entry);
+    void pushOutbox(entry);
   };
 
   return (

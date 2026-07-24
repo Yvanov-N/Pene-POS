@@ -1,70 +1,56 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import {
-  listConflicts,
-  listOtherStuckItems,
-  resolveByAdjustingStock,
-  resolveByAcceptingNegativeStock,
-  dismissConflict,
+  listStuckItems,
+  listRecentSyncEvents,
   retryStuckItem,
-  type ConflictDetail,
-  type StuckSyncItem,
-} from "@/services/conflictResolver";
+  dismissStuckItem,
+  type StuckOutboxItem,
+  type RecentSyncEvent,
+} from "@/services/sync/conflicts";
 
 interface AdminConflictDashboardProps {
   onClose: () => void;
 }
 
+// Much smaller than the old AdminConflictDashboard: that version's headline
+// feature (a per-product "adjust stock to X" resolution UI, plus the
+// "resolve all" action that once hard-zeroed real stock -- fixed, then
+// finally made moot) existed to resolve a stock-oversell conflict. Migration
+// 00019 already removed the constraint that used to raise one, and this
+// rebuild confirmed via a live smoke test that a concurrent oversell now
+// always completes with a tracked `negative_stock` flag, never a conflict.
+// What's left is a uniform "stuck items" list (any op type, retry or
+// dismiss) plus a read-only feed of recent negative-stock/negative-balance
+// events for situational awareness -- see services/sync/conflicts.ts.
 export function AdminConflictDashboard({ onClose }: AdminConflictDashboardProps) {
   const { t } = useTranslation();
-  const [conflicts, setConflicts] = useState<ConflictDetail[] | null>(null);
-  const [otherStuck, setOtherStuck] = useState<StuckSyncItem[] | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [stuck, setStuck] = useState<StuckOutboxItem[] | null>(null);
+  const [events, setEvents] = useState<RecentSyncEvent[] | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   const refresh = async () => {
-    setConflicts(await listConflicts());
-    setOtherStuck(await listOtherStuckItems());
+    setStuck(await listStuckItems());
+    setEvents(await listRecentSyncEvents());
   };
 
   useEffect(() => {
     void refresh();
   }, []);
 
-  const withBusy = async (action: () => Promise<void>) => {
-    setBusy(true);
+  const withBusy = async (id: number, action: () => Promise<void>) => {
+    setBusyId(id);
     try {
       await action();
       await refresh();
     } finally {
-      setBusy(false);
+      setBusyId(null);
     }
   };
 
-  const handleResolveAll = () =>
-    withBusy(async () => {
-      const productIds = new Set<string>();
-      for (const conflict of conflicts ?? []) {
-        for (const line of conflict.lines) productIds.add(line.productId);
-      }
-
-      // Sequential, skip-on-failure -- matches processSyncQueue's own "one
-      // bad item must never stop the loop" convention rather than
-      // Promise.all (which would abort every other resolvable conflict on
-      // one hiccup).
-      for (const productId of productIds) {
-        const { data, error } = await supabase.from("products").select("stock").eq("id", productId).single();
-        if (error || !data) {
-          console.error("[AdminConflictDashboard] failed to fetch live stock for resolve-all", productId, error);
-          continue; // stays conflict_warning; refresh() below re-surfaces it, admin can retry
-        }
-        await resolveByAdjustingStock(productId, data.stock); // real live value, not hardcoded 0
-      }
-    });
-
-  const isEmpty = (conflicts?.length ?? 0) === 0 && (otherStuck?.length ?? 0) === 0;
-  const stillLoading = conflicts === null || otherStuck === null;
+  const stillLoading = stuck === null || events === null;
+  const isEmpty = (stuck?.length ?? 0) === 0 && (events?.length ?? 0) === 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -87,88 +73,18 @@ export function AdminConflictDashboard({ onClose }: AdminConflictDashboardProps)
           <p className="text-sm text-muted">{t("admin.conflicts.empty")}</p>
         ) : (
           <div className="flex-1 overflow-y-auto">
-            {conflicts && conflicts.length > 0 && (
-              <>
-                {conflicts.length > 1 && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void handleResolveAll()}
-                    className="mb-4 w-full rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
-                  >
-                    {t("admin.conflicts.resolveAll")}
-                  </button>
-                )}
-
-                <ul className="mb-4 flex flex-col gap-3">
-                  {conflicts.map((conflict) => {
-                    const problemLines = conflict.lines.filter((line) => line.wouldBeStock < 0);
-                    const linesToShow = problemLines.length > 0 ? problemLines : conflict.lines;
-
-                    return (
-                      <li key={conflict.sale.id} className="rounded-lg border border-destructive p-3">
-                        <ul className="flex flex-col gap-3">
-                          {linesToShow.map((line) => (
-                            <li key={line.productId} className="flex flex-col gap-2">
-                              <p className="text-sm text-foreground">
-                                {t("admin.conflicts.lineDescription", {
-                                  product: line.productName,
-                                  stock: line.wouldBeStock,
-                                })}
-                              </p>
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  disabled={busy}
-                                  onClick={() =>
-                                    void withBusy(() => resolveByAdjustingStock(line.productId, 0))
-                                  }
-                                  className="flex-1 rounded-lg border border-border bg-surface2 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
-                                >
-                                  {t("admin.conflicts.adjustToZero")}
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={busy}
-                                  onClick={() =>
-                                    void withBusy(() =>
-                                      resolveByAcceptingNegativeStock(line.productId, conflict.sale.id),
-                                    )
-                                  }
-                                  className="flex-1 rounded-lg border border-border bg-surface2 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
-                                >
-                                  {t("admin.conflicts.forceIgnore")}
-                                </button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </>
-            )}
-
-            {/* Anything that isn't a SALE stock conflict -- a stuck wallet
-                recharge/withdrawal, a generic product/profile/shop_status
-                update that hit a conflict or exhausted its retries. There's
-                no product-aware resolution possible here (unlike the stock
-                conflicts above), so the only actions are retry (assume it
-                was a transient error) or dismiss (give up on this one
-                mutation, stop it from blocking the sync badge). */}
-            {otherStuck && otherStuck.length > 0 && (
-              <div>
+            {stuck && stuck.length > 0 && (
+              <div className="mb-4">
                 <p className="stat-label mb-2">{t("admin.conflicts.otherStuckTitle")}</p>
                 <ul className="flex flex-col gap-2">
-                  {otherStuck.map((item) => (
+                  {stuck.map((item) => (
                     <li key={item.id} className="rounded-lg border border-destructive p-3">
                       <p className="text-sm font-medium text-foreground">
-                        {item.action} · {item.tableName}
+                        {item.opType} · {item.tableName}
                       </p>
                       <p className="text-xs text-muted">
-                        {item.status === "conflict_warning"
-                          ? t("admin.conflicts.otherStatusConflict")
+                        {item.status === "conflict"
+                          ? (item.conflictReason ?? t("admin.conflicts.otherStatusConflict"))
                           : t("admin.conflicts.otherStatusExhausted", { count: item.retryCount })}
                       </p>
                       {item.errorMessage && (
@@ -179,21 +95,37 @@ export function AdminConflictDashboard({ onClose }: AdminConflictDashboardProps)
                       <div className="mt-2 flex gap-2">
                         <button
                           type="button"
-                          disabled={busy}
-                          onClick={() => void withBusy(() => retryStuckItem(item.id))}
+                          disabled={busyId === item.id}
+                          onClick={() => void withBusy(item.id, () => retryStuckItem(item.id))}
                           className="flex-1 rounded-lg border border-border bg-surface2 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
                         >
                           {t("admin.conflicts.retry")}
                         </button>
                         <button
                           type="button"
-                          disabled={busy}
-                          onClick={() => void withBusy(() => dismissConflict(item.id))}
+                          disabled={busyId === item.id}
+                          onClick={() => void withBusy(item.id, () => dismissStuckItem(item.id))}
                           className="flex-1 rounded-lg border border-border bg-surface2 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
                         >
                           {t("admin.conflicts.dismiss")}
                         </button>
                       </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {events && events.length > 0 && (
+              <div>
+                <p className="stat-label mb-2">{t("admin.conflicts.recentEventsTitle")}</p>
+                <ul className="flex flex-col gap-2">
+                  {events.map((event, index) => (
+                    <li key={index} className="rounded-lg border border-border p-3">
+                      <p className="text-sm text-foreground">{event.message ?? event.eventType}</p>
+                      <p className="text-xs text-muted">
+                        {event.entityTable ?? "—"} · {new Date(event.occurredAt).toLocaleString()}
+                      </p>
                     </li>
                   ))}
                 </ul>

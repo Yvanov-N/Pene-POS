@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { getPendingIds, mapSaleRow } from "@/services/syncService";
+import { mapSaleRow, writeBackIfNewer } from "@/services/sync/pull";
 import { usePaginatedQuery, type PageParams, type PageResult } from "@/hooks/usePaginatedQuery";
 import { PaginationControls } from "@/components/admin/PaginationControls";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
@@ -23,7 +23,7 @@ const SETTINGS_ID = "default";
 const PAGE_SIZE = 50;
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
-const STATUS_FILTERS = ["all", "completed", "pending_sync", "conflict_warning", "refunded"] as const;
+const STATUS_FILTERS = ["all", "completed", "refunded"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 interface SalesFilters_ {
@@ -102,9 +102,7 @@ async function fetchServerSales(
 }
 
 async function writeBackSales(rows: Sale[]): Promise<void> {
-  const pendingIds = await getPendingIds("sale_id");
-  const toPut = rows.filter((row) => !pendingIds.has(row.id));
-  if (toPut.length > 0) await db.sales.bulkPut(toPut);
+  await writeBackIfNewer(db.sales, rows, (row) => row);
 }
 
 // A subset of dateHelpers' TimeRangeFilter -- this audit page only needs
