@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
+import { extractErrorMessage, makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
 import type { GenericMutationPayload } from "@/types/db";
 
 // ============================================================================
@@ -80,7 +80,7 @@ export function installGlobalErrorTelemetry(): void {
     void logSyncEvent({
       eventType: "unhandled_rejection",
       severity: "error",
-      message: reason instanceof Error ? reason.message : String(reason),
+      message: extractErrorMessage(reason),
     });
   });
 }

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Wallet, Receipt, ShoppingCart, GraduationCap, AlertTriangle, Package } from "lucide-react";
+import { Wallet, Receipt, GraduationCap, AlertTriangle, Package } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useDashboardAnalytics } from "@/hooks/useDashboardAnalytics";
 import { useStudentDebtSummary, useStockValueSummary } from "@/hooks/useDashboardWidgetData";
@@ -74,7 +74,6 @@ export function DashboardPage() {
       ["Indicateur", "Valeur"],
       [t("admin.dashboard.revenueLabel"), String(analytics.grossRevenue)],
       [t("admin.dashboard.transactionsLabel"), String(analytics.totalTransactions)],
-      [t("admin.dashboard.averageCartLabel"), String(analytics.averageCart)],
       [t("admin.dashboard.walletRechargesLabel"), String(analytics.totalWalletRecharges)],
       [t("admin.dashboard.studentDebtLabel"), String(totalStudentDebt ?? 0)],
       [t("admin.dashboard.stockValueLabel"), String(stockValue ?? 0)],
@@ -159,7 +158,6 @@ export function DashboardPage() {
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
-            <StatCardSkeleton />
             <StatCardSkeleton className="lg:col-span-4" />
           </>
         ) : (
@@ -178,11 +176,11 @@ export function DashboardPage() {
               sub={t("admin.dashboard.transactionsSubRange")}
             />
             <StatCard
-              icon={<ShoppingCart className="h-6 w-6" />}
-              label={t("admin.dashboard.averageCartLabel")}
-              value={analytics.averageCart}
+              icon={<Package className="h-6 w-6" />}
+              label={t("admin.dashboard.stockValueLabel")}
+              value={stockValue ?? 0}
               formatValue={formatCurrency}
-              sub={t("admin.dashboard.averageCartSub")}
+              sub={t("admin.dashboard.stockValueSub")}
             />
             <StatCard
               icon={<GraduationCap className="h-6 w-6" />}
@@ -190,13 +188,6 @@ export function DashboardPage() {
               value={analytics.totalWalletRecharges}
               formatValue={formatCurrency}
               sub={t("admin.dashboard.walletRechargesSub")}
-            />
-            <StatCard
-              icon={<Package className="h-6 w-6" />}
-              label={t("admin.dashboard.stockValueLabel")}
-              value={stockValue ?? 0}
-              formatValue={formatCurrency}
-              sub={t("admin.dashboard.stockValueSub")}
             />
             <StatCard
               icon={<AlertTriangle className="h-6 w-6" />}

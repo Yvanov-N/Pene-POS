@@ -34,7 +34,6 @@ export interface DashboardAnalytics {
   // "+Infinity%".
   revenueChangePct: number | null;
   totalTransactions: number;
-  averageCart: number;
   totalWalletRecharges: number;
   hourlyRevenue: HourlyPoint[];
   paymentSplit: PaymentSplitEntry[];
@@ -122,7 +121,6 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
 
     grossRevenue = Math.round(grossRevenue);
     const totalTransactions = relevantSales.length;
-    const averageCart = totalTransactions === 0 ? 0 : Math.round(grossRevenue / totalTransactions);
 
     const revenueChangePct =
       previousRevenue === 0
@@ -173,7 +171,6 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
       grossRevenue,
       revenueChangePct,
       totalTransactions,
-      averageCart,
       totalWalletRecharges: Math.round(totalWalletRecharges),
       hourlyRevenue,
       paymentSplit,
@@ -186,7 +183,6 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
       grossRevenue: 0,
       revenueChangePct: null,
       totalTransactions: 0,
-      averageCart: 0,
       totalWalletRecharges: 0,
       hourlyRevenue: emptyHourly(),
       paymentSplit: emptyPaymentSplit(),

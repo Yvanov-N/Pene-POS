@@ -14,6 +14,15 @@ import type { OutboxOperation, OutboxOpType, OutboxPayload } from "@/types/db";
 // push.ts) is a separate, eager-but-not-load-bearing-for-durability step.
 // ============================================================================
 
+// A visibility threshold for the admin Sync Health dashboard ("this has
+// failed enough times to deserve a human look"), NOT a hard retry cap --
+// drainOutbox() (drain.ts) keeps retrying an "error" entry every cycle
+// regardless of retryCount. An entry only ever stops being retried by
+// reaching a genuine "conflict" outcome (a real business rule violation,
+// classified separately -- see push.ts) or an admin explicitly dismissing
+// it. A cashier's sale must never depend on an admin noticing a stuck
+// queue and clicking Retry -- reconnecting to the network already is that
+// signal, automatically, every time.
 export const MAX_RETRIES = 5;
 
 // operationId doubles as the idempotency key sent to the 4 ledger-guarded
@@ -61,6 +70,31 @@ export async function recordOutbox(entry: OutboxOperation): Promise<number> {
 // refund, category deletion cascading into product reassignment) don't fit
 // this single-table shape and compose db.transaction()/recordOutbox()
 // directly instead.
+// A thrown Supabase error (PostgrestError, an AuthError, a plain fetch
+// failure) has a `.message` property but isn't reliably `instanceof
+// Error` once bundled -- classes extending built-ins like Error can lose
+// their prototype chain under some transpile targets, so `instanceof`
+// silently returns false even for a genuine error object. That was
+// confirmed live: two stuck complete_sale entries in production have
+// their entire diagnostic value replaced by the literal string
+// "[object Object]", because the old code fell back to `String(error)`
+// on a plain object with no custom toString(). Duck-typing the `.message`
+// property first, and JSON.stringify-ing as a last resort instead of
+// String(), means this can never happen again.
+export function extractErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 export async function commitLocal<T, TKey extends string | number>(
   table: Table<T, TKey>,
   // Promise<unknown>, not Promise<void> -- Dexie's put()/add()/update()

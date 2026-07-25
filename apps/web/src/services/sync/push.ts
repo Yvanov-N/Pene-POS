@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { getIsOnlineSnapshot } from "@/lib/networkStatusStore";
+import { extractErrorMessage } from "@/services/sync/outbox";
 import { logSyncEvent } from "@/services/sync/telemetry";
 import type { OutboxOperation, PushOutcome } from "@/types/db";
 import type { Json, SyncRpcResult } from "@/types/supabase";
@@ -217,7 +218,7 @@ export async function pushOutbox(entry: OutboxOperation): Promise<PushOutcome> {
 
     return outcome;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = extractErrorMessage(error);
     await db.sync_outbox.update(id, {
       status: "error",
       retryCount: entry.retryCount + 1,

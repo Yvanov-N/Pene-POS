@@ -137,8 +137,6 @@
       "revenueChangeSuffix": "vs previous period",
       "transactionsLabel": "TRANSACTIONS",
       "transactionsSubRange": "Valid tickets in this period",
-      "averageCartLabel": "AVERAGE CART",
-      "averageCartSub": "Average spend per student",
       "walletRechargesLabel": "WALLET RECHARGES",
       "walletRechargesSub": "Student wallet top-up volume",
       "stockValueLabel": "STOCK VALUE",
