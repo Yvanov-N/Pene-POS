@@ -1,10 +1,25 @@
 import { db } from "@/lib/db";
 import { hashPin } from "@/lib/hashPin";
+import { MOCK_CASHIER_EMAIL } from "@/lib/mockSeedIds";
 import { computeFullName } from "@/types/db";
 
 // Mock local cashier/admin profiles for testing the PIN pad before Phase 3
 // designs the real sync path (see the note on Profile in @/types/db).
 // Test PINs: admin = 1234, cashier = 5678.
+//
+// DEV-ONLY -- the caller (AppShell.tsx) must gate this behind
+// import.meta.env.DEV. This was NOT enforced for a long time and caused a
+// real production incident: with no gate, this ran on every device
+// (production included), and on a brand-new device -- before its first
+// real profiles pull ever completed -- it happily seeded this fake
+// "cashier@penepos.test" mock with a random id straight into a production
+// Dexie database. Any sale rung up under that PIN got a cashier_id that
+// was never a real row in the production profiles table, and complete_sale
+// correctly rejected it every time (sales_cashier_id_fkey) -- forever,
+// since the id was never going to become real. lib/db.ts's version 10
+// migration (production-only) purges any already-cached copy of this
+// specific mock row from devices that got poisoned before this gate
+// existed.
 //
 // The admin mock deliberately uses the SAME id as the real seeded Supabase
 // admin (supabase/seed.sql: 00000000-0000-0000-0000-000000000001), not a
@@ -23,10 +38,10 @@ import { computeFullName } from "@/types/db";
 // preserve-on-pull logic was already designed to work.
 //
 // No real cashier account is seeded server-side at all (seed.sql only
-// creates the admin), so the cashier mock still uses a random id -- a
-// cashier-attributed action that requires its profile id to exist in
-// Supabase would hit the same class of failure. Out of scope to fix here
-// (would mean adding a real seeded cashier account), flagged for awareness.
+// creates the admin), so the cashier mock still uses a random id -- fine
+// now that this is dev-only (nothing here needs to resolve against a real
+// Supabase row, unlike the admin id), but see the production incident note
+// above for what happens if this ever runs outside dev again.
 const REAL_SEEDED_ADMIN_ID = "00000000-0000-0000-0000-000000000001";
 
 // React StrictMode double-invokes effects in dev, which could otherwise race
@@ -60,7 +75,7 @@ async function seedLocalProfilesInternal(): Promise<void> {
     },
     {
       id: crypto.randomUUID(),
-      email: "cashier@penepos.test",
+      email: MOCK_CASHIER_EMAIL,
       first_name: "Cashier",
       last_name: "Demo",
       full_name: computeFullName("Cashier", "Demo"),

@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.12.6",
+    "date": "2026-07-25",
+    "changes": [
+      "stop dev-only mock seed data from poisoning production devices"
+    ]
+  },
+  {
     "version": "1.12.5",
     "date": "2026-07-25",
     "changes": [

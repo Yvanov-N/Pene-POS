@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { CATEGORY_IDS } from "@/lib/seedLocalCategories";
+import { CATEGORY_IDS, PRODUCT_IDS } from "@/lib/mockSeedIds";
 import type { Product } from "@/types/db";
 
 function daysFromNow(days: number): string {
@@ -10,29 +10,25 @@ function daysFromNow(days: number): string {
 
 const now = new Date().toISOString();
 
-// Fixed ids, not crypto.randomUUID() -- these must match the rows seeded
-// server-side in supabase/seed.sql (same convention as the dev admin's
-// 00000000-0000-0000-0000-000000000001 in seedLocalProfiles.ts). Random ids
-// here were a real, silent bug: every checkout's sale_items push has been
-// failing sale_items_product_id_fkey (23503) since the sync engine was
-// built, because Supabase's products table has never had a single row --
-// nothing in seed.sql ever inserted one. The push retries 5 times then sits
-// at status "failed" forever, invisible to the AdminConflictDashboard (which
-// only watches "conflict_warning"). Only surfaced now because Phase 9.1's
-// public receipt RPC is the first thing that reads sale data back out of
-// Supabase and visibly shows the gap (an items-less receipt).
-const PRODUCT_IDS = {
-  cola: "00000000-0000-0000-0000-000000000101",
-  water: "00000000-0000-0000-0000-000000000102",
-  chips: "00000000-0000-0000-0000-000000000103",
-  biscuits: "00000000-0000-0000-0000-000000000104",
-  yogurt: "00000000-0000-0000-0000-000000000105",
-  cheese: "00000000-0000-0000-0000-000000000106",
-  momo: "00000000-0000-0000-0000-000000000107",
-  sardine: "00000000-0000-0000-0000-000000000108",
-  soap: "00000000-0000-0000-0000-000000000109",
-} as const;
-
+// DEV-ONLY -- the caller (AppShell.tsx) must gate this behind
+// import.meta.env.DEV. Fixed ids, not crypto.randomUUID() -- these must
+// match the rows seeded server-side in supabase/seed.sql (same convention
+// as the dev admin's 00000000-0000-0000-0000-000000000001 in
+// seedLocalProfiles.ts). Random ids here were a real, silent bug: every
+// checkout's sale_items push has been failing sale_items_product_id_fkey
+// (23503) since the sync engine was built, because Supabase's products
+// table has never had a single row -- nothing in seed.sql ever inserted
+// one. The push retries 5 times then sits at status "failed" forever,
+// invisible to the AdminConflictDashboard (which only watches
+// "conflict_warning"). Only surfaced now because Phase 9.1's public
+// receipt RPC is the first thing that reads sale data back out of Supabase
+// and visibly shows the gap (an items-less receipt).
+//
+// This also went unguarded for production for a long time: these ids only
+// match the LOCAL dev Supabase project, so a fresh production device would
+// seed these fake products (before its first real pull) with ids that
+// don't correspond to anything in the production database. lib/db.ts's
+// version 10 migration (production-only) removes any already-cached copy.
 const MOCK_PRODUCTS: Product[] = [
   {
     id: PRODUCT_IDS.cola,

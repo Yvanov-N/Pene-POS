@@ -13,6 +13,7 @@ import type {
   OutboxOpType,
   SyncCursor,
 } from "@/types/db";
+import { MOCK_CASHIER_EMAIL, CATEGORY_IDS, PRODUCT_IDS } from "@/lib/mockSeedIds";
 
 export class PosDatabase extends Dexie {
   categories!: Table<Category, string>;
@@ -185,7 +186,47 @@ export class PosDatabase extends Dexie {
     this.version(9).stores({
       sync_queue: null,
     });
+
+    // Production incident cleanup: seedLocalProfiles/Categories/Products
+    // (lib/seedLocalProfiles.ts etc.) ran unconditionally on every device
+    // for a long time, with no import.meta.env.DEV gate -- a brand-new
+    // production device, before its first real pullAll() ever completed,
+    // would get seeded with a fake "cashier@penepos.test" profile (random
+    // id, never a real Supabase row -- any sale rung up under it hit
+    // sales_cashier_id_fkey forever) and fixed-id mock categories/products
+    // that only ever existed in the LOCAL dev Supabase project. That gate
+    // now exists (AppShell.tsx), but any device that already cached these
+    // rows before this fix shipped needs them removed, or the same PIN/
+    // products keep silently producing unsyncable data. Production-only
+    // (import.meta.env.PROD) -- local dev intentionally keeps this mock
+    // data, since no real cashier/product catalog is seeded for dev either.
+    this.version(10)
+      .stores({})
+      .upgrade(async (tx) => {
+        if (import.meta.env.PROD) {
+          await purgeMockSeedData({
+            profiles: tx.table("profiles"),
+            categories: tx.table("categories"),
+            products: tx.table("products"),
+          });
+        }
+      });
   }
+}
+
+// Exported (not inlined in the upgrade callback above) so it can be tested
+// directly against a real db instance, independent of the import.meta.env
+// gate that decides whether it actually runs on a real device.
+export async function purgeMockSeedData(tables: {
+  profiles: Table<Profile, string>;
+  categories: Table<Category, string>;
+  products: Table<Product, string>;
+}): Promise<void> {
+  // profiles has no index on email (only id, role) -- a plain filter scan
+  // is fine here, this only ever runs once per device, if at all.
+  await tables.profiles.filter((p) => p.email === MOCK_CASHIER_EMAIL).delete();
+  await tables.categories.where("id").anyOf(Object.values(CATEGORY_IDS)).delete();
+  await tables.products.where("id").anyOf(Object.values(PRODUCT_IDS)).delete();
 }
 
 export const db = new PosDatabase();
