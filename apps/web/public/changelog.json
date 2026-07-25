@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.12.4",
+    "date": "2026-07-25",
+    "changes": [
+      "stop the sync ledger's own FK from crashing checkout"
+    ]
+  },
+  {
     "version": "1.12.3",
     "date": "2026-07-25",
     "changes": [

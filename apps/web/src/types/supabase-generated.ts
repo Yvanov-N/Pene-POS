@@ -428,15 +428,7 @@ export type Database = {
           session_id?: string | null
           severity?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "sync_events_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       sync_operations: {
         Row: {
@@ -469,15 +461,7 @@ export type Database = {
           outcome?: string
           result?: Json | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "sync_operations_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
