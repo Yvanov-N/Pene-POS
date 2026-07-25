@@ -1,5 +1,4 @@
 import { db } from "@/lib/db";
-import { MAX_RETRIES } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
 import type { OutboxOperation, PushOutcome } from "@/types/db";
 
@@ -7,6 +6,21 @@ import type { OutboxOperation, PushOutcome } from "@/types/db";
 // Drains the outbox -- replaces the old processSyncQueue(). Sequential, not
 // Promise.all: one slow/failing item must never stop the rest from being
 // attempted, same convention the old queue processor used.
+//
+// Every "pending"/"error" entry is attempted on every drain call, with no
+// retry ceiling -- confirmed live in production that the old
+// `retryCount >= MAX_RETRIES` skip left a cashier's sale permanently stuck
+// after 5 failed attempts, silently requiring an admin to notice it in the
+// Sync Health dashboard and click Retry. A genuine business conflict
+// (deleted product, duplicate badge_code, ...) already exits this path
+// entirely via the separate "conflict" outcome/status (see push.ts) and is
+// never retried either way; an "error" status, by construction, is
+// something that isn't a classified permanent failure, so there's no
+// principled reason to ever stop trying it automatically. Reconnecting to
+// the network (useSyncEngine's runSync, called on the offline->online
+// transition, the 30s interval, and manual sync) is already the signal
+// this needs -- MAX_RETRIES (outbox.ts) still marks an entry "stuck" for
+// the admin dashboard's visibility, it just no longer gates retrying it.
 // ============================================================================
 
 export interface DrainSummary {
@@ -24,7 +38,6 @@ export async function drainOutbox(): Promise<DrainSummary> {
 
   for (const entry of candidates) {
     if (entry.id === undefined) continue;
-    if (entry.retryCount >= (entry.maxRetries ?? MAX_RETRIES)) continue;
 
     const outcome = await pushOutbox(entry);
     if (outcome === "synced" && entry.opType === "complete_sale") syncedSales += 1;

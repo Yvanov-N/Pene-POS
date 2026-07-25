@@ -137,8 +137,6 @@
       "revenueChangeSuffix": "vs periode precedente",
       "transactionsLabel": "TRANSACTIONS",
       "transactionsSubRange": "Tickets valides sur la periode",
-      "averageCartLabel": "PANIER MOYEN",
-      "averageCartSub": "Depense moyenne par etudiant",
       "walletRechargesLabel": "RECHARGES WALLET",
       "walletRechargesSub": "Volume de recharges portefeuille etudiant",
       "stockValueLabel": "VALEUR DU STOCK",

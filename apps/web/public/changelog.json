@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.12.3",
+    "date": "2026-07-25",
+    "changes": [
+      "retry stuck outbox items forever instead of giving up after 5 attempts"
+    ]
+  },
+  {
+    "version": "1.12.2",
+    "date": "2026-07-25",
+    "changes": [
+      "retry stuck outbox items forever instead of giving up after 5 attempts"
+    ]
+  },
+  {
     "version": "1.12.1",
     "date": "2026-07-24",
     "changes": [
