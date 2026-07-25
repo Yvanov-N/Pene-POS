@@ -1,0 +1,36 @@
+-- ============================================================================
+-- Sync rebuild follow-up -- diagnostic tables must never be able to crash
+-- the operation they're recording.
+-- ============================================================================
+--
+-- Why: confirmed live in production -- a complete_sale call failed with a
+-- confusing 409 whose message was about the sync_operations table, not
+-- sales: "insert or update on table \"sync_operations\" violates foreign
+-- key constraint ... Key is not present in table \"profiles\"." The actual,
+-- underlying problem was a sale's cashier_id not matching any row in
+-- profiles (sales.cashier_id already has its own FK enforcing that, so the
+-- INSERT INTO sales failed first, exactly as intended -- that's a genuine
+-- conflict, correctly meant to be caught and reported as one). But
+-- complete_sale's exception handler records that conflict by inserting
+-- into sync_operations with `created_by = v_cashier_id` -- and that
+-- column ALSO had a `references public.profiles (id)` FK from migration
+-- 00024. The same invalid id that caused the original, legitimate
+-- conflict then made the ledger's own conflict-recording insert fail too,
+-- as an uncaught exception this time (nothing wraps the post-exception
+-- ledger writes in complete_sale/void_sale), replacing a clean
+-- `{outcome: "conflict", reason: "..."}` response with an opaque crash.
+--
+-- sync_operations.created_by and sync_events.profile_id are diagnostic/
+-- audit columns, not referential business data -- there is no scenario
+-- where refusing to record *why* an operation failed is better than
+-- recording it with a "dangling" id. Dropping both FKs means the ledger
+-- can always successfully record what happened, including the exact
+-- "which id is invalid" fact that was previously getting lost -- which is
+-- also what makes an old, no-longer-real profile id fully diagnosable
+-- from the Sync Health dashboard going forward, instead of manifesting as
+-- an unrelated-looking crash on a table nobody but a developer knows
+-- exists.
+-- ============================================================================
+
+alter table public.sync_operations drop constraint sync_operations_created_by_fkey;
+alter table public.sync_events drop constraint sync_events_profile_id_fkey;

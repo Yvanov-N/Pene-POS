@@ -1,9 +1,23 @@
 [
   {
+    "version": "1.12.5",
+    "date": "2026-07-25",
+    "changes": [
+      "correct the v1.12.3 changelog entry"
+    ]
+  },
+  {
+    "version": "1.12.4",
+    "date": "2026-07-25",
+    "changes": [
+      "stop the sync ledger's own FK from crashing checkout"
+    ]
+  },
+  {
     "version": "1.12.3",
     "date": "2026-07-25",
     "changes": [
-      "retry stuck outbox items forever instead of giving up after 5 attempts"
+      "replace the Average Cart dashboard tile with Stock Value"
     ]
   },
   {
