@@ -51,6 +51,15 @@ export function subscribeReceiptPrint(listener: ReceiptPrintListener): () => voi
   return () => receiptPrintListeners.delete(listener);
 }
 
+// Called by ReceiptPrintHost right after it triggers window.print() -- clears
+// the published data so a later remount (e.g. leaving and returning to the
+// POS page, which unmounts/remounts ReceiptPrintHost) replays null to the
+// new subscriber instead of replaying this same receipt and auto-printing it
+// again with no user action.
+export function acknowledgeReceiptPrinted(): void {
+  publishReceiptForPrint(null);
+}
+
 // -- ESC/POS byte encoding ------------------------------------------------
 const ESC = 0x1b;
 const GS = 0x1d;

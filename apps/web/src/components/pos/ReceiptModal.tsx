@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Printer } from "lucide-react";
+import { X, Printer, Share2 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { PAYMENT_BADGE_CLASS } from "@/lib/paymentMethodStyles";
+import { useShareReceipt } from "@/hooks/useShareReceipt";
+import { useToast } from "@/hooks/useToast";
 import logo from "@/assets/logo.png";
 import type { CompletedReceipt } from "@/hooks/usePosCheckout";
 
@@ -28,12 +31,51 @@ interface ReceiptModalProps {
 export function ReceiptModal({ receipt, onClose, onPrint }: ReceiptModalProps) {
   const { t, i18n } = useTranslation();
   const { sale, cartItems, cashierName, studentName } = receipt;
+  const { prepareShareUrl } = useShareReceipt();
+  const { showToast } = useToast();
+  const [isSharing, setIsSharing] = useState(false);
 
   const locale = LOCALE_BY_LANGUAGE[i18n.language] ?? LOCALE_BY_LANGUAGE.fr;
   const timestamp = t("receiptPage.timestampFormat", {
     date: new Date(sale.created_at).toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" }),
     time: new Date(sale.created_at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
   });
+
+  // Mirrors ReceiptPage.tsx's own handleShare -- same share-target/clipboard
+  // fallback shape, just fed from the in-memory sale this modal already has
+  // instead of a freshly-fetched one.
+  const handleShare = async () => {
+    setIsSharing(true);
+    try {
+      const shareUrl = await prepareShareUrl(sale.id);
+      if (!shareUrl) return; // prepareShareUrl already showed a toast explaining why
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: t("receiptPage.shareTitle"),
+            text: t("receiptPage.shareText", { amount: formatCurrency(sale.total_amount) }),
+            url: shareUrl,
+          });
+        } catch (error) {
+          if ((error as Error).name !== "AbortError") {
+            console.warn("[ReceiptModal] share failed", error);
+          }
+        }
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        showToast("success", t("receiptPage.linkCopiedToast"));
+      } catch (error) {
+        console.warn("[ReceiptModal] clipboard copy failed", error);
+        showToast("error", t("receiptPage.shareError"));
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -47,7 +89,7 @@ export function ReceiptModal({ receipt, onClose, onPrint }: ReceiptModalProps) {
           <X className="h-4 w-4" aria-hidden />
         </button>
 
-        <CardCustom className="receipt-card max-h-[85vh] overflow-y-auto">
+        <CardCustom className="receipt-modal-card max-h-[85vh] overflow-y-auto">
           <div className="mb-3 flex flex-col items-center text-center">
             <img src={logo} alt="" className="mb-2 h-8 w-auto object-contain" />
             <p className="text-sm font-semibold text-foreground">{t("pos.receipt.title")}</p>
@@ -86,6 +128,10 @@ export function ReceiptModal({ receipt, onClose, onPrint }: ReceiptModalProps) {
             <ButtonCustom variant="primary" className="flex-1" onClick={onPrint}>
               <Printer className="h-4 w-4" aria-hidden />
               {t("pos.receipt.printButton")}
+            </ButtonCustom>
+            <ButtonCustom variant="primary" className="flex-1" isLoading={isSharing} onClick={() => void handleShare()}>
+              <Share2 className="h-4 w-4" aria-hidden />
+              {t("pos.receipt.shareButton")}
             </ButtonCustom>
             <ButtonCustom variant="primary" className="flex-1" onClick={onClose}>
               {t("pos.receipt.closeButton")}

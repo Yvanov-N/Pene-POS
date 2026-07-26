@@ -57,11 +57,18 @@
     "pin": {
       "checkoutTitle": "Enter admin PIN to complete checkout",
       "incorrect": "Incorrect PIN",
-      "close": "Close"
+      "close": "Close",
+      "forgotPin": "Forgot PIN?",
+      "forgotSubtitle": "Enter your email to receive a PIN reset link.",
+      "sendResetLink": "Send reset link",
+      "backToPad": "Back",
+      "resetEmailSent": "If an account exists for that address, a reset email has been sent.",
+      "forgotNetworkError": "Couldn't send the email. Please try again."
     },
     "receipt": {
       "title": "Sale complete",
       "printButton": "Print",
+      "shareButton": "Share",
       "closeButton": "Close"
     }
   },
@@ -550,6 +557,18 @@
     "passwordMismatch": "Passwords don't match.",
     "passwordTooShort": "Password must be at least 6 characters.",
     "passwordUpdated": "Password updated. Signing you in..."
+  },
+  "resetPin": {
+    "title": "Reset your PIN",
+    "checkingLink": "Checking your link...",
+    "invalidLink": "This link is invalid or has expired. Request a new one from the PIN pad.",
+    "newPinPlaceholder": "New 4-digit PIN",
+    "confirmPinPlaceholder": "Confirm new PIN",
+    "submit": "Update PIN",
+    "invalid": "PIN must be exactly 4 digits.",
+    "mismatch": "PINs don't match.",
+    "error": "Couldn't update the PIN. Please try again.",
+    "updated": "PIN updated. You've been signed out of this device -- sign back in to continue."
   },
   "sync": {
     "badgeOnline": "Online",
