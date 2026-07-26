@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { getIsOnlineSnapshot, NETWORK_FIRST_TIMEOUT_MS } from "@/lib/networkStatusStore";
+import { NETWORK_FIRST_TIMEOUT_MS } from "@/lib/networkStatusStore";
 
 interface NetworkFirstQueryOptions<TRemote> {
   fetchRemote: (signal: AbortSignal) => Promise<TRemote>;
@@ -28,7 +28,11 @@ export function useNetworkFirstQuery<T, TRemote>(
   const value = useLiveQuery(queryFn, deps);
 
   useEffect(() => {
-    if (!enabled || !getIsOnlineSnapshot()) return;
+    // navigator.onLine (not the periodic health-check snapshot -- see
+    // push.ts's pushOutbox for why that ping can be stale/wrong): this is
+    // just an opportunistic background refresh with its own abort timeout
+    // below, so it only needs to skip the certain-to-fail case.
+    if (!enabled || !navigator.onLine) return;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), NETWORK_FIRST_TIMEOUT_MS);
     fetchRemote(controller.signal)

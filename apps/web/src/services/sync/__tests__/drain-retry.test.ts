@@ -1,7 +1,6 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { setIsOnlineSnapshot } from "@/lib/networkStatusStore";
 import { makeOutboxEntry, recordOutbox, MAX_RETRIES } from "@/services/sync/outbox";
 import { drainOutbox } from "@/services/sync/drain";
 import { SEED_PRODUCT_ID } from "./testHelpers";
@@ -18,11 +17,15 @@ describe("drainOutbox retries exhausted entries", () => {
     await db.sync_outbox.clear();
     await supabase.auth.signInWithPassword({ email: "admin@penepos.dev", password: "DevAdmin123!" });
     // pushOutbox() bails out early (returns "queued" without attempting
-    // anything) when getIsOnlineSnapshot() is falsy -- in a real browser
-    // that's kept true by useNetworkStatus's actual connectivity ping, but
-    // nothing does that here, and Node's built-in `navigator` (if present
-    // at all) doesn't reflect real connectivity the way a browser's does.
-    setIsOnlineSnapshot(true);
+    // anything) when navigator.onLine is falsy -- in a real browser that's
+    // true as long as there's any network interface, but Node's built-in
+    // `navigator` has no `onLine` at all (reads as undefined/falsy), so it
+    // needs stubbing here for pushOutbox to actually attempt the call.
+    vi.stubGlobal("navigator", { onLine: true });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("an entry with retryCount already past MAX_RETRIES is still attempted, not skipped", async () => {

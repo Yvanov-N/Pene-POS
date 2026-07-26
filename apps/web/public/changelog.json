@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.13.1",
+    "date": "2026-07-26",
+    "changes": [
+      "stop a stale health-check ping from blocking real syncs"
+    ]
+  },
+  {
     "version": "1.13.0",
     "date": "2026-07-26",
     "changes": [
