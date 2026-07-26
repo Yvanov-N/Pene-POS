@@ -9,9 +9,13 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Must be a domain verified in the Resend account this key belongs to --
-// replace before deploying for real.
-const FROM_ADDRESS = "Cite Shop <notifications@citeshop.app>";
+// Must be a domain verified in the Resend account RESEND_API_KEY belongs to
+// -- confirmed live: this account's key is domain-restricted to
+// citeshop.penelabs.com (sending from the citeshop.app placeholder this
+// originally shipped with was rejected with a 403 "not authorized to send
+// emails from" error). Env-configured rather than hardcoded so it can be
+// changed (e.g. a real production domain) without a code change/redeploy.
+const FROM_ADDRESS = Deno.env.get("RESEND_FROM_ADDRESS");
 
 interface ShopStatusWebhookPayload {
   type: string;
@@ -85,6 +89,10 @@ async function notifyStudentsByEmail(
 ): Promise<number> {
   if (!RESEND_API_KEY) {
     console.warn("[notify-shop-status] RESEND_API_KEY is not configured -- skipping student email");
+    return 0;
+  }
+  if (!FROM_ADDRESS) {
+    console.warn("[notify-shop-status] RESEND_FROM_ADDRESS is not configured -- skipping student email");
     return 0;
   }
 

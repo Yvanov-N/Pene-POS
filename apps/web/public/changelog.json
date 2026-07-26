@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.13.5",
+    "date": "2026-07-26",
+    "changes": [
+      "move Resend FROM_ADDRESS to an env var, correct the domain"
+    ]
+  },
+  {
     "version": "1.13.4",
     "date": "2026-07-26",
     "changes": [
