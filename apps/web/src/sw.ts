@@ -12,6 +12,16 @@ import { CacheableResponsePlugin } from "workbox-cacheable-response";
 
 declare const self: ServiceWorkerGlobalScope;
 
+// Workbox's own precache cache is already versioned/retired automatically by
+// cleanupOutdatedCaches() below -- this is the one OTHER cache this SW
+// writes to (the NetworkFirst route just under it), and NetworkFirst has no
+// built-in expiration of its own. Without explicitly clearing it too, a
+// stale /rest/v1 or /auth/v1 response could keep being served from here
+// indefinitely, surviving every future app update -- see the "activate"
+// listener at the bottom of this file, which drops it every time a new
+// version of this worker takes over (i.e. every time "Update now" completes).
+const API_CACHE_NAME = "supabase-api-cache";
+
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
@@ -28,11 +38,23 @@ registerRoute(
   ({ url }) =>
     (url.pathname.startsWith("/rest/v1") || url.pathname.startsWith("/auth/v1")) && !url.pathname.endsWith("/health"),
   new NetworkFirst({
-    cacheName: "supabase-api-cache",
+    cacheName: API_CACHE_NAME,
     networkTimeoutSeconds: 5,
     plugins: [new CacheableResponsePlugin({ statuses: [0, 200] })],
   }),
 );
+
+// Runs once per new version of this worker taking over -- a no-op the very
+// first time this SW ever installs (nothing cached yet), and a full purge of
+// the runtime API cache every time afterward, so "Update now" genuinely
+// means every subsequent /rest/v1 and /auth/v1 read comes from the network
+// fresh rather than whatever NetworkFirst happened to cache under the
+// previous version. waitUntil holds activation open until this finishes, so
+// it's guaranteed to complete before this worker starts controlling clients
+// (and before the reload useAppUpdate.ts triggers on "controllerchange").
+self.addEventListener("activate", (event) => {
+  event.waitUntil(caches.delete(API_CACHE_NAME));
+});
 
 // registerType: "prompt" means the app decides when to activate a waiting
 // worker (via the "Update now" button -> updateServiceWorker(true) in

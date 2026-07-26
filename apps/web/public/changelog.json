@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.13.3",
+    "date": "2026-07-26",
+    "changes": [
+      "stop the receipt double-print, sync PINs across devices"
+    ]
+  },
+  {
+    "version": "1.13.2",
+    "date": "2026-07-26",
+    "changes": [
+      "stop the receipt double-print, sync PINs across devices"
+    ]
+  },
+  {
     "version": "1.13.1",
     "date": "2026-07-26",
     "changes": [

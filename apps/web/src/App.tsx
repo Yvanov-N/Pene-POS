@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { GlobalLogin } from "@/components/auth/GlobalLogin";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
+import { ResetPinForm } from "@/components/auth/ResetPinForm";
 import { AppShell } from "@/components/layout/AppShell";
 import { ReceiptPage } from "@/pages/ReceiptPage";
 import { VersionGate } from "@/components/pwa/VersionGate";
@@ -36,6 +37,12 @@ function App() {
               all, via the get_public_receipt RPC (migration 6) -- must never
               sit behind the auth gate below. */}
           <Route path="/receipt/:saleId" element={<ReceiptPage />} />
+          {/* Public: reached via the "Forgot PIN?" magic-link email -- the
+              signInWithOtp redirect lands here and establishes its own
+              session client-side, independent of whatever session (if any)
+              this browser already had, so this must sit outside the
+              session-gated switch below too. */}
+          <Route path="/reset-pin" element={<ResetPinForm />} />
           <Route
             path="/*"
             element={

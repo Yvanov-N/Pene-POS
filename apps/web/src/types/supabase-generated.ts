@@ -136,6 +136,7 @@ export type Database = {
           id: string
           last_name: string
           pin_code: string
+          pin_hash: string | null
           preferred_language: string
           role: Database["public"]["Enums"]["user_role"]
           sync_seq: number
@@ -150,6 +151,7 @@ export type Database = {
           id: string
           last_name?: string
           pin_code: string
+          pin_hash?: string | null
           preferred_language?: string
           role: Database["public"]["Enums"]["user_role"]
           sync_seq?: number
@@ -164,6 +166,7 @@ export type Database = {
           id?: string
           last_name?: string
           pin_code?: string
+          pin_hash?: string | null
           preferred_language?: string
           role?: Database["public"]["Enums"]["user_role"]
           sync_seq?: number

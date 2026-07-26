@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Receipt } from "./Receipt";
-import { subscribeReceiptPrint, type ReceiptData } from "@/services/hardware/printService";
+import { acknowledgeReceiptPrinted, subscribeReceiptPrint, type ReceiptData } from "@/services/hardware/printService";
 
 // Mounted once near the app root. printService publishes here for
 // mode: 'browser' -- this renders the (visually hidden until @media print)
@@ -12,7 +12,10 @@ export function ReceiptPrintHost() {
 
   useEffect(() => {
     if (!data) return;
-    const raf = requestAnimationFrame(() => window.print());
+    const raf = requestAnimationFrame(() => {
+      window.print();
+      acknowledgeReceiptPrinted();
+    });
     return () => cancelAnimationFrame(raf);
   }, [data]);
 

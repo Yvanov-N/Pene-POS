@@ -57,11 +57,18 @@
     "pin": {
       "checkoutTitle": "Code PIN administrateur pour valider l'encaissement",
       "incorrect": "Code PIN incorrect",
-      "close": "Fermer"
+      "close": "Fermer",
+      "forgotPin": "Code PIN oublie ?",
+      "forgotSubtitle": "Saisissez votre e-mail pour recevoir un lien de reinitialisation du code PIN.",
+      "sendResetLink": "Envoyer le lien",
+      "backToPad": "Retour",
+      "resetEmailSent": "Si un compte existe pour cette adresse, un e-mail de reinitialisation a ete envoye.",
+      "forgotNetworkError": "Impossible d'envoyer l'e-mail. Veuillez reessayer."
     },
     "receipt": {
       "title": "Vente terminee",
       "printButton": "Imprimer",
+      "shareButton": "Partager",
       "closeButton": "Fermer"
     }
   },
@@ -550,6 +557,18 @@
     "passwordMismatch": "Les mots de passe ne correspondent pas.",
     "passwordTooShort": "Le mot de passe doit contenir au moins 6 caracteres.",
     "passwordUpdated": "Mot de passe mis a jour. Connexion en cours..."
+  },
+  "resetPin": {
+    "title": "Reinitialiser le code PIN",
+    "checkingLink": "Verification du lien...",
+    "invalidLink": "Ce lien est invalide ou a expire. Demandez-en un nouveau depuis le clavier PIN.",
+    "newPinPlaceholder": "Nouveau code PIN (4 chiffres)",
+    "confirmPinPlaceholder": "Confirmer le nouveau code PIN",
+    "submit": "Mettre a jour le code PIN",
+    "invalid": "Le code PIN doit contenir exactement 4 chiffres.",
+    "mismatch": "Les codes PIN ne correspondent pas.",
+    "error": "Impossible de mettre a jour le code PIN. Veuillez reessayer.",
+    "updated": "Code PIN mis a jour. Vous avez ete deconnecte de cet appareil -- reconnectez-vous pour continuer."
   },
   "sync": {
     "badgeOnline": "En ligne",

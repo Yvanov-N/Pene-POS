@@ -45,7 +45,16 @@ type ShopStatusRow = Database["public"]["Tables"]["shop_status"]["Row"];
 // would fail outright with "permission denied for table profiles".
 type ProfileRow = Pick<
   Database["public"]["Tables"]["profiles"]["Row"],
-  "id" | "email" | "full_name" | "first_name" | "last_name" | "avatar_url" | "preferred_language" | "role" | "sync_seq"
+  | "id"
+  | "email"
+  | "full_name"
+  | "first_name"
+  | "last_name"
+  | "avatar_url"
+  | "preferred_language"
+  | "role"
+  | "sync_seq"
+  | "pin_hash"
 >;
 
 export function mapProductRow(row: ProductRow): Product {
@@ -224,7 +233,7 @@ async function pullProfiles(): Promise<void> {
   const cursor = await getCursor("profiles");
   const { data, error } = await supabase
     .from("profiles")
-    .select("id,email,full_name,first_name,last_name,avatar_url,preferred_language,role,sync_seq")
+    .select("id,email,full_name,first_name,last_name,avatar_url,preferred_language,role,sync_seq,pin_hash")
     .gt("sync_seq", cursor)
     .order("sync_seq", { ascending: true })
     .limit(PULL_BATCH_SIZE);
@@ -254,10 +263,11 @@ async function pullProfiles(): Promise<void> {
       preferred_language: row.preferred_language as Profile["preferred_language"],
       role: row.role,
       sync_seq: row.sync_seq,
-      // Preserve any locally-set PIN hash; a brand-new pulled profile has
-      // none yet and fails closed until a future PIN-assignment flow sets
-      // one -- an empty string never matches a real SHA-256 digest.
-      pin_hash: local?.pin_hash ?? "",
+      // Server value wins once present (migration 00033 keeps it current on
+      // every PIN change/reset, from any device) -- falls back to whatever
+      // was already cached locally, then to "" for a brand-new profile that
+      // has never set a PIN at all, which an empty string never matches.
+      pin_hash: row.pin_hash ?? local?.pin_hash ?? "",
     });
   }
 
