@@ -72,9 +72,20 @@ export interface CartItem {
 export interface Sale {
   id: string;
   created_at: string;
+  // Which admin's PIN authorized this checkout (checkout now only accepts
+  // an admin PIN -- see hooks/usePosCheckout.ts) -- kept as an audit trail,
+  // no longer the primary "who/where" identity shown to users. That's
+  // device_label below.
   cashier_id: string;
   total_amount: number;
   payment_method: PaymentMethod;
+  // The device that rang this up (auto-detected platform + an admin-set
+  // location name, e.g. "macos-yaounde" -- see lib/deviceLabel.ts), shown
+  // on receipts/Sales History/etc. in place of a cashier's name. Undefined
+  // for historical sales made before this existed, or for a device with no
+  // location configured yet -- display falls back to the cashier's name
+  // (via cashier_id) in that case, same as before this feature existed.
+  device_label?: string;
   // The student this sale is attributed to, for any payment method --
   // required when payment_method is "student_wallet" (that's whose balance
   // gets debited), optional/CRM-only attribution otherwise (a cashier can
@@ -239,6 +250,11 @@ export interface LocalSettings {
   id: string;
   printMode: PrintMode;
   autoPrintReceipts: boolean;
+  // Admin-set once per device (Settings > Device), e.g. "yaounde" -- combined
+  // with an auto-detected platform (lib/deviceLabel.ts) into a full label
+  // like "macos-yaounde" for sales attribution. Undefined until an admin
+  // sets it; the label falls back to just the platform until then.
+  deviceLocation?: string;
 }
 
 // Per-table incremental-pull watermark (services/sync/pull.ts). One row per

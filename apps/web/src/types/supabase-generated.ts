@@ -261,6 +261,7 @@ export type Database = {
         Row: {
           cashier_id: string
           created_at: string
+          device_label: string | null
           id: string
           id_text: string | null
           momo_verification_status: string | null
@@ -274,6 +275,7 @@ export type Database = {
         Insert: {
           cashier_id: string
           created_at?: string
+          device_label?: string | null
           id?: string
           id_text?: string | null
           momo_verification_status?: string | null
@@ -287,6 +289,7 @@ export type Database = {
         Update: {
           cashier_id?: string
           created_at?: string
+          device_label?: string | null
           id?: string
           id_text?: string | null
           momo_verification_status?: string | null
@@ -517,6 +520,7 @@ export type Database = {
             Returns: {
               cashier_id: string
               created_at: string
+              device_label: string | null
               id: string
               id_text: string | null
               momo_verification_status: string | null

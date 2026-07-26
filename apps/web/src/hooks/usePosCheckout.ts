@@ -6,6 +6,7 @@ import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
+import { getDeviceLabel } from "@/lib/deviceLabel";
 import { makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
 import { mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
@@ -64,8 +65,10 @@ export function usePosCheckout() {
   const cart = useCart();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   // "clear" and "remove item" no longer need this -- frictionless per Page 2
-  // (only checkout still identifies the cashier via PIN, kept deliberately;
-  // see PosCart.tsx's own note on why that one PIN step isn't being removed).
+  // (only checkout still requires a PIN, kept deliberately as a lightweight
+  // "an admin allowed this" gate -- it now accepts any admin's PIN rather
+  // than matching a specific cashier profile, and the sale is attributed to
+  // this device, not to whichever admin typed the PIN; see completeCheckout).
   const [pendingAction, setPendingAction] = useState<"checkout" | null>(null);
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<StudentWallet | null>(null);
@@ -122,10 +125,19 @@ export function usePosCheckout() {
     const cartItemsSnapshot = cart.items;
     const studentNameSnapshot = selectedStudent?.student_name ?? null;
 
+    // Fetched once up front (not re-read for the auto-print step below) --
+    // also where the device's admin-set location name (Settings > Device)
+    // lives, needed here to compute this sale's device_label.
+    const settings = await db.local_settings.get(SETTINGS_ID);
+    const deviceLabel = getDeviceLabel(settings?.deviceLocation);
+
     const sale: Sale = {
       id: saleId,
       created_at: now,
+      // Which admin's PIN authorized this checkout -- an audit trail, not
+      // the primary attribution shown to users anymore (see device_label).
       cashier_id: profile.id,
+      device_label: deviceLabel,
       total_amount: cart.totalAmount,
       payment_method: paymentMethod!,
       student_id: selectedStudent?.id,
@@ -215,7 +227,7 @@ export function usePosCheckout() {
       sale,
       items: saleItems,
       cartItems: cartItemsSnapshot,
-      cashierName: profile.full_name,
+      cashierName: deviceLabel,
       studentName: studentNameSnapshot,
     });
 
@@ -224,8 +236,8 @@ export function usePosCheckout() {
     // printing is something a cashier chooses per-terminal, not a silent
     // side effect on every sale. Still best-effort when enabled -- the sale
     // already succeeded, so a printer being unplugged/unpaired must never
-    // surface as a checkout failure.
-    const settings = await db.local_settings.get(SETTINGS_ID);
+    // surface as a checkout failure. Reuses the `settings` fetched at the
+    // top of this function rather than re-reading local_settings again.
     if (settings?.autoPrintReceipts) {
       try {
         await printService.printReceipt(sale, saleItems, settings.printMode ?? "browser");

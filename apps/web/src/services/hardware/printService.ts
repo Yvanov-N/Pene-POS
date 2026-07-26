@@ -166,8 +166,12 @@ class PrintService {
   }
 
   private async buildReceiptData(sale: Sale, items: SaleItem[]): Promise<ReceiptData> {
+    // device_label (the terminal that rang this up) is preferred over the
+    // cashier_id lookup -- only historical sales made before device
+    // attribution existed lack one, so the profile lookup is skipped
+    // entirely for every sale going forward, not just cosmetically ignored.
     const [cashier, products] = await Promise.all([
-      db.profiles.get(sale.cashier_id),
+      sale.device_label ? Promise.resolve(undefined) : db.profiles.get(sale.cashier_id),
       Promise.all(items.map((item) => db.products.get(item.product_id))),
     ]);
 
@@ -177,7 +181,7 @@ class PrintService {
       unitPrice: item.unit_price,
     }));
 
-    return { sale, lines, cashierName: cashier?.full_name ?? "-" };
+    return { sale, lines, cashierName: sale.device_label ?? cashier?.full_name ?? "-" };
   }
 }
 

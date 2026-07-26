@@ -55,7 +55,7 @@
       "hideCart": "Hide cart"
     },
     "pin": {
-      "checkoutTitle": "Identify yourself to check out",
+      "checkoutTitle": "Enter admin PIN to complete checkout",
       "incorrect": "Incorrect PIN",
       "close": "Close"
     },
@@ -192,7 +192,7 @@
       "allPaymentMethods": "All",
       "allStatuses": "All",
       "allDates": "All dates",
-      "searchPlaceholder": "Sale ID or cashier name...",
+      "searchPlaceholder": "Sale ID, cashier, or device...",
       "loading": "Loading...",
       "empty": "No sales found.",
       "itemsTitle": "Items",
@@ -215,7 +215,7 @@
       "voidErrorGeneric": "Void failed",
       "columnDate": "Date",
       "columnSaleId": "Sale #",
-      "columnCashier": "Cashier",
+      "columnCashier": "Device",
       "columnPayment": "Payment",
       "columnStatus": "Status",
       "columnTotal": "Total",
@@ -389,6 +389,13 @@
     "settings": {
       "title": "Settings",
       "pinTitle": "Administrator authorization required",
+      "deviceCardTitle": "Device",
+      "deviceCardSub": "Name this device's location so sales rung up here are labeled clearly (e.g. \"macos-yaounde\") instead of showing a cashier's name.",
+      "deviceCurrentLabel": "Current label:",
+      "deviceLocationLabel": "Location name",
+      "deviceLocationPlaceholder": "e.g. yaounde, buea...",
+      "deviceSaveButton": "Save",
+      "deviceSaveSuccessToast": "Device label updated: {{label}}",
       "printerCardTitle": "Printing",
       "autoPrintReceiptsLabel": "Auto-print receipts",
       "autoPrintReceiptsSub": "Print automatically after each sale. Off by default: a receipt summary is shown, printable on demand.",
@@ -500,7 +507,7 @@
   },
   "receipt": {
     "shopName": "Cite Shop",
-    "cashier": "Cashier: {{name}}",
+    "cashier": "Served from: {{name}}",
     "footer": "Thank you for your visit!"
   },
   "restocking": {

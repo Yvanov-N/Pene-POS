@@ -158,6 +158,7 @@ export function PosCart() {
       {pendingAction === "checkout" && (
         <PinPadModal
           title={t("pos.pin.checkoutTitle")}
+          requiredRole="admin"
           onSuccess={handleCheckoutPinSuccess}
           onClose={cancelPendingAction}
         />

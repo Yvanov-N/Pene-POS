@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.13.0",
+    "date": "2026-07-26",
+    "changes": [
+      "attribute checkout to this device instead of a PIN-matched cashier"
+    ]
+  },
+  {
     "version": "1.12.6",
     "date": "2026-07-25",
     "changes": [
