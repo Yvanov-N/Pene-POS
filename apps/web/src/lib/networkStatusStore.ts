@@ -1,19 +1,8 @@
-// A module-level mirror of useNetworkStatus's `isOnline` state, for the few
-// call sites that aren't React components/hooks (repository.ts, and
-// refundService.ts which is a plain async function) and so can't read
-// useNetworkStatus()/useSyncEngine() directly. useNetworkStatus.ts keeps this
-// in sync every time it updates its own state -- this is a read-only mirror,
-// never the source of truth.
-let snapshot = typeof navigator !== "undefined" ? navigator.onLine : true;
-
-export function getIsOnlineSnapshot(): boolean {
-  return snapshot;
-}
-
-export function setIsOnlineSnapshot(value: boolean): void {
-  snapshot = value;
-}
-
-// Shared by repository.ts (writes) and useNetworkFirstQuery.ts (reads) so
-// every network-first attempt races the same bound.
+// Shared bound for every network-first attempt (push.ts's pushOutbox,
+// useNetworkFirstQuery, usePaginatedQuery, useShareReceipt) that races a
+// direct Supabase call against a timeout rather than trusting any cached
+// connectivity signal -- see pushOutbox's own comment for why gating these
+// on useNetworkStatus's periodic health-check ping was a real production bug
+// (that ping can read stale/false for a specific endpoint while the actual
+// call below succeeds fine).
 export const NETWORK_FIRST_TIMEOUT_MS = 2500;

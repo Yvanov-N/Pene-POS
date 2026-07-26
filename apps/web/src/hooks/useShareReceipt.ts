@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { db } from "@/lib/db";
-import { getIsOnlineSnapshot } from "@/lib/networkStatusStore";
 import { confirmSaleSynced } from "@/services/sync/drain";
 import { useToast } from "@/hooks/useToast";
 
@@ -53,7 +52,10 @@ export function useShareReceipt() {
         // not this field. confirmSaleSynced itself resolves instantly, with
         // no network call, when the matching outbox entry is already
         // "synced" -- this isn't a network round trip for the common case.
-        if (!getIsOnlineSnapshot()) {
+        // navigator.onLine, not the periodic health-check snapshot -- see
+        // push.ts's pushOutbox for why that ping can be stale/wrong even
+        // when confirmSaleSynced's own network call would succeed fine.
+        if (!navigator.onLine) {
           showToast("error", t("shareReceipt.blockedOfflineToast"));
           return null;
         }

@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { getIsOnlineSnapshot } from "@/lib/networkStatusStore";
 import { extractErrorMessage } from "@/services/sync/outbox";
 import { logSyncEvent } from "@/services/sync/telemetry";
 import type { OutboxOperation, PushOutcome } from "@/types/db";
@@ -165,10 +164,17 @@ export async function pushOutbox(entry: OutboxOperation): Promise<PushOutcome> {
   }
   const id = entry.id;
 
-  // Known-offline (the last connectivity ping already confirmed it): don't
-  // burn PUSH_TIMEOUT_MS on a call that's certain to fail -- leave the row
-  // pending for the next reconnect-triggered drain.
-  if (!getIsOnlineSnapshot()) return "queued";
+  // Only skip the attempt for a real, certain offline (no network interface
+  // at all -- airplane mode, wifi off). Deliberately NOT gated on
+  // useNetworkStatus's periodic /auth/v1/health ping: that check runs on its
+  // own 20s cycle with a 4s timeout against one specific endpoint, so it can
+  // read stale/false while the actual RPC below would succeed fine -- this
+  // caused a real production bug (a completed, 200-OK complete_sale still
+  // showing "Network unavailable, saved locally" because the ping happened
+  // to be mid-timeout at that exact moment). The RPC call itself already has
+  // its own, more current timeout (PUSH_TIMEOUT_MS) and is the only thing
+  // that gets to decide whether this actually worked.
+  if (!navigator.onLine) return "queued";
 
   await db.sync_outbox.update(id, { status: "syncing" });
 

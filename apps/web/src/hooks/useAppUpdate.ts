@@ -13,7 +13,22 @@ export function useAppUpdate() {
   const [snoozed, setSnoozed] = useState(false);
   const [info, setInfo] = useState<VersionInfo | null>(null);
 
-  const checkForUpdate = useCallback(() => void registrationRef.current?.update(), []);
+  // registration.update() routinely rejects on a flaky connection (this
+  // runs every CHECK_INTERVAL_MS plus on every tab-focus) -- with no .catch,
+  // that became an unhandled rejection, which telemetry.ts's global
+  // unhandledrejection listener dutifully logged into sync_events as a
+  // severity "error" ("Failed to update a ServiceWorker for scope...").
+  // That flooded the Sync Health dashboard (meant for stock/balance/sale
+  // sync diagnostics) with routine SW-update noise unrelated to any of
+  // those. It's expected to fail occasionally and self-corrects on the next
+  // periodic check, so it's swallowed locally instead of surfaced there.
+  const checkForUpdate = useCallback(
+    () =>
+      void registrationRef.current?.update().catch((error: unknown) => {
+        console.warn("[useAppUpdate] update check failed, will retry next cycle", error);
+      }),
+    [],
+  );
 
   const {
     needRefresh: [needRefresh],

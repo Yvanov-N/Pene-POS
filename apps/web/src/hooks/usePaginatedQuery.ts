@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { getIsOnlineSnapshot, NETWORK_FIRST_TIMEOUT_MS } from "@/lib/networkStatusStore";
+import { NETWORK_FIRST_TIMEOUT_MS } from "@/lib/networkStatusStore";
 
 export interface PageParams<TSort extends string, TFilters> {
   page: number; // 1-based
@@ -72,7 +72,11 @@ export function usePaginatedQuery<T, TSort extends string, TFilters>({
   // reason to trust the server over local here, never for the rows.
   const [serverCount, setServerCount] = useState<{ key: string; totalCount: number } | null>(null);
   useEffect(() => {
-    if (!enabled || !getIsOnlineSnapshot()) return;
+    // navigator.onLine, not the periodic health-check snapshot -- see
+    // push.ts's pushOutbox for why that ping can be stale/wrong. This is
+    // just an opportunistic server-count refresh with its own abort timeout
+    // below, so it only needs to skip the certain-to-fail case.
+    if (!enabled || !navigator.onLine) return;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), NETWORK_FIRST_TIMEOUT_MS);
     fetchServer(debouncedParams, controller.signal)
