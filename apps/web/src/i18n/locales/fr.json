@@ -55,7 +55,7 @@
       "hideCart": "Masquer le panier"
     },
     "pin": {
-      "checkoutTitle": "Identifiez-vous pour encaisser",
+      "checkoutTitle": "Code PIN administrateur pour valider l'encaissement",
       "incorrect": "Code PIN incorrect",
       "close": "Fermer"
     },
@@ -192,7 +192,7 @@
       "allPaymentMethods": "Tous",
       "allStatuses": "Tous",
       "allDates": "Toutes les dates",
-      "searchPlaceholder": "N° de vente ou nom du caissier...",
+      "searchPlaceholder": "N° de vente, caissier ou appareil...",
       "loading": "Chargement...",
       "empty": "Aucune vente trouvee.",
       "itemsTitle": "Articles",
@@ -215,7 +215,7 @@
       "voidErrorGeneric": "Echec de l'annulation",
       "columnDate": "Date",
       "columnSaleId": "N° Vente",
-      "columnCashier": "Caissier",
+      "columnCashier": "Appareil",
       "columnPayment": "Paiement",
       "columnStatus": "Statut",
       "columnTotal": "Montant",
@@ -389,6 +389,13 @@
     "settings": {
       "title": "Parametres",
       "pinTitle": "Autorisation administrateur requise",
+      "deviceCardTitle": "Appareil",
+      "deviceCardSub": "Nommez l'emplacement de cet appareil pour que les ventes effectuees ici soient clairement etiquetees (ex. \"macos-yaounde\") au lieu d'afficher un nom de caissier.",
+      "deviceCurrentLabel": "Etiquette actuelle :",
+      "deviceLocationLabel": "Nom de l'emplacement",
+      "deviceLocationPlaceholder": "ex. yaounde, buea...",
+      "deviceSaveButton": "Enregistrer",
+      "deviceSaveSuccessToast": "Etiquette de l'appareil mise a jour : {{label}}",
       "printerCardTitle": "Impression",
       "autoPrintReceiptsLabel": "Impression automatique des recus",
       "autoPrintReceiptsSub": "Imprime automatiquement apres chaque vente. Desactive par defaut : un resume du recu est affiche, imprimable a la demande.",
@@ -500,7 +507,7 @@
   },
   "receipt": {
     "shopName": "Cite Shop",
-    "cashier": "Caissier : {{name}}",
+    "cashier": "Enregistre depuis : {{name}}",
     "footer": "Merci de votre visite !"
   },
   "restocking": {

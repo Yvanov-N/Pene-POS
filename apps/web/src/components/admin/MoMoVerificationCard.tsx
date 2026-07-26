@@ -125,7 +125,7 @@ export function MoMoVerificationCard() {
                   </div>
                   <p className="mt-1 text-xs text-muted">
                     {new Date(sale.created_at).toLocaleTimeString()} ·{" "}
-                    {cashierNames?.get(sale.cashier_id) ?? sale.cashier_id}
+                    {sale.device_label ?? cashierNames?.get(sale.cashier_id) ?? sale.cashier_id}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">

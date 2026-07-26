@@ -38,6 +38,7 @@ interface PublicReceiptRow {
   total_amount: number;
   status: SaleStatus;
   cashier_name: string | null;
+  device_label: string | null;
   student_name: string | null;
   items: { product_name: string | null; quantity: number; unit_price: number }[];
 }
@@ -104,7 +105,7 @@ function mapPublicReceiptRow(row: PublicReceiptRow, unknownProductLabel: string)
     paymentMethod: row.payment_method,
     totalAmount: row.total_amount,
     status: row.status,
-    cashierName: row.cashier_name,
+    cashierName: row.device_label ?? row.cashier_name,
     studentName: row.student_name,
     items: row.items.map((item) => ({
       productName: item.product_name ?? unknownProductLabel,
@@ -152,7 +153,7 @@ export function ReceiptPage() {
         paymentMethod: sale.payment_method,
         totalAmount: sale.total_amount,
         status: sale.status,
-        cashierName: cashier?.full_name ?? null,
+        cashierName: sale.device_label ?? cashier?.full_name ?? null,
         studentName: student?.student_name ?? null,
         items: items.map((item) => ({
           productName: productNames.get(item.product_id) ?? t("admin.salesHistory.unknownProduct"),

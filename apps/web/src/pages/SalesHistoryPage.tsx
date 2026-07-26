@@ -52,7 +52,8 @@ async function queryLocalSales(params: PageParams<"created_at", SalesFilters_>):
       const cashierName = cashierNames.get(sale.cashier_id) ?? "";
       const matchesId = sale.id.toLowerCase().includes(term);
       const matchesCashier = cashierName.toLowerCase().includes(term);
-      if (!matchesId && !matchesCashier) return false;
+      const matchesDevice = (sale.device_label ?? "").toLowerCase().includes(term);
+      if (!matchesId && !matchesCashier && !matchesDevice) return false;
     }
     if (params.filters.dateRange && (sale.created_at < params.filters.dateRange.start || sale.created_at > params.filters.dateRange.end)) {
       return false;
@@ -89,7 +90,7 @@ async function fetchServerSales(
   }
   if (term) {
     const cashierClause = matchingCashierIds.length > 0 ? `,cashier_id.in.(${matchingCashierIds.join(",")})` : "";
-    query = query.or(`id_text.ilike.%${term}%${cashierClause}`);
+    query = query.or(`id_text.ilike.%${term}%${cashierClause},device_label.ilike.%${term}%`);
   }
 
   const offset = (params.page - 1) * params.pageSize;
@@ -385,7 +386,9 @@ export function SalesHistoryPage() {
                         </td>
                         <td className="py-2 pr-3 text-muted">{new Date(sale.created_at).toLocaleString()}</td>
                         <td className="py-2 pr-3 font-mono text-xs text-foreground">#{shortId(sale.id)}</td>
-                        <td className="py-2 pr-3 text-foreground">{cashierNames?.get(sale.cashier_id) ?? sale.cashier_id}</td>
+                        <td className="py-2 pr-3 text-foreground">
+                          {sale.device_label ?? cashierNames?.get(sale.cashier_id) ?? sale.cashier_id}
+                        </td>
                         <td className="py-2 pr-3">
                           <span className={PAYMENT_BADGE_CLASS[sale.payment_method]}>
                             {t(`pos.cart.paymentMethod.${sale.payment_method}`)}

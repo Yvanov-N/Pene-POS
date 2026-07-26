@@ -87,6 +87,7 @@ export function mapSaleRow(row: SaleRow): Sale {
     id: row.id,
     created_at: row.created_at,
     cashier_id: row.cashier_id,
+    device_label: row.device_label ?? undefined,
     total_amount: row.total_amount,
     payment_method: row.payment_method,
     student_id: row.student_id ?? undefined,
