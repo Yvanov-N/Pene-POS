@@ -103,7 +103,25 @@ async function notifyStudentsByEmail(
     .map((row: { email: string | null }) => row.email)
     .filter((email: string | null): email is string => Boolean(email));
 
-  if (recipients.length === 0) return 0;
+  if (recipients.length === 0) {
+    // Two distinct, easily-confused causes for the same silent 0 -- the main
+    // query above filters on BOTH email-not-null AND opted-in at once, so it
+    // can't itself tell "nobody opted in" apart from "opted in but no email
+    // on file" (confirmed live: exactly the latter, for every seeded wallet
+    // on the local dev stack). A cheap extra count, only run on this already-
+    // rare zero-recipients path, tells them apart in the logs.
+    const { count: optedInCount } = await supabase
+      .from("student_wallets")
+      .select("id", { count: "exact", head: true })
+      .eq("email_opt_in", true);
+
+    console.warn(
+      optedInCount
+        ? `[notify-shop-status] ${optedInCount} student wallet(s) opted in, but none has a usable email on file -- skipping student email`
+        : "[notify-shop-status] no student wallets are opted in for email -- skipping student email",
+    );
+    return 0;
+  }
 
   const { subject, html } = buildEmail(isOpen);
 

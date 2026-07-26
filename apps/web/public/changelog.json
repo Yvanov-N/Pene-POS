@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.13.4",
+    "date": "2026-07-26",
+    "changes": [
+      "log why shop-status student emails silently send to nobody"
+    ]
+  },
+  {
     "version": "1.13.3",
     "date": "2026-07-26",
     "changes": [
