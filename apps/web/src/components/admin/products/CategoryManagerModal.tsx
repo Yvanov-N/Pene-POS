@@ -1,4 +1,6 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { X } from "lucide-react";
@@ -6,11 +8,17 @@ import { db } from "@/lib/db";
 import { commitLocal, makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
+import { notTakenByOther } from "@/lib/validation";
 import { ButtonCustom } from "@/components/ui/button-custom";
+import { FieldError } from "@/components/ui/field-error";
 import type { Category } from "@/types/db";
 
 interface CategoryManagerModalProps {
   onClose: () => void;
+}
+
+interface CategoryFormValues {
+  name: string;
 }
 
 export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
@@ -28,77 +36,55 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
     return counts;
   }, []);
 
-  const [newName, setNewName] = useState("");
-  const [addError, setAddError] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const addingRef = useRef(false);
-
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editError, setEditError] = useState<string | null>(null);
-  const [savingEdit, setSavingEdit] = useState(false);
-  const savingEditRef = useRef(false);
 
-  const startEdit = (category: Category) => {
-    setEditingId(category.id);
-    setEditName(category.name);
-    setEditError(null);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditError(null);
-  };
-
-  const handleAdd = async () => {
-    if (addingRef.current) return;
-    addingRef.current = true;
-    setAdding(true);
-
-    try {
-      const name = newName.trim();
-      if (!name) {
-        setAddError(t("admin.categories.errorNameRequired"));
-        return;
-      }
-      const existing = await db.categories.where("name").equals(name).first();
-      if (existing) {
-        setAddError(t("admin.categories.errorNameDuplicate"));
-        return;
-      }
-
-      setAddError(null);
+  const addFormik = useFormik<CategoryFormValues>({
+    initialValues: { name: "" },
+    validateOnChange: false,
+    validateOnBlur: true,
+    validationSchema: Yup.object({
+      name: Yup.string()
+        .trim()
+        .required(t("admin.categories.errorNameRequired"))
+        .test("unique-category-name", t("admin.categories.errorNameDuplicate"), async (value) => {
+          const trimmed = value?.trim();
+          if (!trimmed) return true;
+          const existing = await db.categories.where("name").equals(trimmed).first();
+          return notTakenByOther(existing, undefined);
+        }),
+    }),
+    onSubmit: async (values, helpers) => {
+      const name = values.name.trim();
       const category: Category = { id: crypto.randomUUID(), name, updated_at: new Date().toISOString() };
       const entry = makeOutboxEntry("generic_insert", "categories", { ...category });
       await commitLocal(db.categories, () => db.categories.put(category), entry);
       void pushOutbox(entry);
 
       showToast("success", t("admin.categories.addSuccessToast", { name }));
-      setNewName("");
-    } finally {
-      addingRef.current = false;
-      setAdding(false);
-    }
-  };
+      helpers.resetForm();
+    },
+  });
 
-  const handleSaveEdit = async (category: Category) => {
-    if (savingEditRef.current) return;
-    savingEditRef.current = true;
-    setSavingEdit(true);
+  const editFormik = useFormik<CategoryFormValues>({
+    initialValues: { name: "" },
+    validateOnChange: false,
+    validateOnBlur: true,
+    validationSchema: Yup.object({
+      name: Yup.string()
+        .trim()
+        .required(t("admin.categories.errorNameRequired"))
+        .test("unique-category-name", t("admin.categories.errorNameDuplicate"), async (value) => {
+          const trimmed = value?.trim();
+          if (!trimmed) return true;
+          const existing = await db.categories.where("name").equals(trimmed).first();
+          return notTakenByOther(existing, editingId ?? undefined);
+        }),
+    }),
+    onSubmit: async (values) => {
+      const category = categories?.find((c) => c.id === editingId);
+      if (!category) return;
 
-    try {
-      const name = editName.trim();
-      if (!name) {
-        setEditError(t("admin.categories.errorNameRequired"));
-        return;
-      }
-      const existing = await db.categories.where("name").equals(name).first();
-      if (existing && existing.id !== category.id) {
-        setEditError(t("admin.categories.errorNameDuplicate"));
-        return;
-      }
-
-      setEditError(null);
+      const name = values.name.trim();
       const updated: Category = { ...category, name, updated_at: new Date().toISOString() };
       const entry = makeOutboxEntry("generic_update", "categories", { ...updated });
       await commitLocal(db.categories, () => db.categories.put(updated), entry);
@@ -106,10 +92,16 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
 
       showToast("success", t("admin.categories.renameSuccessToast", { name }));
       setEditingId(null);
-    } finally {
-      savingEditRef.current = false;
-      setSavingEdit(false);
-    }
+    },
+  });
+
+  const startEdit = (category: Category) => {
+    setEditingId(category.id);
+    editFormik.resetForm({ values: { name: category.name } });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
   };
 
   const handleDelete = async (category: Category) => {
@@ -161,16 +153,23 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
           <div className="flex gap-2">
             <input
               type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              name="name"
+              value={addFormik.values.name}
+              onChange={addFormik.handleChange}
+              onBlur={addFormik.handleBlur}
               placeholder={t("admin.categories.addPlaceholder")}
               className="flex-1 rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
             />
-            <ButtonCustom variant="primary" size="sm" isLoading={adding} onClick={() => void handleAdd()}>
+            <ButtonCustom
+              variant="primary"
+              size="sm"
+              isLoading={addFormik.isSubmitting}
+              onClick={() => void addFormik.submitForm()}
+            >
               {t("admin.categories.add")}
             </ButtonCustom>
           </div>
-          {addError && <p className="text-xs text-destructive">{addError}</p>}
+          <FieldError touched={addFormik.touched.name} error={addFormik.errors.name} />
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -190,16 +189,18 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
                       <div className="flex flex-col gap-2">
                         <input
                           type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
+                          name="name"
+                          value={editFormik.values.name}
+                          onChange={editFormik.handleChange}
+                          onBlur={editFormik.handleBlur}
                           className="rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
                         />
-                        {editError && <p className="text-xs text-destructive">{editError}</p>}
+                        <FieldError touched={editFormik.touched.name} error={editFormik.errors.name} />
                         <div className="flex gap-2">
                           <button
                             type="button"
                             onClick={cancelEdit}
-                            disabled={savingEdit}
+                            disabled={editFormik.isSubmitting}
                             className="flex-1 rounded-lg border border-border py-1.5 text-xs font-medium text-foreground disabled:opacity-50"
                           >
                             {t("admin.categories.cancel")}
@@ -208,8 +209,8 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
                             variant="primary"
                             size="sm"
                             className="flex-1"
-                            isLoading={savingEdit}
-                            onClick={() => void handleSaveEdit(category)}
+                            isLoading={editFormik.isSubmitting}
+                            onClick={() => void editFormik.submitForm()}
                           >
                             {t("admin.categories.save")}
                           </ButtonCustom>

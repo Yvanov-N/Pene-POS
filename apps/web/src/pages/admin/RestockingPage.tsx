@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import type { TFunction } from "i18next";
@@ -8,8 +10,10 @@ import { makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
+import { numberSchema } from "@/lib/validation";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
+import { FieldError } from "@/components/ui/field-error";
 import { BarcodeInput, type BarcodeInputHandle } from "@/components/pos/BarcodeInput";
 import type { Product } from "@/types/db";
 
@@ -27,16 +31,18 @@ function getExpiryBadge(t: TFunction, expiryDate?: string): { label: string; cla
   return null;
 }
 
+interface FormValues {
+  quantity: number;
+  expiryInput: string;
+}
+
 export function RestockingPage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
   const [selected, setSelected] = useState<Product | null>(null);
-  const [quantity, setQuantity] = useState(0);
-  const [expiryInput, setExpiryInput] = useState("");
   const [nameSearch, setNameSearch] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const barcodeInputRef = useRef<BarcodeInputHandle>(null);
 
   const handleUnknownBarcode = () => {
@@ -57,17 +63,14 @@ export function RestockingPage() {
 
   const expiryBadge = useMemo(() => (selected ? getExpiryBadge(t, selected.expiry_date) : null), [t, selected]);
 
-  const selectProduct = (product: Product) => {
-    setSelected(product);
-    setQuantity(0);
-    setExpiryInput(product.expiry_date?.slice(0, 10) ?? "");
-    setNameSearch("");
-  };
-
-  const handleValidate = async () => {
-    if (!selected || quantity <= 0) return;
-    setSubmitting(true);
-    try {
+  const formik = useFormik<FormValues>({
+    initialValues: { quantity: 0, expiryInput: "" },
+    validationSchema: Yup.object({
+      quantity: numberSchema(t("restocking.errorQuantityInvalid"), { integer: true, moreThan: 0 }),
+      expiryInput: Yup.string(),
+    }),
+    onSubmit: async (values) => {
+      if (!selected) return;
       const fresh = await db.products.get(selected.id);
       if (!fresh) {
         showToast("error", t("restocking.productGoneError"));
@@ -85,13 +88,18 @@ export function RestockingPage() {
       // overwritten. expiry_date has no such concurrent-writer risk (nothing
       // else in this app ever changes it), so it stays a plain field update,
       // only pushed at all when it actually changed.
-      const nextExpiry = expiryInput ? new Date(expiryInput).toISOString() : fresh.expiry_date;
+      const nextExpiry = values.expiryInput ? new Date(values.expiryInput).toISOString() : fresh.expiry_date;
       const expiryChanged = nextExpiry !== fresh.expiry_date;
-      const updated: Product = { ...fresh, stock: fresh.stock + quantity, expiry_date: nextExpiry, updated_at: new Date().toISOString() };
+      const updated: Product = {
+        ...fresh,
+        stock: fresh.stock + values.quantity,
+        expiry_date: nextExpiry,
+        updated_at: new Date().toISOString(),
+      };
 
       const stockEntry = makeOutboxEntry("adjust_product_stock", "products", {
         product_id: selected.id,
-        delta: quantity,
+        delta: values.quantity,
         reason: "restock",
       });
       const expiryEntry = expiryChanged
@@ -109,10 +117,9 @@ export function RestockingPage() {
         showToast("warning", t("sync.offlineFallbackToast"));
       }
 
-      showToast("success", t("restocking.successToast", { name: updated.name, quantity }));
+      showToast("success", t("restocking.successToast", { name: updated.name, quantity: values.quantity }));
       setSelected(null);
-      setQuantity(0);
-      setExpiryInput("");
+      formik.resetForm({ values: { quantity: 0, expiryInput: "" } });
       // Ready for the next box immediately -- BarcodeInput itself only
       // refocuses on its own scan events, not on this page's own submit
       // action, so without this the manager would have to click back into
@@ -120,9 +127,13 @@ export function RestockingPage() {
       // (background keyboard-emulation detection still works either way,
       // but hardware HID/serial + the visual caret shouldn't require it).
       barcodeInputRef.current?.focus();
-    } finally {
-      setSubmitting(false);
-    }
+    },
+  });
+
+  const selectProduct = (product: Product) => {
+    setSelected(product);
+    formik.resetForm({ values: { quantity: 0, expiryInput: product.expiry_date?.slice(0, 10) ?? "" } });
+    setNameSearch("");
   };
 
   return (
@@ -192,7 +203,7 @@ export function RestockingPage() {
                     <button
                       key={amount}
                       type="button"
-                      onClick={() => setQuantity((current) => current + amount)}
+                      onClick={() => formik.setFieldValue("quantity", (Number(formik.values.quantity) || 0) + amount)}
                       className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-sm font-medium text-foreground hover:border-accent"
                     >
                       +{amount}
@@ -203,18 +214,23 @@ export function RestockingPage() {
                   type="number"
                   min="0"
                   step="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.max(0, Math.floor(Number(e.target.value)) || 0))}
+                  name="quantity"
+                  value={formik.values.quantity}
+                  onChange={(e) => formik.setFieldValue("quantity", Number(e.target.value))}
+                  onBlur={formik.handleBlur}
                   className="w-32 rounded-lg border border-border bg-surface2 px-3 py-2 text-lg font-semibold text-foreground"
                 />
+                <FieldError touched={formik.touched.quantity} error={formik.errors.quantity} />
               </div>
 
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-muted">{t("restocking.expiryLabel")}</span>
                 <input
                   type="date"
-                  value={expiryInput}
-                  onChange={(e) => setExpiryInput(e.target.value)}
+                  name="expiryInput"
+                  value={formik.values.expiryInput}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
                 />
               </label>
@@ -222,9 +238,9 @@ export function RestockingPage() {
               <ButtonCustom
                 variant="success"
                 size="lg"
-                disabled={quantity <= 0}
-                isLoading={submitting}
-                onClick={() => void handleValidate()}
+                disabled={!selected}
+                isLoading={formik.isSubmitting}
+                onClick={() => void formik.submitForm()}
               >
                 {t("restocking.validate")}
               </ButtonCustom>

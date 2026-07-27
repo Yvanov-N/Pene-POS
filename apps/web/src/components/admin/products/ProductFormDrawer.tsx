@@ -1,4 +1,6 @@
 import { useRef, useState, type ChangeEvent } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
@@ -8,7 +10,9 @@ import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { scannerService } from "@/services/hardware/scannerService";
+import { notTakenByOther, numberSchema } from "@/lib/validation";
 import { ButtonCustom } from "@/components/ui/button-custom";
+import { FieldError } from "@/components/ui/field-error";
 import type { Product } from "@/types/db";
 
 interface FormState {
@@ -58,26 +62,66 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
   const { t } = useTranslation();
   const { showToast } = useToast();
 
-  const [form, setForm] = useState<FormState>(product ? productToForm(product) : EMPTY_FORM);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   // Generated upfront (not only at save time, unlike the rest of `saved` in
-  // handleSave below) so an image can be uploaded to a real storage path
+  // onSubmit below) so an image can be uploaded to a real storage path
   // before Save is ever clicked.
   const [productId] = useState(() => product?.id ?? crypto.randomUUID());
   const [imageUploading, setImageUploading] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  // A second handleSave invocation landing before the first has re-rendered
-  // (e.g. a fast double click) would read stale `saving` state -- state
-  // updates aren't visible synchronously to a call already in flight. A ref
-  // mutates immediately, so it's the only guard that actually closes that
-  // window; without it, both calls could pass the async duplicate-barcode
-  // check before either had written anything, and the second write would
-  // then flag the first's own just-created row as a "duplicate".
-  const savingRef = useRef(false);
 
   const categories = useLiveQuery(() => db.categories.orderBy("name").toArray(), []);
+
+  const formik = useFormik<FormState>({
+    initialValues: product ? productToForm(product) : EMPTY_FORM,
+    validateOnChange: false,
+    validateOnBlur: true,
+    validationSchema: Yup.object({
+      name: Yup.string().trim().required(t("admin.products.errorNameRequired")),
+      price: numberSchema(t("admin.products.errorPriceInvalid"), { min: 0 }),
+      stock: numberSchema(t("admin.products.errorStockInvalid"), { min: 0, integer: true }),
+      category_id: Yup.string(),
+      barcode: Yup.string().test(
+        "unique-barcode",
+        t("admin.products.errorBarcodeDuplicate"),
+        async (value) => {
+          const trimmed = value?.trim();
+          if (!trimmed) return true;
+          const existing = await db.products.where("barcode").equals(trimmed).first();
+          return notTakenByOther(existing, product?.id);
+        },
+      ),
+      emoji: Yup.string(),
+      image_url: Yup.string(),
+      expiry_date: Yup.string(),
+    }),
+    onSubmit: async (values) => {
+      const name = values.name.trim();
+      const price = Number(values.price);
+      const stock = Number(values.stock);
+      const barcode = values.barcode.trim();
+
+      const saved: Product = {
+        id: productId,
+        name,
+        price,
+        stock,
+        category_id: values.category_id || undefined,
+        barcode: barcode || undefined,
+        emoji: values.emoji.trim() || undefined,
+        image_url: values.image_url.trim() || undefined,
+        expiry_date: values.expiry_date ? new Date(values.expiry_date).toISOString() : undefined,
+        updated_at: new Date().toISOString(),
+      };
+
+      const entry = makeOutboxEntry(product ? "generic_update" : "generic_insert", "products", { ...saved });
+      await commitLocal(db.products, () => db.products.put(saved), entry);
+      void pushOutbox(entry);
+
+      showToast("success", t("admin.products.savedToast"));
+      onClose();
+    },
+  });
 
   // Safe to mount directly here (unlike StudentWalletRechargeCard's
   // window-event workaround from before routing existed): AppShell's routes
@@ -85,7 +129,7 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
   // useBarcodeScanner instance) is always unmounted while this drawer is
   // open on /admin/products.
   const { isConnected, connectionType, connectDevice } = useBarcodeScanner({
-    onScan: (code) => setForm((current) => ({ ...current, barcode: code })),
+    onScan: (code) => formik.setFieldValue("barcode", code),
   });
   const canPairScanner = scannerService.isHidSupported() || scannerService.isSerialSupported();
   const connectionLabel =
@@ -121,70 +165,12 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
       const { data } = supabase.storage.from("product-images").getPublicUrl(path);
       // Cache-bust: the path never changes across re-uploads, so without
       // this the browser would keep showing whatever it first cached here.
-      setForm((current) => ({ ...current, image_url: `${data.publicUrl}?v=${Date.now()}` }));
+      void formik.setFieldValue("image_url", `${data.publicUrl}?v=${Date.now()}`);
     } catch (uploadError) {
       console.warn("[ProductFormDrawer] image upload failed", uploadError);
       setImageError(t("admin.products.imageUploadError"));
     } finally {
       setImageUploading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
-
-    try {
-      const name = form.name.trim();
-      const price = Number(form.price);
-      const stock = Number(form.stock);
-      const barcode = form.barcode.trim();
-
-      if (!name) {
-        setFormError(t("admin.products.errorNameRequired"));
-        return;
-      }
-      if (!Number.isFinite(price) || price < 0) {
-        setFormError(t("admin.products.errorPriceInvalid"));
-        return;
-      }
-      if (!Number.isInteger(stock) || stock < 0) {
-        setFormError(t("admin.products.errorStockInvalid"));
-        return;
-      }
-
-      if (barcode) {
-        const existing = await db.products.where("barcode").equals(barcode).first();
-        if (existing && existing.id !== product?.id) {
-          setFormError(t("admin.products.errorBarcodeDuplicate"));
-          return;
-        }
-      }
-
-      setFormError(null);
-      const saved: Product = {
-        id: productId,
-        name,
-        price,
-        stock,
-        category_id: form.category_id || undefined,
-        barcode: barcode || undefined,
-        emoji: form.emoji.trim() || undefined,
-        image_url: form.image_url.trim() || undefined,
-        expiry_date: form.expiry_date ? new Date(form.expiry_date).toISOString() : undefined,
-        updated_at: new Date().toISOString(),
-      };
-
-      const entry = makeOutboxEntry(product ? "generic_update" : "generic_insert", "products", { ...saved });
-      await commitLocal(db.products, () => db.products.put(saved), entry);
-      void pushOutbox(entry);
-
-      showToast("success", t("admin.products.savedToast"));
-      onClose();
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
     }
   };
 
@@ -201,10 +187,13 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
             <span className="text-muted">{t("admin.products.fieldName")}</span>
             <input
               type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              name="name"
+              value={formik.values.name}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
             />
+            <FieldError touched={formik.touched.name} error={formik.errors.name} />
           </label>
 
           <div className="flex gap-3">
@@ -214,10 +203,13 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
                 type="number"
                 min="0"
                 step="1"
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                name="price"
+                value={formik.values.price}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
               />
+              <FieldError touched={formik.touched.price} error={formik.errors.price} />
             </label>
             <label className="flex flex-1 flex-col gap-1 text-sm">
               <span className="text-muted">{t("admin.products.fieldStock")}</span>
@@ -225,18 +217,23 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
                 type="number"
                 min="0"
                 step="1"
-                value={form.stock}
-                onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                name="stock"
+                value={formik.values.stock}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
               />
+              <FieldError touched={formik.touched.stock} error={formik.errors.stock} />
             </label>
           </div>
 
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-muted">{t("admin.products.fieldCategory")}</span>
             <select
-              value={form.category_id}
-              onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+              name="category_id"
+              value={formik.values.category_id}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
             >
               <option value="">{t("admin.products.categoryNone")}</option>
@@ -253,8 +250,10 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
             <div className="flex gap-2">
               <input
                 type="text"
-                value={form.barcode}
-                onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                name="barcode"
+                value={formik.values.barcode}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 className="flex-1 rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
               />
               {canPairScanner && (
@@ -267,6 +266,7 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
                 </button>
               )}
             </div>
+            <FieldError touched={formik.touched.barcode} error={formik.errors.barcode} />
             <span className="inline-flex items-center gap-1.5 text-xs text-muted">
               <span className={`h-2 w-2 rounded-full ${isConnected ? "bg-success" : "bg-muted"}`} aria-hidden />
               {connectionLabel}
@@ -278,16 +278,18 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
               <span className="text-muted">{t("admin.products.fieldEmoji")}</span>
               <input
                 type="text"
-                value={form.emoji}
-                onChange={(e) => setForm({ ...form, emoji: e.target.value })}
+                name="emoji"
+                value={formik.values.emoji}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-center text-foreground"
               />
             </label>
             <div className="flex flex-1 flex-col gap-2 text-sm">
               <span className="text-muted">{t("admin.products.fieldImageUrl")}</span>
               <div className="flex items-center gap-3">
-                {form.image_url && (
-                  <img src={form.image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                {formik.values.image_url && (
+                  <img src={formik.values.image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
                 )}
                 <input
                   ref={imageInputRef}
@@ -315,8 +317,10 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
 
               <input
                 type="text"
-                value={form.image_url}
-                onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                name="image_url"
+                value={formik.values.image_url}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 placeholder="https://..."
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
               />
@@ -327,24 +331,29 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
             <span className="text-muted">{t("admin.products.fieldExpiry")}</span>
             <input
               type="date"
-              value={form.expiry_date}
-              onChange={(e) => setForm({ ...form, expiry_date: e.target.value })}
+              name="expiry_date"
+              value={formik.values.expiry_date}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
             />
           </label>
-
-          {formError && <p className="text-xs text-destructive">{formError}</p>}
 
           <div className="mt-2 flex gap-2">
             <button
               type="button"
               onClick={onClose}
-              disabled={saving}
+              disabled={formik.isSubmitting}
               className="flex-1 rounded-lg border border-border py-2 text-sm font-medium text-foreground disabled:opacity-50"
             >
               {t("admin.products.formCancel")}
             </button>
-            <ButtonCustom variant="primary" className="flex-1" isLoading={saving} onClick={() => void handleSave()}>
+            <ButtonCustom
+              variant="primary"
+              className="flex-1"
+              isLoading={formik.isSubmitting}
+              onClick={() => void formik.submitForm()}
+            >
               {t("admin.products.formSave")}
             </ButtonCustom>
           </div>

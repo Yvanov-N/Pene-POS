@@ -1,9 +1,12 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { db } from "@/lib/db";
 import { hashPin } from "@/lib/hashPin";
 import { supabase } from "@/lib/supabase";
+import { FieldError } from "@/components/ui/field-error";
 import type { Profile } from "@/types/db";
 import type { UserRole } from "@/types/supabase";
 
@@ -21,6 +24,10 @@ function isNetworkError(error: { name?: string } | null): boolean {
 }
 
 type PinPadView = "pad" | "forgot" | "sent";
+
+interface ForgotFormValues {
+  resetEmail: string;
+}
 
 interface PinPadModalProps {
   title: string;
@@ -41,9 +48,30 @@ export function PinPadModal({ title, onSuccess, onClose, requiredRole }: PinPadM
   const [failedAttempts, setFailedAttempts] = useState(0);
 
   const [view, setView] = useState<PinPadView>("pad");
-  const [resetEmail, setResetEmail] = useState("");
-  const [sendingReset, setSendingReset] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+
+  const forgotFormik = useFormik<ForgotFormValues>({
+    initialValues: { resetEmail: "" },
+    validationSchema: Yup.object({
+      resetEmail: Yup.string()
+        .trim()
+        .required(t("pos.pin.forgotEmailRequired"))
+        .email(t("pos.pin.forgotEmailInvalid")),
+    }),
+    onSubmit: async (values) => {
+      setResetError(null);
+      const { error } = await supabase.auth.signInWithOtp({
+        email: values.resetEmail,
+        options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/reset-pin` },
+      });
+
+      if (error && isNetworkError(error)) {
+        setResetError(t("pos.pin.forgotNetworkError"));
+        return;
+      }
+      setView("sent");
+    },
+  });
 
   const verify = async (candidate: string) => {
     setChecking(true);
@@ -102,7 +130,7 @@ export function PinPadModal({ title, onSuccess, onClose, requiredRole }: PinPadM
   }, [view, digits, checking]);
 
   const openForgotPin = () => {
-    setResetEmail("");
+    forgotFormik.resetForm();
     setResetError(null);
     setView("forgot");
   };
@@ -112,24 +140,6 @@ export function PinPadModal({ title, onSuccess, onClose, requiredRole }: PinPadM
     setErrorMessage(null);
     setFailedAttempts(0);
     setDigits("");
-  };
-
-  const handleForgotSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    setSendingReset(true);
-    setResetError(null);
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email: resetEmail,
-      options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/reset-pin` },
-    });
-
-    setSendingReset(false);
-    if (error && isNetworkError(error)) {
-      setResetError(t("pos.pin.forgotNetworkError"));
-      return;
-    }
-    setView("sent");
   };
 
   return (
@@ -185,22 +195,26 @@ export function PinPadModal({ title, onSuccess, onClose, requiredRole }: PinPadM
         )}
 
         {view === "forgot" && (
-          <form className="flex flex-col gap-3" onSubmit={(event) => void handleForgotSubmit(event)}>
+          <form className="flex flex-col gap-3" onSubmit={forgotFormik.handleSubmit}>
             <p className="text-xs text-muted">{t("pos.pin.forgotSubtitle")}</p>
-            <input
-              type="email"
-              required
-              value={resetEmail}
-              onChange={(event) => setResetEmail(event.target.value)}
-              placeholder={t("auth.emailPlaceholder")}
-              className="rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-accent"
-            />
+            <div>
+              <input
+                type="email"
+                name="resetEmail"
+                value={forgotFormik.values.resetEmail}
+                onChange={forgotFormik.handleChange}
+                onBlur={forgotFormik.handleBlur}
+                placeholder={t("auth.emailPlaceholder")}
+                className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-accent"
+              />
+              <FieldError touched={forgotFormik.touched.resetEmail} error={forgotFormik.errors.resetEmail} />
+            </div>
 
             {resetError && <p className="text-xs text-destructive">{resetError}</p>}
 
             <button
               type="submit"
-              disabled={sendingReset}
+              disabled={forgotFormik.isSubmitting}
               className="rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
               {t("pos.pin.sendResetLink")}

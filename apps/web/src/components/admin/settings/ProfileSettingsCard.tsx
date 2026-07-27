@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import type { UserIdentity } from "@supabase/supabase-js";
 import { CircleUserRound } from "lucide-react";
@@ -9,8 +11,10 @@ import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useToast } from "@/hooks/useToast";
+import { PIN_LENGTH, MIN_PASSWORD_LENGTH, pinSchema, pinConfirmationSchema, passwordSchema, passwordConfirmationSchema } from "@/lib/validation";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
+import { FieldError } from "@/components/ui/field-error";
 import { AvatarEditModal } from "./AvatarEditModal";
 import { OtpVerifyModal } from "./OtpVerifyModal";
 import { computeFullName, type Profile } from "@/types/db";
@@ -18,18 +22,21 @@ import { computeFullName, type Profile } from "@/types/db";
 type OAuthProvider = "google" | "apple";
 const OAUTH_PROVIDERS: OAuthProvider[] = ["google", "apple"];
 
-// Matches GoTrue's own default minimum -- checked client-side first so a
-// too-short password fails fast instead of waiting on a round trip to
-// discover the same rejection server-side.
-const MIN_PASSWORD_LENGTH = 6;
-
-// Matches PinPadModal's own cashier-switching PIN length -- same 4-digit
-// convention, same profiles.pin_code column, just settable by the owning
-// admin instead of only ever checked.
-const PIN_LENGTH = 4;
-const PIN_PATTERN = /^\d{4}$/;
-
 type PendingOtpAction = "password" | "pin" | null;
+
+interface EmailFormValues {
+  accountEmail: string;
+}
+
+interface PasswordFormValues {
+  newPassword: string;
+  confirmPassword: string;
+}
+
+interface PinFormValues {
+  newPin: string;
+  confirmPin: string;
+}
 
 interface FormState {
   first_name: string;
@@ -48,44 +55,44 @@ export function ProfileSettingsCard() {
   const { showToast } = useToast();
   const profile = useCurrentProfile();
 
-  const [form, setForm] = useState<FormState | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  // Same double-submit hazard as every other save handler in this app
-  // (ProductFormDrawer's savingRef, StudentWalletsPage's savingRef) -- a ref
-  // closes the race window a second useState-based invocation can't.
-  const savingRef = useRef(false);
-
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
   // Account email/password act on the real Supabase Auth login, not a plain
-  // profiles-table field -- kept entirely separate from the form/handleSave
-  // above (different backend call, different confirmation semantics),
-  // rather than folded into the same "Enregistrer" button.
-  const [accountEmail, setAccountEmail] = useState("");
+  // profiles-table field -- kept entirely separate from nameFormik above
+  // (different backend call, different confirmation semantics), rather than
+  // folded into the same "Enregistrer" button.
   // The address an OTP actually gets sent to for a PIN/password change --
-  // deliberately NOT the same state as accountEmail above, which mirrors
-  // whatever's currently typed in the (unsaved) email field. Sending a
-  // security code to an edited-but-not-yet-confirmed address would be
-  // useless (or wrong) -- this only ever updates from the real, confirmed
+  // deliberately NOT the same state as emailFormik.values.accountEmail below,
+  // which mirrors whatever's currently typed in the (unsaved) email field.
+  // Sending a security code to an edited-but-not-yet-confirmed address would
+  // be useless (or wrong) -- this only ever updates from the real, confirmed
   // Supabase Auth session.
   const [confirmedEmail, setConfirmedEmail] = useState("");
+  // Post-submit server-outcome error only -- pre-submit "required"/format
+  // errors are now emailFormik's own per-field error, a separate channel.
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailPending, setEmailPending] = useState(false);
-  const [emailSaving, setEmailSaving] = useState(false);
-  const emailSavingRef = useRef(false);
+  // profile is only populated when requiresAdminPin actually gated the
+  // click -- set right before submitForm() is called, read inside
+  // emailFormik's onSubmit.
+  const emailPendingProfileRef = useRef<Profile | undefined>(undefined);
 
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  // Post-submit server-outcome error only, same split as emailError above.
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  // Phase 2 (the actual supabase.auth.updateUser call, fired from
+  // handleOtpVerified once OTP succeeds) sits outside passwordFormik's own
+  // submission lifecycle entirely -- passwordFormik.isSubmitting only spans
+  // phase 1 (validate + arm the OTP modal), so this pair keeps tracking the
+  // real apply step the same way it always did.
   const [passwordSaving, setPasswordSaving] = useState(false);
   const passwordSavingRef = useRef(false);
+  const passwordPendingProfileRef = useRef<Profile | undefined>(undefined);
 
-  const [newPin, setNewPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
+  // Same two-phase split as password above.
   const [pinSaving, setPinSaving] = useState(false);
   const pinSavingRef = useRef(false);
+  const pinPendingProfileRef = useRef<Profile | undefined>(undefined);
 
   // Which sensitive change is waiting on email OTP confirmation -- only one
   // at a time, since both flows share the one OtpVerifyModal instance below.
@@ -95,40 +102,16 @@ export function ProfileSettingsCard() {
   const [linkingProvider, setLinkingProvider] = useState<OAuthProvider | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (profile && !form) setForm(profileToForm(profile));
-  }, [profile, form]);
-
-  useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.email) {
-        setAccountEmail(data.user.email);
-        setConfirmedEmail(data.user.email);
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    void supabase.auth.getUserIdentities().then(({ data }) => setIdentities(data?.identities ?? []));
-  }, []);
-
-  const isLinked = (provider: OAuthProvider): boolean =>
-    identities?.some((identity) => identity.provider === provider) ?? false;
-
-  const handleSave = async () => {
-    if (!profile || !form || savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
-
-    try {
-      const firstName = form.first_name.trim();
-      const lastName = form.last_name.trim();
-
-      if (!firstName) {
-        setFormError(t("admin.profile.errorFirstNameRequired"));
-        return;
-      }
-      setFormError(null);
+  const nameFormik = useFormik<FormState>({
+    initialValues: { first_name: "", last_name: "" },
+    validationSchema: Yup.object({
+      first_name: Yup.string().trim().required(t("admin.profile.errorFirstNameRequired")),
+      last_name: Yup.string(),
+    }),
+    onSubmit: async (values) => {
+      if (!profile) return;
+      const firstName = values.first_name.trim();
+      const lastName = values.last_name.trim();
 
       // full_name is a server-generated column (migration 00010) -- it's
       // computed here only for the optimistic local Dexie write, and
@@ -153,27 +136,26 @@ export function ProfileSettingsCard() {
       void pushOutbox(entry);
 
       showToast("success", t("admin.profile.saveSuccessToast"));
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
+    },
+  });
+  const { resetForm: resetNameForm } = nameFormik;
+  const [nameHydrated, setNameHydrated] = useState(false);
+
+  useEffect(() => {
+    if (profile && !nameHydrated) {
+      resetNameForm({ values: profileToForm(profile) });
+      setNameHydrated(true);
     }
-  };
+  }, [profile, nameHydrated, resetNameForm]);
 
-  // profile is only populated when requiresAdminPin actually gated this
-  // click -- account email/password changes are sensitive enough to
-  // re-confirm even inside an already-unlocked admin session, the same way
-  // ShopStatusCard's toggle does.
-  const handleUpdateEmail = async (adminProfile?: Profile) => {
-    if (!adminProfile || emailSavingRef.current) return;
-    emailSavingRef.current = true;
-    setEmailSaving(true);
-
-    try {
-      const newEmail = accountEmail.trim();
-      if (!newEmail) {
-        setEmailError(t("admin.profile.errorEmailRequired"));
-        return;
-      }
+  const emailFormik = useFormik<EmailFormValues>({
+    initialValues: { accountEmail: "" },
+    validationSchema: Yup.object({
+      accountEmail: Yup.string().trim().required(t("admin.profile.errorEmailRequired")),
+    }),
+    onSubmit: async (values) => {
+      if (!emailPendingProfileRef.current) return;
+      const newEmail = values.accountEmail.trim();
       setEmailError(null);
 
       const { error } = await supabase.auth.updateUser({ email: newEmail });
@@ -188,30 +170,25 @@ export function ProfileSettingsCard() {
       // sent to the new address is clicked -- nothing to write locally yet.
       setEmailPending(true);
       showToast("success", t("admin.profile.emailUpdatePendingToast"));
-    } finally {
-      emailSavingRef.current = false;
-      setEmailSaving(false);
-    }
-  };
+    },
+  });
 
-  // Split in two on purpose: the admin-PIN button below only ever gets this
-  // far (validates the new password, then arms the OTP modal) -- the actual
-  // supabase.auth.updateUser() call is applyPasswordChange, fired only from
-  // OtpVerifyModal's onVerified so a password change genuinely can't happen
-  // without both an admin PIN AND a code mailed to the account's own inbox.
-  const handleRequestPasswordChange = (adminProfile?: Profile) => {
-    if (!adminProfile) return;
-    if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      setPasswordError(t("admin.profile.passwordTooShort", { count: MIN_PASSWORD_LENGTH }));
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError(t("admin.profile.passwordMismatch"));
-      return;
-    }
-    setPasswordError(null);
-    setPendingOtpAction("password");
-  };
+  const passwordFormik = useFormik<PasswordFormValues>({
+    initialValues: { newPassword: "", confirmPassword: "" },
+    validationSchema: Yup.object({
+      newPassword: passwordSchema(t("admin.profile.passwordTooShort", { count: MIN_PASSWORD_LENGTH })),
+      confirmPassword: passwordConfirmationSchema("newPassword", t("admin.profile.passwordMismatch")),
+    }),
+    // Only arms the OTP modal -- the actual supabase.auth.updateUser() call
+    // is applyPasswordChange below, fired only from OtpVerifyModal's
+    // onVerified so a password change genuinely can't happen without both an
+    // admin PIN AND a code mailed to the account's own inbox.
+    onSubmit: async () => {
+      if (!passwordPendingProfileRef.current) return;
+      setPasswordError(null);
+      setPendingOtpAction("password");
+    },
+  });
 
   const applyPasswordChange = async () => {
     if (passwordSavingRef.current) return;
@@ -219,15 +196,14 @@ export function ProfileSettingsCard() {
     setPasswordSaving(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      const { error } = await supabase.auth.updateUser({ password: passwordFormik.values.newPassword });
       if (error) {
         console.warn("[ProfileSettingsCard] password update failed", error);
         setPasswordError(t("admin.profile.passwordUpdateError"));
         return;
       }
 
-      setNewPassword("");
-      setConfirmPassword("");
+      passwordFormik.resetForm();
       showToast("success", t("admin.profile.passwordUpdateSuccessToast"));
     } finally {
       passwordSavingRef.current = false;
@@ -235,22 +211,21 @@ export function ProfileSettingsCard() {
     }
   };
 
-  // Same two-step split as password above -- validate + arm the OTP modal
-  // here, apply the real change (both the local pin_hash cashier-switching
-  // uses today and the server's bcrypt pin_code) only once OTP verifies.
-  const handleRequestPinChange = (adminProfile?: Profile) => {
-    if (!adminProfile) return;
-    if (!PIN_PATTERN.test(newPin)) {
-      setPinError(t("admin.profile.pinInvalid"));
-      return;
-    }
-    if (newPin !== confirmPin) {
-      setPinError(t("admin.profile.pinMismatch"));
-      return;
-    }
-    setPinError(null);
-    setPendingOtpAction("pin");
-  };
+  const pinFormik = useFormik<PinFormValues>({
+    initialValues: { newPin: "", confirmPin: "" },
+    validationSchema: Yup.object({
+      newPin: pinSchema(t("admin.profile.pinInvalid")),
+      confirmPin: pinConfirmationSchema("newPin", t("admin.profile.pinMismatch")),
+    }),
+    // Same two-step split as password above -- validate + arm the OTP modal
+    // here, apply the real change (both the local pin_hash cashier-switching
+    // uses today and the server's bcrypt pin_code) only once OTP verifies.
+    onSubmit: async () => {
+      if (!pinPendingProfileRef.current) return;
+      setPinError(null);
+      setPendingOtpAction("pin");
+    },
+  });
 
   const applyPinChange = async () => {
     if (!profile || pinSavingRef.current) return;
@@ -262,17 +237,16 @@ export function ProfileSettingsCard() {
       // write the real bcrypt pin_code -- if it fails, the local pin_hash
       // below must NOT be written either, or this device would accept a PIN
       // the server never agreed to.
-      const { error } = await supabase.rpc("update_own_pin_code", { new_pin: newPin });
+      const { error } = await supabase.rpc("update_own_pin_code", { new_pin: pinFormik.values.newPin });
       if (error) {
         console.warn("[ProfileSettingsCard] pin update failed", error);
         setPinError(t("admin.profile.pinUpdateError"));
         return;
       }
 
-      await db.profiles.update(profile.id, { pin_hash: await hashPin(newPin) });
+      await db.profiles.update(profile.id, { pin_hash: await hashPin(pinFormik.values.newPin) });
 
-      setNewPin("");
-      setConfirmPin("");
+      pinFormik.resetForm();
       showToast("success", t("admin.profile.pinUpdateSuccessToast"));
     } finally {
       pinSavingRef.current = false;
@@ -286,6 +260,23 @@ export function ProfileSettingsCard() {
     if (action === "password") void applyPasswordChange();
     if (action === "pin") void applyPinChange();
   };
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) {
+        void emailFormik.setFieldValue("accountEmail", data.user.email);
+        setConfirmedEmail(data.user.email);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    void supabase.auth.getUserIdentities().then(({ data }) => setIdentities(data?.identities ?? []));
+  }, []);
+
+  const isLinked = (provider: OAuthProvider): boolean =>
+    identities?.some((identity) => identity.provider === provider) ?? false;
 
   const handleLink = async (provider: OAuthProvider) => {
     setOauthError(null);
@@ -306,7 +297,7 @@ export function ProfileSettingsCard() {
     }
   };
 
-  if (!profile || !form) {
+  if (!profile) {
     return (
       <CardCustom title={t("admin.profile.title")}>
         <p className="text-sm text-muted">{t("admin.profile.loading")}</p>
@@ -343,25 +334,28 @@ export function ProfileSettingsCard() {
             <span className="text-muted">{t("admin.profile.fieldFirstName")}</span>
             <input
               type="text"
-              value={form.first_name}
-              onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+              name="first_name"
+              value={nameFormik.values.first_name}
+              onChange={nameFormik.handleChange}
+              onBlur={nameFormik.handleBlur}
               className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
             />
+            <FieldError touched={nameFormik.touched.first_name} error={nameFormik.errors.first_name} />
           </label>
           <label className="flex flex-1 flex-col gap-1 text-sm">
             <span className="text-muted">{t("admin.profile.fieldLastName")}</span>
             <input
               type="text"
-              value={form.last_name}
-              onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+              name="last_name"
+              value={nameFormik.values.last_name}
+              onChange={nameFormik.handleChange}
+              onBlur={nameFormik.handleBlur}
               className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
             />
           </label>
         </div>
 
-        {formError && <p className="text-xs text-destructive">{formError}</p>}
-
-        <ButtonCustom variant="primary" isLoading={saving} onClick={() => void handleSave()}>
+        <ButtonCustom variant="primary" isLoading={nameFormik.isSubmitting} onClick={() => void nameFormik.submitForm()}>
           {t("admin.profile.save")}
         </ButtonCustom>
 
@@ -373,25 +367,33 @@ export function ProfileSettingsCard() {
               <span className="text-muted">{t("admin.profile.fieldAccountEmail")}</span>
               <input
                 type="email"
-                value={accountEmail}
+                name="accountEmail"
+                value={emailFormik.values.accountEmail}
                 onChange={(e) => {
-                  setAccountEmail(e.target.value);
+                  emailFormik.handleChange(e);
                   setEmailPending(false);
                 }}
+                onBlur={emailFormik.handleBlur}
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
               />
+              <FieldError touched={emailFormik.touched.accountEmail} error={emailFormik.errors.accountEmail} />
             </label>
             {emailPending && (
-              <p className="text-xs text-warning">{t("admin.profile.emailUpdatePendingNote", { email: accountEmail })}</p>
+              <p className="text-xs text-warning">
+                {t("admin.profile.emailUpdatePendingNote", { email: emailFormik.values.accountEmail })}
+              </p>
             )}
             {emailError && <p className="text-xs text-destructive">{emailError}</p>}
             <ButtonCustom
               variant="primary"
               size="sm"
-              isLoading={emailSaving}
+              isLoading={emailFormik.isSubmitting}
               requiresAdminPin
               pinModalTitle={t("admin.profile.accountPinTitle")}
-              onClick={handleUpdateEmail}
+              onClick={(adminProfile) => {
+                emailPendingProfileRef.current = adminProfile;
+                void emailFormik.submitForm();
+              }}
             >
               {t("admin.profile.updateEmail")}
             </ButtonCustom>
@@ -402,30 +404,42 @@ export function ProfileSettingsCard() {
               <span className="text-muted">{t("admin.profile.fieldNewPassword")}</span>
               <input
                 type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                name="newPassword"
+                value={passwordFormik.values.newPassword}
+                onChange={passwordFormik.handleChange}
+                onBlur={passwordFormik.handleBlur}
                 autoComplete="new-password"
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
               />
+              <FieldError touched={passwordFormik.touched.newPassword} error={passwordFormik.errors.newPassword} />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-muted">{t("admin.profile.fieldConfirmPassword")}</span>
               <input
                 type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                name="confirmPassword"
+                value={passwordFormik.values.confirmPassword}
+                onChange={passwordFormik.handleChange}
+                onBlur={passwordFormik.handleBlur}
                 autoComplete="new-password"
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
+              />
+              <FieldError
+                touched={passwordFormik.touched.confirmPassword}
+                error={passwordFormik.errors.confirmPassword}
               />
             </label>
             {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
             <ButtonCustom
               variant="primary"
               size="sm"
-              isLoading={passwordSaving}
+              isLoading={passwordFormik.isSubmitting || passwordSaving}
               requiresAdminPin
               pinModalTitle={t("admin.profile.accountPinTitle")}
-              onClick={handleRequestPasswordChange}
+              onClick={(adminProfile) => {
+                passwordPendingProfileRef.current = adminProfile;
+                void passwordFormik.submitForm();
+              }}
             >
               {t("admin.profile.updatePassword")}
             </ButtonCustom>
@@ -438,11 +452,14 @@ export function ProfileSettingsCard() {
                 type="password"
                 inputMode="numeric"
                 maxLength={PIN_LENGTH}
-                value={newPin}
-                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))}
+                name="newPin"
+                value={pinFormik.values.newPin}
+                onChange={(e) => pinFormik.setFieldValue("newPin", e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))}
+                onBlur={pinFormik.handleBlur}
                 autoComplete="new-password"
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
               />
+              <FieldError touched={pinFormik.touched.newPin} error={pinFormik.errors.newPin} />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-muted">{t("admin.profile.fieldConfirmPin")}</span>
@@ -450,20 +467,26 @@ export function ProfileSettingsCard() {
                 type="password"
                 inputMode="numeric"
                 maxLength={PIN_LENGTH}
-                value={confirmPin}
-                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))}
+                name="confirmPin"
+                value={pinFormik.values.confirmPin}
+                onChange={(e) => pinFormik.setFieldValue("confirmPin", e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))}
+                onBlur={pinFormik.handleBlur}
                 autoComplete="new-password"
                 className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
               />
+              <FieldError touched={pinFormik.touched.confirmPin} error={pinFormik.errors.confirmPin} />
             </label>
             {pinError && <p className="text-xs text-destructive">{pinError}</p>}
             <ButtonCustom
               variant="primary"
               size="sm"
-              isLoading={pinSaving}
+              isLoading={pinFormik.isSubmitting || pinSaving}
               requiresAdminPin
               pinModalTitle={t("admin.profile.accountPinTitle")}
-              onClick={handleRequestPinChange}
+              onClick={(adminProfile) => {
+                pinPendingProfileRef.current = adminProfile;
+                void pinFormik.submitForm();
+              }}
             >
               {t("admin.profile.updatePin")}
             </ButtonCustom>

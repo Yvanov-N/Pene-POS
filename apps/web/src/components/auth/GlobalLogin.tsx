@@ -1,12 +1,20 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
+import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
 import cashierPhoto from "@/assets/cashier.jpg";
 
 type Mode = "login" | "forgot";
 type OAuthProvider = "google" | "apple";
 const OAUTH_PROVIDERS: OAuthProvider[] = ["google", "apple"];
+
+interface FormValues {
+  email: string;
+  password: string;
+}
 
 // supabase-js names this specific error for a fetch/network-level failure
 // (server unreachable) -- distinct from a real 4xx response like wrong
@@ -18,9 +26,6 @@ function isNetworkError(error: { name?: string } | null): boolean {
 export function GlobalLogin() {
   const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
@@ -49,45 +54,50 @@ export function GlobalLogin() {
 
   const showOauth = oauthLinked.google || oauthLinked.apple;
 
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
+  // One shared formik instance across both modes -- not two -- so the email
+  // the user already typed in "login" mode carries over verbatim if they
+  // switch to "forgot" (matching the previous single `email` useState's
+  // behavior). Only "login" mode requires a password.
+  const formik = useFormik<FormValues>({
+    initialValues: { email: "", password: "" },
+    validationSchema: Yup.object({
+      email: Yup.string().trim().required(t("auth.emailRequired")).email(t("auth.emailInvalid")),
+      password: mode === "login" ? Yup.string().required(t("auth.passwordRequired")) : Yup.string().notRequired(),
+    }),
+    onSubmit: async (values) => {
+      setError(null);
+      if (mode === "login") {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: values.email,
+          password: values.password,
+        });
+        if (signInError) {
+          setError(isNetworkError(signInError) ? t("auth.networkError") : t("auth.error"));
+        }
+        // On success, App's onAuthStateChange listener transitions to PosLayout.
+        return;
+      }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-
-    setLoading(false);
-    if (signInError) {
-      setError(isNetworkError(signInError) ? t("auth.networkError") : t("auth.error"));
-    }
-    // On success, App's onAuthStateChange listener transitions to PosLayout.
-  };
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(values.email, {
+        redirectTo: window.location.origin,
+      });
+      if (resetError) {
+        setError(isNetworkError(resetError) ? t("auth.networkError") : t("auth.resetError"));
+        return;
+      }
+      setResetEmailSent(true);
+    },
+  });
 
   const handleOAuth = async (provider: "google" | "apple") => {
     await supabase.auth.signInWithOAuth({ provider });
-  };
-
-  const handleForgotPassword = async (event: FormEvent) => {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
-    });
-
-    setLoading(false);
-    if (resetError) {
-      setError(isNetworkError(resetError) ? t("auth.networkError") : t("auth.resetError"));
-      return;
-    }
-    setResetEmailSent(true);
   };
 
   const backToLogin = () => {
     setMode("login");
     setError(null);
     setResetEmailSent(false);
+    formik.setTouched({});
   };
 
   return (
@@ -112,29 +122,37 @@ export function GlobalLogin() {
             <>
               <h1 className="text-xl font-semibold text-foreground">{t("auth.title")}</h1>
 
-              <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder={t("auth.emailPlaceholder")}
-                  className="rounded-lg border border-border bg-surface2 px-4 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-accent"
-                />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder={t("auth.passwordPlaceholder")}
-                  className="rounded-lg border border-border bg-surface2 px-4 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-accent"
-                />
+              <form className="flex flex-col gap-3" onSubmit={formik.handleSubmit}>
+                <div>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formik.values.email}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    placeholder={t("auth.emailPlaceholder")}
+                    className="w-full rounded-lg border border-border bg-surface2 px-4 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-accent"
+                  />
+                  <FieldError touched={formik.touched.email} error={formik.errors.email} />
+                </div>
+                <div>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formik.values.password}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    placeholder={t("auth.passwordPlaceholder")}
+                    className="w-full rounded-lg border border-border bg-surface2 px-4 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-accent"
+                  />
+                  <FieldError touched={formik.touched.password} error={formik.errors.password} />
+                </div>
 
                 {error && <p className="text-xs text-destructive">{error}</p>}
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={formik.isSubmitting}
                   className="rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
                 >
                   {t("auth.submit")}
@@ -145,6 +163,7 @@ export function GlobalLogin() {
                   onClick={() => {
                     setMode("forgot");
                     setError(null);
+                    formik.setTouched({});
                   }}
                   className="text-xs text-muted hover:text-foreground"
                 >
@@ -191,21 +210,25 @@ export function GlobalLogin() {
               {resetEmailSent ? (
                 <p className="text-sm text-foreground">{t("auth.resetEmailSent")}</p>
               ) : (
-                <form className="flex flex-col gap-3" onSubmit={handleForgotPassword}>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder={t("auth.emailPlaceholder")}
-                    className="rounded-lg border border-border bg-surface2 px-4 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-accent"
-                  />
+                <form className="flex flex-col gap-3" onSubmit={formik.handleSubmit}>
+                  <div>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formik.values.email}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      placeholder={t("auth.emailPlaceholder")}
+                      className="w-full rounded-lg border border-border bg-surface2 px-4 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-accent"
+                    />
+                    <FieldError touched={formik.touched.email} error={formik.errors.email} />
+                  </div>
 
                   {error && <p className="text-xs text-destructive">{error}</p>}
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={formik.isSubmitting}
                     className="rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
                   >
                     {t("auth.sendResetLink")}

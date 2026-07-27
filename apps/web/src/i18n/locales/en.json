@@ -63,7 +63,9 @@
       "sendResetLink": "Send reset link",
       "backToPad": "Back",
       "resetEmailSent": "If an account exists for that address, a reset email has been sent.",
-      "forgotNetworkError": "Couldn't send the email. Please try again."
+      "forgotNetworkError": "Couldn't send the email. Please try again.",
+      "forgotEmailRequired": "Email is required.",
+      "forgotEmailInvalid": "Enter a valid email address."
     },
     "receipt": {
       "title": "Sale complete",
@@ -379,7 +381,8 @@
         "resend": "Resend code",
         "resendCooldown": "Resend ({{count}}s)",
         "sendError": "Couldn't send the code. Please try again.",
-        "invalidCode": "Incorrect or expired code."
+        "invalidCode": "Incorrect or expired code.",
+        "errorLength": "Enter the 6-digit code."
       },
       "oauthSection": "Linked accounts",
       "oauth": {
@@ -524,6 +527,7 @@
     "noProductSelected": "Scan a barcode or search for a product to get started.",
     "currentStock": "Current stock: {{count}}",
     "quantityLabel": "Delivered quantity",
+    "errorQuantityInvalid": "Enter a quantity greater than 0.",
     "expiryLabel": "Batch expiry date (optional)",
     "validate": "Confirm restocking",
     "successToast": "Stock updated: {{name}} (+{{quantity}} units)",
@@ -556,7 +560,10 @@
     "updatePassword": "Update password",
     "passwordMismatch": "Passwords don't match.",
     "passwordTooShort": "Password must be at least 6 characters.",
-    "passwordUpdated": "Password updated. Signing you in..."
+    "passwordUpdated": "Password updated. Signing you in...",
+    "emailRequired": "Email is required.",
+    "emailInvalid": "Enter a valid email address.",
+    "passwordRequired": "Password is required."
   },
   "resetPin": {
     "title": "Reset your PIN",
