@@ -5,6 +5,7 @@
 // notification Push"), invoked with the signed-in admin's own user id.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { configureVapid, sendToSubscriptions, type PushNotificationPayload } from "../_shared/webpush.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -17,15 +18,25 @@ interface DispatchPushRequest {
 }
 
 Deno.serve(async (req: Request) => {
+  // The browser sends this ahead of the real POST because that one carries
+  // an Authorization header -- must succeed with the CORS headers below and
+  // without hitting the verify_jwt gate, or the real request never goes out.
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "method-not-allowed" }), { status: 405 });
+    return new Response(JSON.stringify({ error: "method-not-allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   if (!configureVapid()) {
     console.error("[dispatch-push] VAPID keys are not configured");
     return new Response(JSON.stringify({ error: "push-not-configured" }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -33,11 +44,17 @@ Deno.serve(async (req: Request) => {
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "invalid-json" }), { status: 400 });
+    return new Response(JSON.stringify({ error: "invalid-json" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   if (!body.payload?.title || !body.payload?.body) {
-    return new Response(JSON.stringify({ error: "missing-payload" }), { status: 400 });
+    return new Response(JSON.stringify({ error: "missing-payload" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   // A browser can only ever call this with a real user's JWT (never the
@@ -59,12 +76,18 @@ Deno.serve(async (req: Request) => {
     });
     const { data: callerData, error: callerError } = await callerClient.auth.getUser();
     if (callerError || !callerData.user) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const requestedSomeoneElse = body.targetUserId && body.targetUserId !== callerData.user.id;
     if (body.targetRole || requestedSomeoneElse || !body.targetUserId) {
-      return new Response(JSON.stringify({ error: "forbidden" }), { status: 403 });
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
   }
 
@@ -79,13 +102,16 @@ Deno.serve(async (req: Request) => {
   const { data: subscriptions, error: subsError } = await query;
   if (subsError) {
     console.error("[dispatch-push] failed to query subscriptions", subsError);
-    return new Response(JSON.stringify({ error: "query-failed" }), { status: 500 });
+    return new Response(JSON.stringify({ error: "query-failed" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   if (!subscriptions || subscriptions.length === 0) {
     return new Response(JSON.stringify({ sent: 0, pruned: 0 }), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -93,6 +119,6 @@ Deno.serve(async (req: Request) => {
 
   return new Response(JSON.stringify({ sent, pruned }), {
     status: 200,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });

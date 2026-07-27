@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.13.7",
+    "date": "2026-07-27",
+    "changes": [
+      "add missing CORS headers so dispatch-push works from the browser"
+    ]
+  },
+  {
     "version": "1.13.6",
     "date": "2026-07-27",
     "changes": [
