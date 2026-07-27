@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { ButtonCustom } from "@/components/ui/button-custom";
+import { FieldError } from "@/components/ui/field-error";
 
 const OTP_LENGTH = 6;
+const OTP_PATTERN = /^\d{6}$/;
 const RESEND_COOLDOWN_SECONDS = 30;
 
 interface OtpVerifyModalProps {
@@ -12,6 +16,10 @@ interface OtpVerifyModalProps {
   title: string;
   onVerified: () => void;
   onClose: () => void;
+}
+
+interface FormValues {
+  code: string;
 }
 
 // Gates a sensitive account change (PIN/password) behind a one-time code
@@ -23,12 +31,28 @@ interface OtpVerifyModalProps {
 // treated as a competing "real" login anywhere in this app.
 export function OtpVerifyModal({ email, title, onVerified, onClose }: OtpVerifyModalProps) {
   const { t } = useTranslation();
-  const [code, setCode] = useState("");
   const [sending, setSending] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const sentOnceRef = useRef(false);
+
+  const formik = useFormik<FormValues>({
+    initialValues: { code: "" },
+    validationSchema: Yup.object({
+      code: Yup.string().matches(OTP_PATTERN, t("admin.profile.otp.errorLength")).required(t("admin.profile.otp.errorLength")),
+    }),
+    onSubmit: async (values) => {
+      setError(null);
+      const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: values.code, type: "email" });
+      if (verifyError) {
+        console.warn("[OtpVerifyModal] verifyOtp failed", verifyError);
+        setError(t("admin.profile.otp.invalidCode"));
+        formik.setFieldValue("code", "");
+        return;
+      }
+      onVerified();
+    },
+  });
 
   const sendCode = async () => {
     setSending(true);
@@ -59,22 +83,6 @@ export function OtpVerifyModal({ email, title, onVerified, onClose }: OtpVerifyM
     return () => window.clearInterval(interval);
   }, [cooldown]);
 
-  const handleVerify = async () => {
-    if (code.length !== OTP_LENGTH || verifying) return;
-    setVerifying(true);
-    setError(null);
-
-    const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
-    setVerifying(false);
-    if (verifyError) {
-      console.warn("[OtpVerifyModal] verifyOtp failed", verifyError);
-      setError(t("admin.profile.otp.invalidCode"));
-      setCode("");
-      return;
-    }
-    onVerified();
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-xs rounded-lg border border-border bg-surface p-6">
@@ -97,20 +105,23 @@ export function OtpVerifyModal({ email, title, onVerified, onClose }: OtpVerifyM
           inputMode="numeric"
           autoComplete="one-time-code"
           maxLength={OTP_LENGTH}
-          value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
+          name="code"
+          value={formik.values.code}
+          onChange={(e) => formik.setFieldValue("code", e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
+          onBlur={formik.handleBlur}
           placeholder={t("admin.profile.otp.placeholder")}
           className="mb-3 w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-center text-lg tracking-[0.3em] text-foreground outline-none focus:ring-2 focus:ring-accent"
         />
+        <FieldError touched={formik.touched.code} error={formik.errors.code} />
 
-        {error && <p className="mb-3 text-xs text-destructive">{error}</p>}
+        {error && <p className="mb-3 mt-1 text-xs text-destructive">{error}</p>}
 
         <div className="flex flex-col gap-2">
           <ButtonCustom
             variant="primary"
-            isLoading={verifying}
-            disabled={code.length !== OTP_LENGTH}
-            onClick={() => void handleVerify()}
+            isLoading={formik.isSubmitting}
+            disabled={formik.values.code.length !== OTP_LENGTH}
+            onClick={() => void formik.submitForm()}
           >
             {t("admin.profile.otp.verify")}
           </ButtonCustom>

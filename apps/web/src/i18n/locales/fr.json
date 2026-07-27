@@ -63,7 +63,9 @@
       "sendResetLink": "Envoyer le lien",
       "backToPad": "Retour",
       "resetEmailSent": "Si un compte existe pour cette adresse, un e-mail de reinitialisation a ete envoye.",
-      "forgotNetworkError": "Impossible d'envoyer l'e-mail. Veuillez reessayer."
+      "forgotNetworkError": "Impossible d'envoyer l'e-mail. Veuillez reessayer.",
+      "forgotEmailRequired": "L'e-mail est requis.",
+      "forgotEmailInvalid": "Saisissez une adresse e-mail valide."
     },
     "receipt": {
       "title": "Vente terminee",
@@ -379,7 +381,8 @@
         "resend": "Renvoyer le code",
         "resendCooldown": "Renvoyer ({{count}}s)",
         "sendError": "Impossible d'envoyer le code. Veuillez reessayer.",
-        "invalidCode": "Code incorrect ou expire."
+        "invalidCode": "Code incorrect ou expire.",
+        "errorLength": "Saisissez le code a 6 chiffres."
       },
       "oauthSection": "Comptes lies",
       "oauth": {
@@ -524,6 +527,7 @@
     "noProductSelected": "Scannez un code-barres ou recherchez un produit pour commencer.",
     "currentStock": "Stock actuel : {{count}}",
     "quantityLabel": "Quantite livree",
+    "errorQuantityInvalid": "Saisissez une quantite superieure a 0.",
     "expiryLabel": "Date d'expiration du lot (optionnel)",
     "validate": "Valider le reapprovisionnement",
     "successToast": "Stock mis a jour : {{name}} (+{{quantity}} unites)",
@@ -556,7 +560,10 @@
     "updatePassword": "Mettre a jour le mot de passe",
     "passwordMismatch": "Les mots de passe ne correspondent pas.",
     "passwordTooShort": "Le mot de passe doit contenir au moins 6 caracteres.",
-    "passwordUpdated": "Mot de passe mis a jour. Connexion en cours..."
+    "passwordUpdated": "Mot de passe mis a jour. Connexion en cours...",
+    "emailRequired": "L'e-mail est requis.",
+    "emailInvalid": "Saisissez une adresse e-mail valide.",
+    "passwordRequired": "Le mot de passe est requis."
   },
   "resetPin": {
     "title": "Reinitialiser le code PIN",

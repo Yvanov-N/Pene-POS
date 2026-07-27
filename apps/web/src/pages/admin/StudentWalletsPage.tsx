@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { X } from "lucide-react";
@@ -12,11 +14,13 @@ import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
 import { isRevenueRelevant } from "@/lib/salesAggregation";
+import { notTakenByOther, numberSchema } from "@/lib/validation";
 import { MoMoVerificationCard } from "@/components/admin/MoMoVerificationCard";
 import { PaginationControls } from "@/components/admin/PaginationControls";
 import { StudentProfileDrawer } from "@/components/admin/wallets/StudentProfileDrawer";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
+import { FieldError } from "@/components/ui/field-error";
 import { Switch } from "@/components/ui/switch";
 import type { StudentWallet } from "@/types/db";
 
@@ -101,16 +105,59 @@ export function StudentWalletsPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  // A second handleSave invocation landing before the first has re-rendered
-  // (e.g. a fast double click) would read stale `saving` state and pass its
-  // own duplicate-badge check before either write has landed -- the second
-  // write then flags the first's own just-created row as a duplicate. Same
-  // fix as ProductFormDrawer.tsx's savingRef; a ref mutates synchronously so
-  // it actually closes that window, where state doesn't.
-  const savingRef = useRef(false);
+
+  const formik = useFormik<FormState>({
+    initialValues: EMPTY_FORM,
+    validateOnChange: false,
+    validateOnBlur: true,
+    validationSchema: Yup.object({
+      student_name: Yup.string().trim().required(t("admin.students.errorNameRequired")),
+      badge_code: Yup.string()
+        .trim()
+        .required(t("admin.students.errorBadgeRequired"))
+        .test("unique-badge-code", t("admin.students.errorBadgeTaken"), async (value) => {
+          const trimmed = value?.trim();
+          if (!trimmed) return true;
+          const existing = await db.student_wallets.where("badge_code").equals(trimmed).first();
+          return notTakenByOther(existing, editingId ?? undefined);
+        }),
+      // No min/moreThan -- debt (a negative balance) is a valid state here.
+      balance: numberSchema(t("admin.students.errorBalanceInvalid")),
+      email: Yup.string(),
+      phone: Yup.string(),
+    }),
+    onSubmit: async (values) => {
+      const studentName = values.student_name.trim();
+      const badgeCode = values.badge_code.trim();
+      const balance = Number(values.balance);
+
+      // Preserve the existing email_opt_in preference on edit -- this form
+      // has no field for it (the directory table's own Switch column owns
+      // that), so without this, editing a name/balance would silently reset
+      // a student's opt-out back to true every time.
+      const existing = editingId ? await db.student_wallets.get(editingId) : undefined;
+
+      const wallet: StudentWallet = {
+        id: editingId ?? crypto.randomUUID(),
+        student_name: studentName,
+        badge_code: badgeCode,
+        balance,
+        email: values.email.trim(),
+        email_opt_in: existing?.email_opt_in ?? true,
+        phone: values.phone.trim(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const entry = makeOutboxEntry(editingId ? "generic_update" : "generic_insert", "student_wallets", {
+        ...wallet,
+      });
+      await commitLocal(db.student_wallets, () => db.student_wallets.put(wallet), entry);
+      void pushOutbox(entry);
+
+      showToast("success", t(editingId ? "admin.wallets.updateSuccessToast" : "admin.wallets.createSuccessToast", { name: studentName }));
+      setFormOpen(false);
+    },
+  });
 
   const { rows: visibleStudents, totalCount, totalPages } = usePaginatedQuery({
     params: { page, pageSize: PAGE_SIZE, searchTerm, sortKey: "student_name", sortDir: "asc", filters: {} },
@@ -149,8 +196,7 @@ export function StudentWalletsPage() {
 
   const openCreateForm = () => {
     setEditingId(null);
-    setForm(EMPTY_FORM);
-    setFormError(null);
+    formik.resetForm({ values: EMPTY_FORM });
     setFormOpen(true);
   };
 
@@ -172,70 +218,8 @@ export function StudentWalletsPage() {
 
   const openEditForm = (wallet: StudentWallet) => {
     setEditingId(wallet.id);
-    setForm(walletToForm(wallet));
-    setFormError(null);
+    formik.resetForm({ values: walletToForm(wallet) });
     setFormOpen(true);
-  };
-
-  const handleSave = async () => {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
-
-    try {
-      const studentName = form.student_name.trim();
-      const badgeCode = form.badge_code.trim();
-      const balance = Number(form.balance);
-
-      if (!studentName) {
-        setFormError(t("admin.students.errorNameRequired"));
-        return;
-      }
-      if (!badgeCode) {
-        setFormError(t("admin.students.errorBadgeRequired"));
-        return;
-      }
-      if (!Number.isFinite(balance)) {
-        setFormError(t("admin.students.errorBalanceInvalid"));
-        return;
-      }
-
-      const existingWithBadge = await db.student_wallets.where("badge_code").equals(badgeCode).first();
-      if (existingWithBadge && existingWithBadge.id !== editingId) {
-        setFormError(t("admin.students.errorBadgeTaken"));
-        return;
-      }
-
-      // Preserve the existing email_opt_in preference on edit -- this form
-      // has no field for it (the directory table's own Switch column owns
-      // that), so without this, editing a name/balance would silently reset
-      // a student's opt-out back to true every time.
-      const existing = editingId ? await db.student_wallets.get(editingId) : undefined;
-
-      setFormError(null);
-      const wallet: StudentWallet = {
-        id: editingId ?? crypto.randomUUID(),
-        student_name: studentName,
-        badge_code: badgeCode,
-        balance,
-        email: form.email.trim(),
-        email_opt_in: existing?.email_opt_in ?? true,
-        phone: form.phone.trim(),
-        updated_at: new Date().toISOString(),
-      };
-
-      const entry = makeOutboxEntry(editingId ? "generic_update" : "generic_insert", "student_wallets", {
-        ...wallet,
-      });
-      await commitLocal(db.student_wallets, () => db.student_wallets.put(wallet), entry);
-      void pushOutbox(entry);
-
-      showToast("success", t(editingId ? "admin.wallets.updateSuccessToast" : "admin.wallets.createSuccessToast", { name: studentName }));
-      setFormOpen(false);
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
-    }
   };
 
   return (
@@ -351,38 +335,49 @@ export function StudentWalletsPage() {
                 <span className="text-muted">{t("admin.students.fieldName")}</span>
                 <input
                   type="text"
-                  value={form.student_name}
-                  onChange={(e) => setForm({ ...form, student_name: e.target.value })}
+                  name="student_name"
+                  value={formik.values.student_name}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
                 />
+                <FieldError touched={formik.touched.student_name} error={formik.errors.student_name} />
               </label>
               <div className="flex gap-3">
                 <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
                   <span className="text-muted">{t("admin.students.fieldBadge")}</span>
                   <input
                     type="text"
-                    value={form.badge_code}
-                    onChange={(e) => setForm({ ...form, badge_code: e.target.value })}
+                    name="badge_code"
+                    value={formik.values.badge_code}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
                     className="w-full min-w-0 rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
                   />
+                  <FieldError touched={formik.touched.badge_code} error={formik.errors.badge_code} />
                 </label>
                 <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
                   <span className="text-muted">{t("admin.students.fieldBalance")}</span>
                   <input
                     type="number"
                     step="1"
-                    value={form.balance}
-                    onChange={(e) => setForm({ ...form, balance: e.target.value })}
+                    name="balance"
+                    value={formik.values.balance}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
                     className="w-full min-w-0 rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
                   />
+                  <FieldError touched={formik.touched.balance} error={formik.errors.balance} />
                 </label>
               </div>
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-muted">{t("admin.students.fieldEmail")}</span>
                 <input
                   type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  name="email"
+                  value={formik.values.email}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
                 />
               </label>
@@ -390,24 +385,29 @@ export function StudentWalletsPage() {
                 <span className="text-muted">{t("admin.students.fieldPhone")}</span>
                 <input
                   type="tel"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  name="phone"
+                  value={formik.values.phone}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
                 />
               </label>
-
-              {formError && <p className="text-xs text-destructive">{formError}</p>}
 
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setFormOpen(false)}
-                  disabled={saving}
+                  disabled={formik.isSubmitting}
                   className="flex-1 rounded-lg border border-border py-2 text-sm font-medium text-foreground disabled:opacity-50"
                 >
                   {t("admin.students.formCancel")}
                 </button>
-                <ButtonCustom variant="primary" className="flex-1" isLoading={saving} onClick={() => void handleSave()}>
+                <ButtonCustom
+                  variant="primary"
+                  className="flex-1"
+                  isLoading={formik.isSubmitting}
+                  onClick={() => void formik.submitForm()}
+                >
                   {t("admin.students.formSave")}
                 </ButtonCustom>
               </div>

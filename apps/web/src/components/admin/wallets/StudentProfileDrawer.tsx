@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { GraduationCap, Wallet, ShoppingCart, Receipt, X } from "lucide-react";
@@ -10,8 +12,10 @@ import { formatCurrency } from "@/lib/currency";
 import { printService } from "@/services/hardware/printService";
 import { PAYMENT_BADGE_CLASS, STATUS_BADGE_CLASS } from "@/lib/paymentMethodStyles";
 import { isRevenueRelevant } from "@/lib/salesAggregation";
+import { numberSchema } from "@/lib/validation";
 import { StatCard } from "@/components/admin/StatCard";
 import { ButtonCustom } from "@/components/ui/button-custom";
+import { FieldError } from "@/components/ui/field-error";
 import type { Profile, Sale, StudentWallet } from "@/types/db";
 
 const SETTINGS_ID = "default";
@@ -29,26 +33,89 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
   const { showToast } = useToast();
 
   const [tab, setTab] = useState<Tab>("analytics");
-  const [rechargeAmount, setRechargeAmount] = useState("");
-  const [rechargeError, setRechargeError] = useState<string | null>(null);
-  const [recharging, setRecharging] = useState(false);
-  // Guards against a double-click landing two overlapping handleRecharge
-  // calls before either has re-rendered (state alone can't catch this --
-  // see ProductFormDrawer.tsx's savingRef) -- here that would mean crediting
-  // the wallet twice for one entered amount, not just a confusing error.
-  const rechargingRef = useRef(false);
-  const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [withdrawError, setWithdrawError] = useState<string | null>(null);
-  const [withdrawing, setWithdrawing] = useState(false);
-  // Same double-debit hazard as rechargingRef above, mirrored for the
-  // opposite direction.
-  const withdrawingRef = useRef(false);
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [reprintingId, setReprintingId] = useState<string | null>(null);
+  // Withdraw is admin-gated (ButtonCustom's requiresAdminPin) -- the matched
+  // admin Profile only exists once that PIN check succeeds, set right before
+  // submitForm() is called, read inside withdrawFormik's onSubmit.
+  const withdrawPendingProfileRef = useRef<Profile | undefined>(undefined);
 
   // Live so a recharge (or a sale made from another device) reflects
   // instantly without closing/reopening the drawer.
   const wallet = useLiveQuery(() => db.student_wallets.get(student.id), [student.id]) ?? student;
+
+  const rechargeFormik = useFormik<{ rechargeAmount: string }>({
+    initialValues: { rechargeAmount: "" },
+    validationSchema: Yup.object({
+      rechargeAmount: numberSchema(t("admin.recharge.errorAmountInvalid"), { moreThan: 0 }),
+    }),
+    onSubmit: async (values) => {
+      const delta = Number(values.rechargeAmount);
+
+      // reason: "recharge" -- tags this as a genuine admin top-up, distinct
+      // from a checkout debit or refund credit-back (which are no longer
+      // standalone outbox entries at all now -- complete_sale/void_sale
+      // apply those wallet deltas atomically server-side, in the same
+      // transaction as the sale/refund itself). useDashboardAnalytics'
+      // wallet-recharge widget relies on this tag to only sum real top-ups.
+      const entry = makeOutboxEntry("adjust_wallet_balance", "student_wallets", {
+        wallet_id: wallet.id,
+        delta,
+        reason: "recharge",
+      });
+      const nextBalance = wallet.balance + delta;
+      await commitLocal(db.student_wallets, () => db.student_wallets.update(wallet.id, { balance: nextBalance }), entry);
+      const outcome = await pushOutbox(entry);
+      if (outcome !== "synced") {
+        showToast("warning", t("sync.offlineFallbackToast"));
+      }
+
+      showToast("success", t("admin.recharge.toastSuccess", { amount: formatCurrency(delta), name: wallet.student_name }));
+      rechargeFormik.resetForm();
+    },
+  });
+
+  const withdrawFormik = useFormik<{ withdrawAmount: string }>({
+    initialValues: { withdrawAmount: "" },
+    validationSchema: Yup.object({
+      // A single-device UX nicety, not a correctness mechanism -- the real
+      // cross-terminal race (two devices withdrawing against the same
+      // wallet before either has synced) is exactly what migration 00019
+      // now lets settle to a negative balance instead of blocking, the same
+      // way it does for stock. Bound to the live wallet.balance prop, so
+      // this schema is rebuilt every render rather than memoized.
+      withdrawAmount: numberSchema(t("admin.withdrawal.errorAmountInvalid"), { moreThan: 0 }).test(
+        "sufficient-balance",
+        t("admin.withdrawal.errorInsufficientBalance"),
+        (value) => value === undefined || Number(value) <= wallet.balance,
+      ),
+    }),
+    onSubmit: async (values) => {
+      // Only ever populated when requiresAdminPin actually gated this click
+      // (ButtonCustom resolves it via its own PinPadModal, requiredRole
+      // "admin") -- a cashier's PIN never reaches this handler at all.
+      if (!withdrawPendingProfileRef.current) return;
+      const amount = Number(values.withdrawAmount);
+
+      const entry = makeOutboxEntry("adjust_wallet_balance", "student_wallets", {
+        wallet_id: wallet.id,
+        delta: -amount,
+        reason: "withdrawal",
+      });
+      const nextBalance = wallet.balance - amount;
+      await commitLocal(db.student_wallets, () => db.student_wallets.update(wallet.id, { balance: nextBalance }), entry);
+      const outcome = await pushOutbox(entry);
+      if (outcome !== "synced") {
+        showToast("warning", t("sync.offlineFallbackToast"));
+      }
+
+      showToast(
+        "success",
+        t("admin.withdrawal.toastSuccess", { amount: formatCurrency(amount), name: wallet.student_name }),
+      );
+      withdrawFormik.resetForm();
+    },
+  });
 
   const profile = useLiveQuery(async () => {
     const sales = await db.sales.where("student_id").equals(student.id).reverse().sortBy("created_at");
@@ -102,92 +169,6 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
     return items.map((item) => ({ ...item, productName: productNames.get(item.product_id) }));
   }, [expandedSaleId]);
 
-  const handleRecharge = async () => {
-    if (rechargingRef.current) return;
-    rechargingRef.current = true;
-    setRecharging(true);
-
-    try {
-      const delta = Number(rechargeAmount);
-      if (!Number.isFinite(delta) || delta <= 0) {
-        setRechargeError(t("admin.recharge.errorAmountInvalid"));
-        return;
-      }
-      setRechargeError(null);
-
-      // reason: "recharge" -- tags this as a genuine admin top-up, distinct
-      // from a checkout debit or refund credit-back (which are no longer
-      // standalone outbox entries at all now -- complete_sale/void_sale
-      // apply those wallet deltas atomically server-side, in the same
-      // transaction as the sale/refund itself). useDashboardAnalytics'
-      // wallet-recharge widget relies on this tag to only sum real top-ups.
-      const entry = makeOutboxEntry("adjust_wallet_balance", "student_wallets", {
-        wallet_id: wallet.id,
-        delta,
-        reason: "recharge",
-      });
-      const nextBalance = wallet.balance + delta;
-      await commitLocal(db.student_wallets, () => db.student_wallets.update(wallet.id, { balance: nextBalance }), entry);
-      const outcome = await pushOutbox(entry);
-      if (outcome !== "synced") {
-        showToast("warning", t("sync.offlineFallbackToast"));
-      }
-
-      showToast("success", t("admin.recharge.toastSuccess", { amount: formatCurrency(delta), name: wallet.student_name }));
-      setRechargeAmount("");
-    } finally {
-      rechargingRef.current = false;
-      setRecharging(false);
-    }
-  };
-
-  // profile is only populated when requiresAdminPin actually gated this
-  // click (ButtonCustom resolves it via its own PinPadModal, requiredRole
-  // "admin") -- a cashier's PIN never reaches this handler at all.
-  const handleWithdraw = async (profile?: Profile) => {
-    if (!profile || withdrawingRef.current) return;
-    withdrawingRef.current = true;
-    setWithdrawing(true);
-
-    try {
-      const amount = Number(withdrawAmount);
-      if (!Number.isFinite(amount) || amount <= 0) {
-        setWithdrawError(t("admin.withdrawal.errorAmountInvalid"));
-        return;
-      }
-      // A single-device UX nicety, not a correctness mechanism -- the real
-      // cross-terminal race (two devices withdrawing against the same
-      // wallet before either has synced) is exactly what migration 00019
-      // now lets settle to a negative balance instead of blocking, the same
-      // way it does for stock.
-      if (amount > wallet.balance) {
-        setWithdrawError(t("admin.withdrawal.errorInsufficientBalance"));
-        return;
-      }
-      setWithdrawError(null);
-
-      const entry = makeOutboxEntry("adjust_wallet_balance", "student_wallets", {
-        wallet_id: wallet.id,
-        delta: -amount,
-        reason: "withdrawal",
-      });
-      const nextBalance = wallet.balance - amount;
-      await commitLocal(db.student_wallets, () => db.student_wallets.update(wallet.id, { balance: nextBalance }), entry);
-      const outcome = await pushOutbox(entry);
-      if (outcome !== "synced") {
-        showToast("warning", t("sync.offlineFallbackToast"));
-      }
-
-      showToast(
-        "success",
-        t("admin.withdrawal.toastSuccess", { amount: formatCurrency(amount), name: wallet.student_name }),
-      );
-      setWithdrawAmount("");
-    } finally {
-      withdrawingRef.current = false;
-      setWithdrawing(false);
-    }
-  };
 
   const handleReprint = async (sale: Sale) => {
     setReprintingId(sale.id);
@@ -241,7 +222,12 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
                 <button
                   key={amount}
                   type="button"
-                  onClick={() => setRechargeAmount(String(Number(rechargeAmount || "0") + amount))}
+                  onClick={() =>
+                    rechargeFormik.setFieldValue(
+                      "rechargeAmount",
+                      String(Number(rechargeFormik.values.rechargeAmount || "0") + amount),
+                    )
+                  }
                   className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-sm font-medium text-foreground hover:border-accent"
                 >
                   +{formatCurrency(amount)}
@@ -253,16 +239,22 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
                 type="number"
                 min="0"
                 step="1"
-                value={rechargeAmount}
-                onChange={(e) => setRechargeAmount(e.target.value)}
+                name="rechargeAmount"
+                value={rechargeFormik.values.rechargeAmount}
+                onChange={rechargeFormik.handleChange}
+                onBlur={rechargeFormik.handleBlur}
                 placeholder={t("admin.recharge.amountLabel")}
                 className="flex-1 rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
               />
-              <ButtonCustom variant="success" isLoading={recharging} onClick={() => void handleRecharge()}>
+              <ButtonCustom
+                variant="success"
+                isLoading={rechargeFormik.isSubmitting}
+                onClick={() => void rechargeFormik.submitForm()}
+              >
                 {t("admin.recharge.confirm")}
               </ButtonCustom>
             </div>
-            {rechargeError && <p className="text-xs text-destructive">{rechargeError}</p>}
+            <FieldError touched={rechargeFormik.touched.rechargeAmount} error={rechargeFormik.errors.rechargeAmount} />
           </div>
 
           {/* Withdrawal only ever appears once there's actual cash to hand
@@ -277,22 +269,27 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
                   min="0"
                   max={wallet.balance}
                   step="1"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  name="withdrawAmount"
+                  value={withdrawFormik.values.withdrawAmount}
+                  onChange={withdrawFormik.handleChange}
+                  onBlur={withdrawFormik.handleBlur}
                   placeholder={t("admin.withdrawal.amountLabel")}
                   className="flex-1 rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
                 />
                 <ButtonCustom
                   variant="danger"
-                  isLoading={withdrawing}
+                  isLoading={withdrawFormik.isSubmitting}
                   requiresAdminPin
                   pinModalTitle={t("admin.withdrawal.pinTitle")}
-                  onClick={handleWithdraw}
+                  onClick={(profile) => {
+                    withdrawPendingProfileRef.current = profile;
+                    void withdrawFormik.submitForm();
+                  }}
                 >
                   {t("admin.withdrawal.confirm")}
                 </ButtonCustom>
               </div>
-              {withdrawError && <p className="mt-1 text-xs text-destructive">{withdrawError}</p>}
+              <FieldError touched={withdrawFormik.touched.withdrawAmount} error={withdrawFormik.errors.withdrawAmount} />
             </div>
           )}
         </div>

@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.14.0",
+    "date": "2026-07-27",
+    "changes": [
+      "validate every form with Formik + Yup, per-field inline errors"
+    ]
+  },
+  {
     "version": "1.13.7",
     "date": "2026-07-27",
     "changes": [

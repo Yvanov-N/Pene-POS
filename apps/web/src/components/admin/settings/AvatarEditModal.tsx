@@ -1,4 +1,6 @@
 import { useRef, useState, type ChangeEvent } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { CircleUserRound, X } from "lucide-react";
 import { db } from "@/lib/db";
@@ -8,6 +10,12 @@ import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import type { Profile } from "@/types/db";
+
+type PendingAction = "save" | "delete";
+
+interface FormValues {
+  manualUrl: string;
+}
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 // Fixed, extension-less path per user (upsert: true) -- always the same
@@ -39,19 +47,47 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(
     isOwnUploadedAvatar(profile.avatar_url, profile.id) ? profile.avatar_url! : null,
   );
-  const [manualUrl, setManualUrl] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Guards Save/Delete against a fast double-click the same way every other
-  // handler in this app does (see ProductFormDrawer's savingRef).
-  const savingRef = useRef(false);
+  // Save and Delete are two distinct submit intents sharing one form/button
+  // pair -- set right before submitForm() is called, read inside onSubmit to
+  // decide which action to actually perform.
+  const pendingActionRef = useRef<PendingAction>("save");
+
+  const persistAvatarUrl = async (url: string | undefined) => {
+    const entry = makeOutboxEntry("generic_update", "profiles", { id: profile.id, avatar_url: url ?? null });
+    await commitLocal(db.profiles, () => db.profiles.update(profile.id, { avatar_url: url }), entry);
+    void pushOutbox(entry);
+  };
+
+  const formik = useFormik<FormValues>({
+    initialValues: { manualUrl: "" },
+    // No rule -- a pasted avatar URL has never been format-checked.
+    validationSchema: Yup.object({ manualUrl: Yup.string() }),
+    onSubmit: async (values) => {
+      if (pendingActionRef.current === "delete") {
+        // Best-effort -- if the current avatar was only ever a pasted external
+        // URL, there's no object at this path to remove; the API treats that
+        // as a no-op rather than an error.
+        await supabase.storage.from("avatars").remove([storagePath(profile.id)]);
+        await persistAvatarUrl(undefined);
+        showToast("success", t("admin.profile.avatarDeleteSuccessToast"));
+        onClose();
+        return;
+      }
+
+      const finalUrl = uploadedUrl ?? (values.manualUrl.trim() || undefined);
+      await persistAvatarUrl(finalUrl);
+      showToast("success", t("admin.profile.avatarSaveSuccessToast"));
+      onClose();
+    },
+  });
 
   // Upload always wins over a manually typed URL, regardless of which was
   // set first in this session -- the explicit precedence rule this modal
   // exists to enforce, not just "whichever was touched last".
-  const previewUrl = uploadedUrl ?? (manualUrl.trim() || profile.avatar_url);
+  const previewUrl = uploadedUrl ?? (formik.values.manualUrl.trim() || profile.avatar_url);
 
   const handleFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -85,45 +121,6 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
       setError(t("admin.profile.avatarUploadError"));
     } finally {
       setUploading(false);
-    }
-  };
-
-  const persistAvatarUrl = async (url: string | undefined) => {
-    const entry = makeOutboxEntry("generic_update", "profiles", { id: profile.id, avatar_url: url ?? null });
-    await commitLocal(db.profiles, () => db.profiles.update(profile.id, { avatar_url: url }), entry);
-    void pushOutbox(entry);
-  };
-
-  const handleSave = async () => {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
-    try {
-      const finalUrl = uploadedUrl ?? (manualUrl.trim() || undefined);
-      await persistAvatarUrl(finalUrl);
-      showToast("success", t("admin.profile.avatarSaveSuccessToast"));
-      onClose();
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
-    try {
-      // Best-effort -- if the current avatar was only ever a pasted external
-      // URL, there's no object at this path to remove; the API treats that
-      // as a no-op rather than an error.
-      await supabase.storage.from("avatars").remove([storagePath(profile.id)]);
-      await persistAvatarUrl(undefined);
-      showToast("success", t("admin.profile.avatarDeleteSuccessToast"));
-      onClose();
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
     }
   };
 
@@ -172,12 +169,14 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
 
           <input
             type="url"
-            value={manualUrl}
-            onChange={(e) => setManualUrl(e.target.value)}
+            name="manualUrl"
+            value={formik.values.manualUrl}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
             placeholder={t("admin.profile.avatarUrlPlaceholder")}
             className="rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
           />
-          {uploadedUrl && manualUrl.trim() && (
+          {uploadedUrl && formik.values.manualUrl.trim() && (
             <p className="text-xs text-muted">{t("admin.profile.avatarUploadedPriorityHint")}</p>
           )}
 
@@ -188,12 +187,23 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
               variant="danger"
               size="sm"
               disabled={!previewUrl}
-              isLoading={saving}
-              onClick={() => void handleDelete()}
+              isLoading={formik.isSubmitting}
+              onClick={() => {
+                pendingActionRef.current = "delete";
+                void formik.submitForm();
+              }}
             >
               {t("admin.profile.avatarDelete")}
             </ButtonCustom>
-            <ButtonCustom variant="primary" className="flex-1" isLoading={saving} onClick={() => void handleSave()}>
+            <ButtonCustom
+              variant="primary"
+              className="flex-1"
+              isLoading={formik.isSubmitting}
+              onClick={() => {
+                pendingActionRef.current = "save";
+                void formik.submitForm();
+              }}
+            >
               {t("admin.profile.avatarSave")}
             </ButtonCustom>
           </div>
