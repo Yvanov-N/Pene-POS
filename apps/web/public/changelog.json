@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.13.6",
+    "date": "2026-07-27",
+    "changes": [
+      "add missing Authorization header so shop-status/inventory-alert triggers stop 401ing"
+    ]
+  },
+  {
     "version": "1.13.5",
     "date": "2026-07-26",
     "changes": [

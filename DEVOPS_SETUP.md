@@ -53,8 +53,11 @@ supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT="m
   --project-ref <SUPABASE_PROJECT_ID>
 ```
 
-(and `RESEND_API_KEY` the same way, if you want `notify-shop-status`'s student emails to actually send —
-also not a GitHub secret, for the same reason.)
+(and `RESEND_API_KEY` **and** `RESEND_FROM_ADDRESS` the same way, if you want `notify-shop-status`'s
+student emails to actually send — also not GitHub secrets, for the same reason. Both are required, not
+just `RESEND_API_KEY`: `notify-shop-status/index.ts` skips sending (with a `console.warn`, nothing louder)
+if either is missing. `RESEND_FROM_ADDRESS` must be a sender address on a domain verified in that Resend
+account, e.g. `"Cite Shop <notifications@yourdomain.com>"`.)
 
 ## Required: point the DB webhook / cron job at this project
 
@@ -76,6 +79,29 @@ on conflict (key) do update set value = excluded.value;
 ```
 
 Re-run it if this project's anon key is ever rotated.
+
+## Required: configure production Auth redirect URLs
+
+`supabase/config.toml`'s `[auth]` section (`site_url = "http://localhost:5173"`,
+`additional_redirect_urls = [...]`, and the custom `magic_link` template pointing at
+`supabase/templates/otp.html`) only applies to the **local** `supabase start` stack — none of it is
+pushed to the hosted project by `db push` or `functions deploy`. A brand-new Supabase project's Auth
+Site URL defaults to `http://localhost:3000`, and if it's never changed, GoTrue silently ignores any
+`emailRedirectTo`/`redirectTo` the app passes (used by `PinPadModal.tsx`'s "Forgot PIN?" flow,
+`GlobalLogin.tsx`, and `ProfileSettingsCard.tsx`'s OTP flows) and falls back to that default — so
+users clicking a magic-link/reset-PIN email get bounced to `localhost` instead of the real app, and
+they get Supabase's generic default email template instead of the custom one-time-code one.
+
+Set this **once**, directly on the hosted project — Dashboard → **Authentication → URL Configuration**
+(no CLI equivalent is wired into this pipeline):
+
+- **Site URL**: the real production webapp URL (e.g. `https://<your-production-domain>`).
+- **Redirect URLs**: add the same URL with a wildcard, e.g. `https://<your-production-domain>/**`, so
+  every route (`/reset-pin`, `/reset-password`, etc.) an email might redirect to is covered.
+
+If you also want production to send the custom one-time-code template instead of Supabase's generic
+"click to sign in" default, copy `supabase/templates/otp.html`'s content into Dashboard → **Authentication
+→ Email Templates → Magic Link** by hand — that piece of `config.toml` isn't synced to hosted either.
 
 ## Optional: push notification on deploy
 
@@ -108,11 +134,15 @@ pattern, since anyone who can push one triggers a real production deploy.
 
 - [ ] All 9 secrets in the table above are set.
 - [ ] Vercel project's Root Directory is `apps/web`.
-- [ ] Production Supabase project has its own VAPID keypair and (if wanted) `RESEND_API_KEY` set via
-      `supabase secrets set` — **not** copied from local dev.
+- [ ] Production Supabase project has its own VAPID keypair and (if wanted) `RESEND_API_KEY` **and
+      `RESEND_FROM_ADDRESS`** set via `supabase secrets set` — **not** copied from local dev. Both are
+      required together; student emails silently no-op if either is missing.
 - [ ] `public.app_settings` has `functions_url`/`anon_key` rows for this project (see "Required: point
       the DB webhook / cron job at this project" above) — without it, shop-status and inventory alert
       notifications silently never fire.
+- [ ] Production Supabase project's Auth **Site URL**/**Redirect URLs** are set to the real production
+      domain, not left at the `http://localhost:3000` default (see "Required: configure production Auth
+      redirect URLs" above) — without it, magic-link/reset-PIN emails redirect users to `localhost`.
 - [ ] `main` has branch protection requiring PRs.
 - [ ] A tag protection rule restricts who can push `v*` tags, since that's what actually triggers a
       production deploy now.
