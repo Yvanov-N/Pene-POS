@@ -281,7 +281,7 @@ export async function pullAll(): Promise<void> {
   // keeps one sync cycle internally consistent.
   await pullSoftDeletableTable("categories", db.categories, mapCategoryRow);
   await pullSoftDeletableTable("products", db.products, mapProductRow);
-  await pullTable("student_wallets", db.student_wallets, "*", mapWalletRow);
+  await pullSoftDeletableTable("student_wallets", db.student_wallets, mapWalletRow);
   // Sales/sale_items are pulled (not push-only) so a device's local Dexie
   // reflects a student's complete purchase history across every terminal,
   // not just what this one till happened to ring up itself.

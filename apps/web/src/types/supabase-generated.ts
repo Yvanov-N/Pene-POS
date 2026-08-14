@@ -356,6 +356,7 @@ export type Database = {
         Row: {
           badge_code: string
           balance: number
+          deleted_at: string | null
           email: string | null
           email_opt_in: boolean
           id: string
@@ -367,6 +368,7 @@ export type Database = {
         Insert: {
           badge_code: string
           balance?: number
+          deleted_at?: string | null
           email?: string | null
           email_opt_in?: boolean
           id?: string
@@ -378,6 +380,7 @@ export type Database = {
         Update: {
           badge_code?: string
           balance?: number
+          deleted_at?: string | null
           email?: string | null
           email_opt_in?: boolean
           id?: string

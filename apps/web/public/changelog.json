@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.15.0",
+    "date": "2026-08-14",
+    "changes": [
+      "add wallet transaction history and student archive/restore"
+    ]
+  },
+  {
     "version": "1.14.0",
     "date": "2026-07-27",
     "changes": [

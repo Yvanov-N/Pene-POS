@@ -130,6 +130,7 @@
       "currentBalance": "Current balance",
       "tabAnalytics": "Analytics",
       "tabHistory": "Purchase history",
+      "tabTransactions": "Wallet history",
       "loading": "Loading...",
       "lifetimeValue": "LIFETIME VALUE",
       "averageBasket": "AVERAGE BASKET",
@@ -138,7 +139,13 @@
       "favoriteProducts": "Favorite products",
       "noPurchases": "No purchases yet.",
       "unitsPurchased_one": "{{count}} unit purchased",
-      "unitsPurchased_other": "{{count}} units purchased"
+      "unitsPurchased_other": "{{count}} units purchased",
+      "transactionsEmpty": "No recharges or withdrawals yet.",
+      "transactionsLoadError": "Couldn't load wallet history.",
+      "transactionRecharge": "Recharge",
+      "transactionWithdrawal": "Withdrawal",
+      "transactionBalanceAfter": "Balance after: {{balance}}",
+      "archivedNotice": "This student is archived. Restore them to recharge or withdraw."
     },
     "dashboard": {
       "revenueLabel": "GROSS REVENUE",
@@ -313,7 +320,17 @@
       "errorNameRequired": "Name is required.",
       "errorBadgeRequired": "Badge code is required.",
       "errorBalanceInvalid": "Balance must be a valid number.",
-      "errorBadgeTaken": "This badge code is already used by another student."
+      "errorBadgeTaken": "This badge code is already used by another student.",
+      "archive": "Archive",
+      "archivePinTitle": "Authorization required to archive this student",
+      "archiveSuccessToast": "{{name}} archived",
+      "showArchived": "Show archived",
+      "backToActive": "Back to active students",
+      "archivedTitle": "Archived students",
+      "archivedEmpty": "No archived students.",
+      "restore": "Restore",
+      "restoreSuccessToast": "{{name}} restored",
+      "archivedBadge": "Archived"
     },
     "conflicts": {
       "badge_one": "{{count}} Conflict",
