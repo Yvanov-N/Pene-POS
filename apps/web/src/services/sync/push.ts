@@ -100,15 +100,17 @@ async function pushVoidSale(
 // The generic INSERT/UPDATE/DELETE path -- any table/feature with no
 // dedicated RPC gets this for free (categories, products, student_wallets,
 // profiles, shop_status admin CRUD). A "generic_delete" against
-// products/categories is translated into a soft-delete UPDATE (deleted_at =
-// now(), migration 00023) instead of an actual DELETE -- a hard delete would
-// be invisible to another device's cursor-based pull, since there'd be no
-// row left with a sync_seq to notice. The local Dexie effect at the call
-// site is still a real db.<table>.delete(id) either way (see pull.ts's
-// write-back: a pulled row with deleted_at set is removed locally, not
-// stored as a visible tombstone), so every existing read call site keeps
-// working unchanged -- "absent from Dexie" still means "deleted" throughout
-// this app.
+// products/categories/student_wallets is translated into a soft-delete
+// UPDATE (deleted_at = now(), migrations 00023/00035) instead of an actual
+// DELETE -- a hard delete would be invisible to another device's
+// cursor-based pull, since there'd be no row left with a sync_seq to
+// notice (and for student_wallets specifically, sales.student_id's default
+// FK RESTRICT would just reject it outright for any student with sale
+// history). The local Dexie effect at the call site is still a real
+// db.<table>.delete(id) either way (see pull.ts's write-back: a pulled row
+// with deleted_at set is removed locally, not stored as a visible
+// tombstone), so every existing read call site keeps working unchanged --
+// "absent from Dexie" still means "deleted" throughout this app.
 async function pushGenericMutation(
   entry: Extract<OutboxOperation, { opType: "generic_insert" | "generic_update" | "generic_delete" }>,
   signal: AbortSignal,
@@ -124,7 +126,7 @@ async function pushGenericMutation(
   // (nothing, at the type level, past this boundary).
   const table = supabase.from(tableName as never);
   const { id } = payload;
-  const softDeletable = tableName === "products" || tableName === "categories";
+  const softDeletable = tableName === "products" || tableName === "categories" || tableName === "student_wallets";
 
   const { error } =
     opType === "generic_insert"

@@ -130,6 +130,7 @@
       "currentBalance": "Solde actuel",
       "tabAnalytics": "Analyses",
       "tabHistory": "Historique d'achats",
+      "tabTransactions": "Historique du portefeuille",
       "loading": "Chargement...",
       "lifetimeValue": "VALEUR CLIENT",
       "averageBasket": "PANIER MOYEN",
@@ -138,7 +139,13 @@
       "favoriteProducts": "Produits favoris",
       "noPurchases": "Aucun achat pour le moment.",
       "unitsPurchased_one": "{{count}} unite achetee",
-      "unitsPurchased_other": "{{count}} unites achetees"
+      "unitsPurchased_other": "{{count}} unites achetees",
+      "transactionsEmpty": "Aucune recharge ni retrait pour le moment.",
+      "transactionsLoadError": "Impossible de charger l'historique du portefeuille.",
+      "transactionRecharge": "Recharge",
+      "transactionWithdrawal": "Retrait",
+      "transactionBalanceAfter": "Solde apres : {{balance}}",
+      "archivedNotice": "Cet etudiant est archive. Restaurez-le pour recharger ou retirer."
     },
     "dashboard": {
       "revenueLabel": "CHIFFRE D'AFFAIRES",
@@ -313,7 +320,17 @@
       "errorNameRequired": "Le nom est requis.",
       "errorBadgeRequired": "Le code badge est requis.",
       "errorBalanceInvalid": "Le solde doit etre un nombre valide.",
-      "errorBadgeTaken": "Ce code badge est deja utilise par un autre etudiant."
+      "errorBadgeTaken": "Ce code badge est deja utilise par un autre etudiant.",
+      "archive": "Archiver",
+      "archivePinTitle": "Autorisation requise pour archiver cet etudiant",
+      "archiveSuccessToast": "{{name}} archive",
+      "showArchived": "Voir les archives",
+      "backToActive": "Retour aux etudiants actifs",
+      "archivedTitle": "Etudiants archives",
+      "archivedEmpty": "Aucun etudiant archive.",
+      "restore": "Restaurer",
+      "restoreSuccessToast": "{{name}} restaure",
+      "archivedBadge": "Archive"
     },
     "conflicts": {
       "badge_one": "{{count}} Conflit",

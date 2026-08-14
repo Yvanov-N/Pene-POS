@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
@@ -13,6 +13,7 @@ import { printService } from "@/services/hardware/printService";
 import { PAYMENT_BADGE_CLASS, STATUS_BADGE_CLASS } from "@/lib/paymentMethodStyles";
 import { isRevenueRelevant } from "@/lib/salesAggregation";
 import { numberSchema } from "@/lib/validation";
+import { listWalletTransactions, type WalletTransaction } from "@/services/sync/walletHistory";
 import { StatCard } from "@/components/admin/StatCard";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { FieldError } from "@/components/ui/field-error";
@@ -21,20 +22,26 @@ import type { Profile, Sale, StudentWallet } from "@/types/db";
 const SETTINGS_ID = "default";
 const QUICK_ADD_AMOUNTS = [1000, 2000, 5000] as const;
 
-type Tab = "analytics" | "history";
+type Tab = "analytics" | "history" | "transactions";
 
 interface StudentProfileDrawerProps {
   student: StudentWallet;
   onClose: () => void;
+  // Set when this drawer was opened from the archived-students list --
+  // recharge/withdraw are hidden (an archived wallet must be restored
+  // first), everything else (analytics, purchase history, wallet history)
+  // stays fully readable.
+  isArchived?: boolean;
 }
 
-export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerProps) {
+export function StudentProfileDrawer({ student, onClose, isArchived = false }: StudentProfileDrawerProps) {
   const { t } = useTranslation();
   const { showToast } = useToast();
 
   const [tab, setTab] = useState<Tab>("analytics");
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [reprintingId, setReprintingId] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<WalletTransaction[] | undefined>(undefined);
   // Withdraw is admin-gated (ButtonCustom's requiresAdminPin) -- the matched
   // admin Profile only exists once that PIN check succeeds, set right before
   // submitForm() is called, read inside withdrawFormik's onSubmit.
@@ -43,6 +50,15 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
   // Live so a recharge (or a sale made from another device) reflects
   // instantly without closing/reopening the drawer.
   const wallet = useLiveQuery(() => db.student_wallets.get(student.id), [student.id]) ?? student;
+
+  const loadTransactions = async () => {
+    setTransactions(await listWalletTransactions(student.id));
+  };
+
+  useEffect(() => {
+    void loadTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student.id]);
 
   const rechargeFormik = useFormik<{ rechargeAmount: string }>({
     initialValues: { rechargeAmount: "" },
@@ -72,6 +88,7 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
 
       showToast("success", t("admin.recharge.toastSuccess", { amount: formatCurrency(delta), name: wallet.student_name }));
       rechargeFormik.resetForm();
+      void loadTransactions();
     },
   });
 
@@ -114,6 +131,7 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
         t("admin.withdrawal.toastSuccess", { amount: formatCurrency(amount), name: wallet.student_name }),
       );
       withdrawFormik.resetForm();
+      void loadTransactions();
     },
   });
 
@@ -216,81 +234,87 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
             {formatCurrency(wallet.balance)}
           </p>
 
-          <div className="mt-3 flex flex-col gap-2">
-            <div className="flex flex-wrap gap-2">
-              {QUICK_ADD_AMOUNTS.map((amount) => (
-                <button
-                  key={amount}
-                  type="button"
-                  onClick={() =>
-                    rechargeFormik.setFieldValue(
-                      "rechargeAmount",
-                      String(Number(rechargeFormik.values.rechargeAmount || "0") + amount),
-                    )
-                  }
-                  className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-sm font-medium text-foreground hover:border-accent"
-                >
-                  +{formatCurrency(amount)}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min="0"
-                step="1"
-                name="rechargeAmount"
-                value={rechargeFormik.values.rechargeAmount}
-                onChange={rechargeFormik.handleChange}
-                onBlur={rechargeFormik.handleBlur}
-                placeholder={t("admin.recharge.amountLabel")}
-                className="flex-1 rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
-              />
-              <ButtonCustom
-                variant="success"
-                isLoading={rechargeFormik.isSubmitting}
-                onClick={() => void rechargeFormik.submitForm()}
-              >
-                {t("admin.recharge.confirm")}
-              </ButtonCustom>
-            </div>
-            <FieldError touched={rechargeFormik.touched.rechargeAmount} error={rechargeFormik.errors.rechargeAmount} />
-          </div>
-
-          {/* Withdrawal only ever appears once there's actual cash to hand
-              back -- the business rule is balance > 0, not "always offer
-              it and reject on submit". */}
-          {wallet.balance > 0 && (
-            <div className="mt-3 border-t border-border pt-3">
-              <p className="mb-2 text-xs font-medium text-muted">{t("admin.withdrawal.title")}</p>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  max={wallet.balance}
-                  step="1"
-                  name="withdrawAmount"
-                  value={withdrawFormik.values.withdrawAmount}
-                  onChange={withdrawFormik.handleChange}
-                  onBlur={withdrawFormik.handleBlur}
-                  placeholder={t("admin.withdrawal.amountLabel")}
-                  className="flex-1 rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
-                />
-                <ButtonCustom
-                  variant="danger"
-                  isLoading={withdrawFormik.isSubmitting}
-                  requiresAdminPin
-                  pinModalTitle={t("admin.withdrawal.pinTitle")}
-                  onClick={(profile) => {
-                    withdrawPendingProfileRef.current = profile;
-                    void withdrawFormik.submitForm();
-                  }}
-                >
-                  {t("admin.withdrawal.confirm")}
-                </ButtonCustom>
+          {isArchived ? (
+            <p className="mt-3 text-xs text-muted">{t("admin.wallets.archivedNotice")}</p>
+          ) : (
+            <>
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_ADD_AMOUNTS.map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={() =>
+                        rechargeFormik.setFieldValue(
+                          "rechargeAmount",
+                          String(Number(rechargeFormik.values.rechargeAmount || "0") + amount),
+                        )
+                      }
+                      className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-sm font-medium text-foreground hover:border-accent"
+                    >
+                      +{formatCurrency(amount)}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    name="rechargeAmount"
+                    value={rechargeFormik.values.rechargeAmount}
+                    onChange={rechargeFormik.handleChange}
+                    onBlur={rechargeFormik.handleBlur}
+                    placeholder={t("admin.recharge.amountLabel")}
+                    className="flex-1 rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
+                  />
+                  <ButtonCustom
+                    variant="success"
+                    isLoading={rechargeFormik.isSubmitting}
+                    onClick={() => void rechargeFormik.submitForm()}
+                  >
+                    {t("admin.recharge.confirm")}
+                  </ButtonCustom>
+                </div>
+                <FieldError touched={rechargeFormik.touched.rechargeAmount} error={rechargeFormik.errors.rechargeAmount} />
               </div>
-              <FieldError touched={withdrawFormik.touched.withdrawAmount} error={withdrawFormik.errors.withdrawAmount} />
-            </div>
+
+              {/* Withdrawal only ever appears once there's actual cash to hand
+                  back -- the business rule is balance > 0, not "always offer
+                  it and reject on submit". */}
+              {wallet.balance > 0 && (
+                <div className="mt-3 border-t border-border pt-3">
+                  <p className="mb-2 text-xs font-medium text-muted">{t("admin.withdrawal.title")}</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max={wallet.balance}
+                      step="1"
+                      name="withdrawAmount"
+                      value={withdrawFormik.values.withdrawAmount}
+                      onChange={withdrawFormik.handleChange}
+                      onBlur={withdrawFormik.handleBlur}
+                      placeholder={t("admin.withdrawal.amountLabel")}
+                      className="flex-1 rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
+                    />
+                    <ButtonCustom
+                      variant="danger"
+                      isLoading={withdrawFormik.isSubmitting}
+                      requiresAdminPin
+                      pinModalTitle={t("admin.withdrawal.pinTitle")}
+                      onClick={(profile) => {
+                        withdrawPendingProfileRef.current = profile;
+                        void withdrawFormik.submitForm();
+                      }}
+                    >
+                      {t("admin.withdrawal.confirm")}
+                    </ButtonCustom>
+                  </div>
+                  <FieldError touched={withdrawFormik.touched.withdrawAmount} error={withdrawFormik.errors.withdrawAmount} />
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -316,6 +340,17 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
             }`}
           >
             {t("admin.wallets.tabHistory")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("transactions")}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+              tab === "transactions"
+                ? "border-accent bg-accent text-accent-foreground"
+                : "border-border bg-surface2 text-muted hover:text-foreground"
+            }`}
+          >
+            {t("admin.wallets.tabTransactions")}
           </button>
         </div>
 
@@ -345,6 +380,39 @@ export function StudentProfileDrawer({ student, onClose }: StudentProfileDrawerP
                 </ul>
               )}
             </div>
+          </div>
+        ) : tab === "transactions" ? (
+          <div className="flex flex-col gap-2">
+            {transactions === undefined ? (
+              <p className="text-sm text-muted">{t("admin.wallets.loading")}</p>
+            ) : transactions.length === 0 ? (
+              <p className="text-sm text-muted">{t("admin.wallets.transactionsEmpty")}</p>
+            ) : (
+              transactions.map((transaction) => (
+                <div
+                  key={transaction.operationId}
+                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {transaction.reason === "recharge"
+                        ? t("admin.wallets.transactionRecharge")
+                        : t("admin.wallets.transactionWithdrawal")}
+                    </p>
+                    <p className="text-xs text-muted">{new Date(transaction.occurredAt).toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-semibold ${transaction.delta >= 0 ? "text-success" : "text-destructive"}`}>
+                      {transaction.delta >= 0 ? "+" : ""}
+                      {formatCurrency(transaction.delta)}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {t("admin.wallets.transactionBalanceAfter", { balance: formatCurrency(transaction.balanceAfter) })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-2">

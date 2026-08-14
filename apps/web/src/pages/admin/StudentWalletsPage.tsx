@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
 import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
+import { listArchivedWallets, type ArchivedStudentWallet } from "@/services/sync/walletHistory";
 import { usePaginatedQuery, type PageParams, type PageResult } from "@/hooks/usePaginatedQuery";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
@@ -51,7 +52,10 @@ async function fetchServerWallets(
   signal: AbortSignal,
 ): Promise<PageResult<StudentWallet>> {
   const offset = (params.page - 1) * params.pageSize;
-  let query = supabase.from("student_wallets").select("*", { count: "exact" });
+  // deleted_at is null: an archived student (migration 00035) must not
+  // reappear in the normal active list/search -- see "Show archived" below
+  // for the dedicated view that does list them.
+  let query = supabase.from("student_wallets").select("*", { count: "exact" }).is("deleted_at", null);
   const term = params.searchTerm.trim().replace(/[%,()]/g, "");
   if (term) {
     query = query.or(
@@ -105,6 +109,24 @@ export function StudentWalletsPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Archived students are a separate, always-live view (not paginated
+  // through usePaginatedQuery/local Dexie the way the active list is) --
+  // an archived row is, by the same soft-delete convention as
+  // products/categories, absent from local Dexie entirely, so there's no
+  // offline-first local source to page through here.
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedStudents, setArchivedStudents] = useState<ArchivedStudentWallet[] | undefined>(undefined);
+  const [selectedArchivedStudent, setSelectedArchivedStudent] = useState<ArchivedStudentWallet | null>(null);
+
+  const loadArchivedStudents = async () => {
+    setArchivedStudents(await listArchivedWallets(searchTerm));
+  };
+
+  useEffect(() => {
+    if (showArchived) void loadArchivedStudents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showArchived, searchTerm]);
 
   const formik = useFormik<FormState>({
     initialValues: EMPTY_FORM,
@@ -222,14 +244,54 @@ export function StudentWalletsPage() {
     setFormOpen(true);
   };
 
+  // No "blocked if has sales" guard, unlike ProductsPage.tsx's handleDelete
+  // -- archiving a student WITH purchase/wallet history is the entire point
+  // here, not an edge case to avoid. The soft-delete (deleted_at UPDATE, not
+  // a real DELETE -- migration 00035) keeps every sale/sale_item/
+  // sync_operations row referencing this wallet intact either way.
+  const handleArchive = async (wallet: StudentWallet) => {
+    const entry = makeOutboxEntry("generic_delete", "student_wallets", { id: wallet.id });
+    await commitLocal(db.student_wallets, () => db.student_wallets.delete(wallet.id), entry);
+    void pushOutbox(entry);
+    showToast("success", t("admin.students.archiveSuccessToast", { name: wallet.student_name }));
+  };
+
+  const handleRestore = async (wallet: ArchivedStudentWallet) => {
+    const entry = makeOutboxEntry("generic_update", "student_wallets", { id: wallet.id, deleted_at: null });
+    // Re-inserts the full row locally (it's currently absent from Dexie, by
+    // the same "absent = deleted" convention as products/categories) --
+    // already in hand from the archived list's own fetch, so this is a
+    // plain put(), not a partial update().
+    const { deleted_at: _deletedAt, ...restored } = wallet;
+    await commitLocal(db.student_wallets, () => db.student_wallets.put(restored), entry);
+    void pushOutbox(entry);
+    showToast("success", t("admin.students.restoreSuccessToast", { name: wallet.student_name }));
+    void loadArchivedStudents();
+  };
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
       <CardCustom
-        title={t("admin.students.title")}
+        title={showArchived ? t("admin.students.archivedTitle") : t("admin.students.title")}
         header={
-          <ButtonCustom variant="primary" size="sm" onClick={openCreateForm}>
-            {t("admin.students.add")}
-          </ButtonCustom>
+          showArchived ? (
+            <ButtonCustom variant="primary" size="sm" onClick={() => setShowArchived(false)}>
+              {t("admin.students.backToActive")}
+            </ButtonCustom>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowArchived(true)}
+                className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent"
+              >
+                {t("admin.students.showArchived")}
+              </button>
+              <ButtonCustom variant="primary" size="sm" onClick={openCreateForm}>
+                {t("admin.students.add")}
+              </ButtonCustom>
+            </div>
+          )
         }
       >
         <input
@@ -240,7 +302,52 @@ export function StudentWalletsPage() {
           className="mb-4 w-full rounded-lg border border-border bg-surface2 px-4 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-accent"
         />
 
-        {visibleStudents === undefined ? (
+        {showArchived ? (
+          archivedStudents === undefined ? (
+            <p className="text-sm text-muted">{t("admin.students.loading")}</p>
+          ) : archivedStudents.length === 0 ? (
+            <p className="text-sm text-muted">{t("admin.students.archivedEmpty")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
+                    <th className="py-2 pr-3">{t("admin.students.fieldName")}</th>
+                    <th className="py-2 pr-3">{t("admin.students.fieldBadge")}</th>
+                    <th className="py-2 pr-3">{t("admin.wallets.columnBalance")}</th>
+                    <th className="py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {archivedStudents.map((student) => (
+                    <tr
+                      key={student.id}
+                      onClick={() => setSelectedArchivedStudent(student)}
+                      className="cursor-pointer border-b border-border last:border-0 hover:bg-surface2"
+                    >
+                      <td className="py-2 pr-3 font-medium text-foreground">{student.student_name}</td>
+                      <td className="py-2 pr-3 text-muted">{student.badge_code}</td>
+                      <td
+                        className={`py-2 pr-3 font-medium ${student.balance > 0 ? "text-success" : student.balance < 0 ? "text-destructive" : "text-foreground"}`}
+                      >
+                        {formatCurrency(student.balance)}
+                      </td>
+                      <td className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => void handleRestore(student)}
+                          className="rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent"
+                        >
+                          {t("admin.students.restore")}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : visibleStudents === undefined ? (
           <p className="text-sm text-muted">{t("admin.students.loading")}</p>
         ) : visibleStudents.length === 0 ? (
           <p className="text-sm text-muted">{t("admin.students.empty")}</p>
@@ -287,17 +394,25 @@ export function StudentWalletsPage() {
                       </td>
                       <td className="py-2 pr-3 text-foreground">{formatCurrency(stats?.totalSpend ?? 0)}</td>
                       <td className="py-2 pr-3 text-foreground">{stats?.orderCount ?? 0}</td>
-                      <td className="py-2 text-right">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditForm(student);
-                          }}
-                          className="rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent"
-                        >
-                          {t("admin.students.edit")}
-                        </button>
+                      <td className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEditForm(student)}
+                            className="rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent"
+                          >
+                            {t("admin.students.edit")}
+                          </button>
+                          <ButtonCustom
+                            variant="danger"
+                            size="sm"
+                            requiresAdminPin
+                            pinModalTitle={t("admin.students.archivePinTitle")}
+                            onClick={() => void handleArchive(student)}
+                          >
+                            {t("admin.students.archive")}
+                          </ButtonCustom>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -306,16 +421,24 @@ export function StudentWalletsPage() {
             </table>
           </div>
         )}
-        {visibleStudents !== undefined && totalCount > 0 && (
+        {!showArchived && visibleStudents !== undefined && totalCount > 0 && (
           <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
         )}
-        {!isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
+        {!showArchived && !isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>
 
       <MoMoVerificationCard />
 
       {selectedStudent && (
         <StudentProfileDrawer student={selectedStudent} onClose={() => setSelectedStudent(null)} />
+      )}
+
+      {selectedArchivedStudent && (
+        <StudentProfileDrawer
+          student={selectedArchivedStudent}
+          onClose={() => setSelectedArchivedStudent(null)}
+          isArchived
+        />
       )}
 
       {formOpen && (
