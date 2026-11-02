@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Archive, Pencil, X } from "lucide-react";
 import { db } from "@/lib/db";
@@ -272,6 +273,15 @@ export function StudentWalletsPage() {
     void loadArchivedStudents();
   };
 
+  // Arriving from the POS Mobile Money reminder: bring the verification card
+  // into view (on phones it sits below the one-screen-tall table).
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash === "#momo") {
+      document.getElementById("momo-verification")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [hash]);
+
   return (
     // Phones/tablets: the table card is one screen tall and the MoMo card
     // follows below it. xl+: table 8/12 at full height, MoMo 4/12 beside it.
@@ -447,7 +457,7 @@ export function StudentWalletsPage() {
         {!showArchived && !isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>
 
-      <div className="min-w-0 xl:col-span-4 xl:self-start">
+      <div id="momo-verification" className="min-w-0 scroll-mt-4 xl:col-span-4 xl:self-start">
         <MoMoVerificationCard />
       </div>
 

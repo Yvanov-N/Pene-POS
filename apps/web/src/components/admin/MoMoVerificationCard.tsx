@@ -6,6 +6,7 @@ import { cancelPendingSalePush } from "@/services/sync/drain";
 import { commitLocal, makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
+import { usePendingMomoSales } from "@/hooks/usePendingMomoSales";
 import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
@@ -16,21 +17,7 @@ export function MoMoVerificationCard() {
   const { showToast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const pendingSales = useLiveQuery(
-    () =>
-      db.sales
-        .toArray()
-        .then((rows) =>
-          rows
-            .filter(
-              (sale) =>
-                (sale.payment_method === "momo_mtn" || sale.payment_method === "momo_orange") &&
-                sale.momo_verification_status === "pending",
-            )
-            .sort((a, b) => b.created_at.localeCompare(a.created_at)),
-        ),
-    [],
-  );
+  const pendingSales = usePendingMomoSales();
 
   // Local-only lookup for a friendlier display than a raw cashier_id UUID --
   // profiles are already pulled down into Dexie by the sync engine.

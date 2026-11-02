@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.24.0",
+    "date": "2026-11-02",
+    "changes": [
+      "floating POS reminder when Mobile Money payments await verification"
+    ]
+  },
+  {
     "version": "1.23.0",
     "date": "2026-11-02",
     "changes": [

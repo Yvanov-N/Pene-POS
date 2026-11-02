@@ -5,6 +5,7 @@ import { ProductGrid } from "./ProductGrid";
 import { PosCart } from "./PosCart";
 import { MobileCartSheet } from "./MobileCartSheet";
 import { ReceiptPrintHost } from "./ReceiptPrintHost";
+import { MomoReminderBubble } from "./MomoReminderBubble";
 import { useCartActions } from "@/hooks/useCart";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
@@ -32,7 +33,7 @@ export function PosLayout() {
     <div className="pos-layout flex h-full w-full bg-background text-foreground">
       {/* Only the product grid scrolls: the search bar and category pills
           stay pinned at the top of the column while browsing products. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col md:border-r md:border-border">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col md:border-r md:border-border">
         <div className="flex shrink-0 flex-col gap-4 border-b border-border p-4">
           <BarcodeInput onProductSelect={addItem} />
           <ProductFilters
@@ -45,6 +46,7 @@ export function PosLayout() {
         <div className="flex-1 overflow-y-auto p-4 pb-44 md:pb-4">
           <ProductGrid searchTerm={searchTerm} category={activeCategory} onProductSelect={addItem} />
         </div>
+        <MomoReminderBubble />
       </div>
 
       {isDesktopCart ? <PosCart /> : <MobileCartSheet />}

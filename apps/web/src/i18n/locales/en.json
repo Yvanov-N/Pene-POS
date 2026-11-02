@@ -75,6 +75,11 @@
       "printButton": "Print",
       "shareButton": "Share",
       "closeButton": "Close"
+    },
+    "momoReminder": {
+      "label_one": "{{count}} MoMo payment to verify",
+      "label_other": "{{count}} MoMo payments to verify",
+      "hint": "{{amount}} awaiting SMS verification -- tap to verify"
     }
   },
   "admin": {
