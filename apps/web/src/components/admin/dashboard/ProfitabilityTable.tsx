@@ -5,6 +5,11 @@ import { paginate } from "@/lib/pagination";
 import { usePageSize } from "@/hooks/usePageSize";
 import { PaginationControls } from "@/components/admin/PaginationControls";
 import type { ProductProfit } from "@/hooks/useDashboardAnalytics";
+import { SortableTh } from "@/components/admin/SortableTh";
+import { useTableSort } from "@/hooks/useTableSort";
+import { sortRows } from "@/lib/sorting";
+
+type ProfitSortKey = "name" | "quantitySold" | "revenue" | "cost" | "profit" | "marginPct";
 
 interface ProfitabilityTableProps {
   data: ProductProfit[];
@@ -16,13 +21,30 @@ export function ProfitabilityTable({ data }: ProfitabilityTableProps) {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize("profitability");
+  // Default: most profitable first (the order the analytics hook already uses).
+  const { sortKey, sortDir, toggleSort } = useTableSort<ProfitSortKey>(
+    "profit",
+    "desc",
+    { quantitySold: "desc", revenue: "desc", cost: "desc", profit: "desc", marginPct: "desc" },
+    () => setPage(1),
+  );
 
   if (data.length === 0) {
     return <p className="py-8 text-center text-sm text-muted">{t("admin.dashboard.noData")}</p>;
   }
 
   // Clamped: a narrower date range can leave fewer pages than before.
-  const { rows, totalPages } = paginate(data, page, pageSize);
+  // Cost/profit/margin are unknown (not zero) for products sold without a
+  // purchase price -- marginPct null marks those, and they sort last.
+  const sorted = sortRows(
+    data,
+    (row) => (sortKey === "name" ? row.name : row.marginPct === null && sortKey !== "quantitySold" && sortKey !== "revenue" ? null : row[sortKey]),
+    sortDir,
+  );
+  const { rows, totalPages } = paginate(sorted, page, pageSize);
+  const sortTh = (column: ProfitSortKey, label: string, align?: "right") => (
+    <SortableTh column={column} label={label} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align={align} />
+  );
   const maxRevenue = Math.max(...data.map((row) => row.revenue), 1);
 
   return (
@@ -31,12 +53,12 @@ export function ProfitabilityTable({ data }: ProfitabilityTableProps) {
         <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-              <th className="py-2 pr-3">{t("admin.dashboard.profit.columnProduct")}</th>
-              <th className="py-2 pr-3 text-right">{t("admin.dashboard.profit.columnQuantity")}</th>
-              <th className="py-2 pr-3 text-right">{t("admin.dashboard.profit.columnRevenue")}</th>
-              <th className="py-2 pr-3 text-right">{t("admin.dashboard.profit.columnCost")}</th>
-              <th className="py-2 pr-3 text-right">{t("admin.dashboard.profit.columnProfit")}</th>
-              <th className="py-2 text-right">{t("admin.dashboard.profit.columnMargin")}</th>
+              {sortTh("name", t("admin.dashboard.profit.columnProduct"))}
+              {sortTh("quantitySold", t("admin.dashboard.profit.columnQuantity"), "right")}
+              {sortTh("revenue", t("admin.dashboard.profit.columnRevenue"), "right")}
+              {sortTh("cost", t("admin.dashboard.profit.columnCost"), "right")}
+              {sortTh("profit", t("admin.dashboard.profit.columnProfit"), "right")}
+              {sortTh("marginPct", t("admin.dashboard.profit.columnMargin"), "right")}
             </tr>
           </thead>
           <tbody>

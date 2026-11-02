@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Archive, Pencil, X } from "lucide-react";
 import { db } from "@/lib/db";
@@ -18,6 +19,9 @@ import { isRevenueRelevant } from "@/lib/salesAggregation";
 import { MONEY_DECIMALS, notTakenByOther, numberSchema } from "@/lib/validation";
 import { MoMoVerificationCard } from "@/components/admin/MoMoVerificationCard";
 import { PaginationControls } from "@/components/admin/PaginationControls";
+import { SortableTh } from "@/components/admin/SortableTh";
+import { useTableSort } from "@/hooks/useTableSort";
+import { sortRows, type SortDir } from "@/lib/sorting";
 import { usePageSize } from "@/hooks/usePageSize";
 import { StudentProfileDrawer } from "@/components/admin/wallets/StudentProfileDrawer";
 import { CardCustom } from "@/components/ui/card-custom";
@@ -29,10 +33,46 @@ import { AmountInput } from "@/components/ui/amount-input";
 import { parseAmount } from "@/lib/money";
 
 type WalletFilters_ = Record<string, never>;
+type StudentSortKey = "name" | "badge" | "email" | "phone" | "optIn" | "balance" | "spend" | "orders";
+type ArchivedSortKey = "name" | "badge" | "balance";
+
+const SERVER_SORT_COLUMN: Record<StudentSortKey, string> = {
+  name: "student_name",
+  badge: "badge_code",
+  email: "email",
+  phone: "phone",
+  optIn: "email_opt_in",
+  balance: "balance",
+  // Computed from sales locally -- the server page just follows name order.
+  spend: "student_name",
+  orders: "student_name",
+};
+
+const FIRST_DIR: Partial<Record<StudentSortKey, SortDir>> = { balance: "desc", spend: "desc", orders: "desc" };
+
+interface StudentStats {
+  totalSpend: number;
+  orderCount: number;
+}
+
+// Spend and order count per student, from revenue-relevant local sales -- used
+// by the table cells and by the "total spent"/"orders" sorts.
+async function computeStudentStats(): Promise<Map<string, StudentStats>> {
+  const sales = await db.sales.toArray();
+  const map = new Map<string, StudentStats>();
+  for (const sale of sales.filter(isRevenueRelevant)) {
+    if (!sale.student_id) continue;
+    const bucket = map.get(sale.student_id) ?? { totalSpend: 0, orderCount: 0 };
+    bucket.totalSpend += sale.total_amount;
+    bucket.orderCount += 1;
+    map.set(sale.student_id, bucket);
+  }
+  return map;
+}
 
 // Local fallback (offline, or the server attempt timed out/failed) -- same
 // filter/sort this page always did, sliced to the requested page.
-async function queryLocalWallets(params: PageParams<"student_name", WalletFilters_>): Promise<PageResult<StudentWallet>> {
+async function queryLocalWallets(params: PageParams<StudentSortKey, WalletFilters_>): Promise<PageResult<StudentWallet>> {
   const all = await db.student_wallets.toArray();
   const term = params.searchTerm.trim().toLowerCase();
   const filtered = term
@@ -44,13 +84,34 @@ async function queryLocalWallets(params: PageParams<"student_name", WalletFilter
           s.phone.toLowerCase().includes(term),
       )
     : all;
-  const sorted = [...filtered].sort((a, b) => a.student_name.localeCompare(b.student_name));
+  const stats = params.sortKey === "spend" || params.sortKey === "orders" ? await computeStudentStats() : null;
+  const sortValue = (s: StudentWallet) => {
+    switch (params.sortKey) {
+      case "name":
+        return s.student_name;
+      case "badge":
+        return s.badge_code;
+      case "email":
+        return s.email;
+      case "phone":
+        return s.phone;
+      case "optIn":
+        return s.email_opt_in;
+      case "balance":
+        return s.balance;
+      case "spend":
+        return stats?.get(s.id)?.totalSpend ?? 0;
+      case "orders":
+        return stats?.get(s.id)?.orderCount ?? 0;
+    }
+  };
+  const sorted = sortRows(filtered, sortValue, params.sortDir);
   const offset = (params.page - 1) * params.pageSize;
   return { rows: sorted.slice(offset, offset + params.pageSize), totalCount: sorted.length };
 }
 
 async function fetchServerWallets(
-  params: PageParams<"student_name", WalletFilters_>,
+  params: PageParams<StudentSortKey, WalletFilters_>,
   signal: AbortSignal,
 ): Promise<PageResult<StudentWallet>> {
   const offset = (params.page - 1) * params.pageSize;
@@ -65,7 +126,7 @@ async function fetchServerWallets(
     );
   }
   const { data, error, count } = await query
-    .order("student_name", { ascending: true })
+    .order(SERVER_SORT_COLUMN[params.sortKey], { ascending: params.sortDir === "asc" })
     .range(offset, offset + params.pageSize - 1)
     .abortSignal(signal);
   if (error) throw error;
@@ -103,6 +164,8 @@ export function StudentWalletsPage() {
 
   const [searchTerm, setSearchTermState] = useState("");
   const [page, setPage] = useState(1);
+  const { sortKey, sortDir, toggleSort } = useTableSort<StudentSortKey>("name", "asc", FIRST_DIR, () => setPage(1));
+  const archivedSort = useTableSort<ArchivedSortKey>("name", "asc", { balance: "desc" });
   const [pageSize, setPageSize] = usePageSize("students");
   const setSearchTerm = (value: string) => {
     setSearchTermState(value);
@@ -185,7 +248,7 @@ export function StudentWalletsPage() {
   });
 
   const { rows: visibleStudents, totalCount, totalPages } = usePaginatedQuery({
-    params: { page, pageSize, searchTerm, sortKey: "student_name", sortDir: "asc", filters: {} },
+    params: { page, pageSize, searchTerm, sortKey, sortDir, filters: {} },
     queryLocal: queryLocalWallets,
     fetchServer: fetchServerWallets,
     writeBack: writeBackWallets,
@@ -206,18 +269,14 @@ export function StudentWalletsPage() {
   // One full-table aggregation pass rather than a per-student query -- a
   // campus shop's sales table is small enough that this is cheap, and it
   // avoids an O(students x sales) nested-query pattern.
-  const statsByStudent = useLiveQuery(async () => {
-    const sales = await db.sales.toArray();
-    const map = new Map<string, { totalSpend: number; orderCount: number }>();
-    for (const sale of sales.filter(isRevenueRelevant)) {
-      if (!sale.student_id) continue;
-      const bucket = map.get(sale.student_id) ?? { totalSpend: 0, orderCount: 0 };
-      bucket.totalSpend += sale.total_amount;
-      bucket.orderCount += 1;
-      map.set(sale.student_id, bucket);
-    }
-    return map;
-  }, []);
+  const statsByStudent = useLiveQuery(computeStudentStats, []);
+
+  const sortedArchived = useMemo(() => {
+    if (!archivedStudents) return undefined;
+    const get = (s: ArchivedStudentWallet) =>
+      archivedSort.sortKey === "name" ? s.student_name : archivedSort.sortKey === "badge" ? s.badge_code : s.balance;
+    return sortRows(archivedStudents, get, archivedSort.sortDir);
+  }, [archivedStudents, archivedSort.sortKey, archivedSort.sortDir]);
 
   const openCreateForm = () => {
     setEditingId(null);
@@ -272,6 +331,19 @@ export function StudentWalletsPage() {
     void loadArchivedStudents();
   };
 
+  const sortTh = (column: StudentSortKey, label: string, className?: string) => (
+    <SortableTh column={column} label={label} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className={className} />
+  );
+
+  // Arriving from the POS Mobile Money reminder: bring the verification card
+  // into view (on phones it sits below the one-screen-tall table).
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash === "#momo") {
+      document.getElementById("momo-verification")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [hash]);
+
   return (
     // Phones/tablets: the table card is one screen tall and the MoMo card
     // follows below it. xl+: table 8/12 at full height, MoMo 4/12 beside it.
@@ -318,14 +390,14 @@ export function StudentWalletsPage() {
               <table className="w-full min-w-[520px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="py-2 pr-3">{t("admin.students.fieldName")}</th>
-                    <th className="py-2 pr-3">{t("admin.students.fieldBadge")}</th>
-                    <th className="py-2 pr-3">{t("admin.wallets.columnBalance")}</th>
+                    <SortableTh column="name" label={t("admin.students.fieldName")} sortKey={archivedSort.sortKey} sortDir={archivedSort.sortDir} onSort={archivedSort.toggleSort} />
+                    <SortableTh column="badge" label={t("admin.students.fieldBadge")} sortKey={archivedSort.sortKey} sortDir={archivedSort.sortDir} onSort={archivedSort.toggleSort} />
+                    <SortableTh column="balance" label={t("admin.wallets.columnBalance")} sortKey={archivedSort.sortKey} sortDir={archivedSort.sortDir} onSort={archivedSort.toggleSort} />
                     <th className="py-2" />
                   </tr>
                 </thead>
                 <tbody>
-                  {archivedStudents.map((student) => (
+                  {(sortedArchived ?? []).map((student) => (
                     <tr
                       key={student.id}
                       onClick={() => setSelectedArchivedStudent(student)}
@@ -362,16 +434,16 @@ export function StudentWalletsPage() {
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-                  <th className="py-2 pr-3">{t("admin.students.fieldName")}</th>
-                  <th className="py-2 pr-3">{t("admin.students.fieldBadge")}</th>
+                  {sortTh("name", t("admin.students.fieldName"))}
+                  {sortTh("badge", t("admin.students.fieldBadge"))}
                   {/* E-mail/phone only on very wide screens -- the table shares the
                       row with the MoMo card from xl up; both are in the student drawer. */}
-                  <th className="hidden py-2 pr-3 2xl:table-cell">{t("admin.students.fieldEmail")}</th>
-                  <th className="hidden py-2 pr-3 2xl:table-cell">{t("admin.students.fieldPhone")}</th>
-                  <th className="py-2 pr-3">{t("admin.wallets.columnEmailOptIn")}</th>
-                  <th className="py-2 pr-3">{t("admin.wallets.columnBalance")}</th>
-                  <th className="py-2 pr-3">{t("admin.wallets.columnTotalSpend")}</th>
-                  <th className="py-2 pr-3">{t("admin.wallets.columnOrders")}</th>
+                  {sortTh("email", t("admin.students.fieldEmail"), "hidden 2xl:table-cell")}
+                  {sortTh("phone", t("admin.students.fieldPhone"), "hidden 2xl:table-cell")}
+                  {sortTh("optIn", t("admin.wallets.columnEmailOptIn"))}
+                  {sortTh("balance", t("admin.wallets.columnBalance"))}
+                  {sortTh("spend", t("admin.wallets.columnTotalSpend"))}
+                  {sortTh("orders", t("admin.wallets.columnOrders"))}
                   <th className="py-2" />
                 </tr>
               </thead>
@@ -447,7 +519,7 @@ export function StudentWalletsPage() {
         {!showArchived && !isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>
 
-      <div className="min-w-0 xl:col-span-4 xl:self-start">
+      <div id="momo-verification" className="min-w-0 scroll-mt-4 xl:col-span-4 xl:self-start">
         <MoMoVerificationCard />
       </div>
 

@@ -75,6 +75,11 @@
       "printButton": "Print",
       "shareButton": "Share",
       "closeButton": "Close"
+    },
+    "momoReminder": {
+      "label_one": "{{count}} MoMo payment to verify",
+      "label_other": "{{count}} MoMo payments to verify",
+      "hint": "{{amount}} awaiting SMS verification -- tap to verify"
     }
   },
   "admin": {
@@ -271,7 +276,8 @@
       },
       "walletChip": "Wallet · {{name}}",
       "showItems": "Show items",
-      "hideItems": "Hide items"
+      "hideItems": "Hide items",
+      "sortBy": "Sort by"
     },
     "products": {
       "title": "Products",
