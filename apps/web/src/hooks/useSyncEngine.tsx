@@ -12,10 +12,19 @@ import { useTranslation } from "react-i18next";
 import { useNetworkStatus } from "./useNetworkStatus";
 import { useToast } from "./useToast";
 import { useRealtimeSync } from "./useRealtimeSync";
+import { usePageVisible } from "./usePageVisible";
+import { useSyncLeader } from "./useSyncLeader";
+import { db } from "@/lib/db";
 import { drainOutbox } from "@/services/sync/drain";
-import { pullAll } from "@/services/sync/pull";
+import { fetchWatermarks, pullAll } from "@/services/sync/pull";
 
+// Periodic safety-net cycle. Fast while Realtime is down (it's then the only
+// way to see other tills' changes), slow while Realtime is subscribed (it
+// already triggers a pull within ~1s of any change). Either way a quiet
+// cycle is one request (sync_watermarks), and none at all while the page
+// is hidden or in a non-leader tab.
 const SYNC_INTERVAL_MS = 30000;
+const SYNC_INTERVAL_REALTIME_MS = 180000;
 const LAST_SYNCED_STORAGE_KEY = "pene-pos-last-synced-at";
 // A stock conflict needs a cashier/admin to actually notice and act on it
 // (go resolve it in the conflicts dashboard) -- longer than the default 3s
@@ -30,17 +39,18 @@ interface SyncEngineValue {
   triggerManualSync: () => Promise<void>;
   // Re-exposed from useNetworkStatus so a manual "Sync Now" button can
   // confirm real connectivity before calling triggerManualSync -- isOnline
-  // alone can be stale (only updated on the 20s ping interval or an
-  // online/offline browser event), and runSync itself has no connectivity
-  // guard of its own, only re-entrancy (syncingRef below).
+  // alone can be stale between sync cycles (it's updated from each cycle's
+  // own requests and online/offline browser events, with no periodic ping).
   checkNow: () => Promise<boolean>;
 }
 
 const SyncEngineContext = createContext<SyncEngineValue | null>(null);
 
 export function SyncProvider({ children }: { children: ReactNode }) {
-  const { isOnline, checkNow } = useNetworkStatus();
-  useRealtimeSync();
+  const { isOnline, checkNow, reportReachable } = useNetworkStatus();
+  const isLeader = useSyncLeader();
+  const visible = usePageVisible();
+  const realtimeConnected = useRealtimeSync(isLeader && isOnline);
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -55,22 +65,31 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   const runSync = useCallback(async () => {
     if (syncingRef.current) return;
+    // Certain-offline (no network interface): don't even try.
+    if (!navigator.onLine) {
+      reportReachable(false);
+      return;
+    }
     syncingRef.current = true;
     setIsSyncing(true);
     try {
-      // triggerManualSync (this function) is called unconditionally from
-      // ~15 unrelated call sites across the app (AvatarEditModal,
-      // ProductFormDrawer, LanguageSwitcher, etc.) that have no reason to
-      // know or care about connectivity -- only the two effects below ever
-      // checked isOnline before calling it, and isOnline itself can lag the
-      // real 20s ping interval. Confirming reachability here, once, means
-      // every caller is safe by construction instead of relying on 15
-      // call sites to each remember to check first.
-      const reachable = await checkNow();
-      if (!reachable) return;
+      // triggerManualSync (this function) is called from many unrelated
+      // call sites that don't check connectivity -- the watermark fetch is
+      // this cycle's single reachability check (it replaced the separate
+      // health-check ping), so every caller is safe by construction.
+      const probe = await fetchWatermarks();
+      if (!probe.ok && probe.reason === "unreachable") {
+        reportReachable(false);
+        return;
+      }
+      reportReachable(true);
 
+      // Anything about to be pushed changes the server, which makes the
+      // probe's watermarks stale -- only reuse them for a cycle with
+      // nothing to push (the common case).
+      const pendingPushes = await db.sync_outbox.where("status").anyOf(["pending", "error"]).count();
       const { syncedSales, conflicts } = await drainOutbox();
-      await pullAll();
+      await pullAll(pendingPushes === 0 && probe.ok ? probe.watermarks : undefined);
 
       // Only toast when something actually happened this cycle -- the
       // interval fires every 30s (SYNC_INTERVAL_MS) regardless of whether
@@ -95,20 +114,29 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       syncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [t, showToast, checkNow]);
+  }, [t, showToast, reportReachable]);
 
+  // Coming (back) online: catch up immediately.
   useEffect(() => {
-    if (isOnline && !wasOnlineRef.current) {
+    if (isOnline && !wasOnlineRef.current && isLeader) {
       void runSync();
     }
     wasOnlineRef.current = isOnline;
-  }, [isOnline, runSync]);
+  }, [isOnline, isLeader, runSync]);
+
+  // Back to the foreground (or just became the leader tab): catch up on
+  // whatever happened while polling was paused.
+  useEffect(() => {
+    if (visible && isLeader && isOnline) void runSync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, isLeader]);
 
   useEffect(() => {
-    if (!isOnline) return;
-    const interval = window.setInterval(() => void runSync(), SYNC_INTERVAL_MS);
+    if (!isOnline || !isLeader || !visible) return;
+    const every = realtimeConnected ? SYNC_INTERVAL_REALTIME_MS : SYNC_INTERVAL_MS;
+    const interval = window.setInterval(() => void runSync(), every);
     return () => window.clearInterval(interval);
-  }, [isOnline, runSync]);
+  }, [isOnline, isLeader, visible, realtimeConnected, runSync]);
 
   const value = useMemo<SyncEngineValue>(
     () => ({ isOnline, isSyncing, lastSyncedAt, triggerManualSync: runSync, checkNow }),

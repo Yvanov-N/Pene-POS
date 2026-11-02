@@ -196,12 +196,12 @@ export async function pushOutbox(entry: OutboxOperation): Promise<PushOutcome> {
 
   // Only skip the attempt for a real, certain offline (no network interface
   // at all -- airplane mode, wifi off). Deliberately NOT gated on
-  // useNetworkStatus's periodic /auth/v1/health ping: that check runs on its
-  // own 20s cycle with a 4s timeout against one specific endpoint, so it can
-  // read stale/false while the actual RPC below would succeed fine -- this
-  // caused a real production bug (a completed, 200-OK complete_sale still
-  // showing "Network unavailable, saved locally" because the ping happened
-  // to be mid-timeout at that exact moment). The RPC call itself already has
+  // useNetworkStatus's isOnline: it's a snapshot from the last sync cycle or
+  // probe, so it can read stale/false while the actual RPC below would
+  // succeed fine -- gating on the old periodic health ping caused a real
+  // production bug (a completed, 200-OK complete_sale still showing
+  // "Network unavailable, saved locally" because the ping happened to be
+  // mid-timeout at that exact moment). The RPC call itself already has
   // its own, more current timeout (PUSH_TIMEOUT_MS) and is the only thing
   // that gets to decide whether this actually worked.
   if (!navigator.onLine) return "queued";

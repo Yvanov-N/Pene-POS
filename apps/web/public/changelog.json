@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.25.1",
+    "date": "2026-11-02",
+    "changes": [
+      "stop hammering Supabase -- watermark sync, leader tab, no idle polling"
+    ]
+  },
+  {
     "version": "1.25.0",
     "date": "2026-11-02",
     "changes": [

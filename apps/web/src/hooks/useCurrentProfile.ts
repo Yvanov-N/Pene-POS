@@ -16,7 +16,9 @@ export function useCurrentProfile(): Profile | undefined {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    // getSession reads the locally cached session -- no request. getUser()
+    // here meant one /auth/v1/user call per mounted consumer (4 per load).
+    void supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
   }, []);
 
   return useLiveQuery(() => (userId ? db.profiles.get(userId) : undefined), [userId]);
