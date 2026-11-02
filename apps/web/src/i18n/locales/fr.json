@@ -219,9 +219,7 @@
         "columnProfit": "Benefice",
         "columnMargin": "Marge",
         "uncostedUnits_one": "{{count}} unite vendue sans prix d'achat",
-        "uncostedUnits_other": "{{count}} unites vendues sans prix d'achat",
-        "showAll": "Voir les {{count}} produits",
-        "showLess": "Reduire"
+        "uncostedUnits_other": "{{count}} unites vendues sans prix d'achat"
       }
     },
     "pagination": {
@@ -230,7 +228,8 @@
       "offlineNotice": "Hors ligne -- affichage des donnees enregistrees localement.",
       "pageLabel": "Page",
       "ofTotal": "sur {{totalPages}}",
-      "goTo": "Aller a la page"
+      "goTo": "Aller a la page",
+      "rowsPerPage": "Lignes par page"
     },
     "salesHistory": {
       "unknownStudent": "Etudiant archive",
@@ -629,7 +628,6 @@
       "from": "Du",
       "to": "Au",
       "empty": "Aucun ravitaillement enregistre.",
-      "showMore": "Afficher plus",
       "columnDate": "Date",
       "columnProduct": "Produit",
       "columnSupplier": "Fournisseur",

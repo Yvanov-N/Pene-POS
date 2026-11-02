@@ -10,10 +10,12 @@ import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { scannerService } from "@/services/hardware/scannerService";
-import { notTakenByOther, numberSchema } from "@/lib/validation";
+import { MONEY_DECIMALS, notTakenByOther, numberSchema } from "@/lib/validation";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { FieldError } from "@/components/ui/field-error";
 import type { Product } from "@/types/db";
+import { AmountInput } from "@/components/ui/amount-input";
+import { parseAmount } from "@/lib/money";
 
 interface FormState {
   name: string;
@@ -78,7 +80,7 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
     validateOnBlur: true,
     validationSchema: Yup.object({
       name: Yup.string().trim().required(t("admin.products.errorNameRequired")),
-      price: numberSchema(t("admin.products.errorPriceInvalid"), { min: 0 }),
+      price: numberSchema(t("admin.products.errorPriceInvalid"), { min: 0, decimals: MONEY_DECIMALS }),
       stock: numberSchema(t("admin.products.errorStockInvalid"), { min: 0, integer: true }),
       category_id: Yup.string(),
       barcode: Yup.string().test(
@@ -97,7 +99,7 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
     }),
     onSubmit: async (values) => {
       const name = values.name.trim();
-      const price = Number(values.price);
+      const price = parseAmount(values.price);
       const stock = Number(values.stock);
       const barcode = values.barcode.trim();
 
@@ -199,10 +201,7 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
           <div className="flex gap-3">
             <label className="flex flex-1 flex-col gap-1 text-sm">
               <span className="text-muted">{t("admin.products.fieldPrice")}</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
+              <AmountInput
                 name="price"
                 value={formik.values.price}
                 onChange={formik.handleChange}

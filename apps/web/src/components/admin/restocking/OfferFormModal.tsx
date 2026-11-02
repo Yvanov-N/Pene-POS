@@ -9,12 +9,14 @@ import { formatCurrency } from "@/lib/currency";
 import { makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
-import { numberSchema } from "@/lib/validation";
+import { MONEY_DECIMALS, numberSchema } from "@/lib/validation";
 import { supplierPriceTimeline } from "@/lib/purchaseStats";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { FieldError } from "@/components/ui/field-error";
 import type { OutboxOperation, SupplierPriceHistory, SupplierProduct } from "@/types/db";
 import { INPUT_CLASS } from "./styles";
+import { AmountInput } from "@/components/ui/amount-input";
+import { parseAmount } from "@/lib/money";
 
 interface OfferFormValues {
   supplierId: string;
@@ -102,7 +104,7 @@ export function OfferFormModal({ productId, supplierId, onClose }: OfferFormModa
     validationSchema: Yup.object({
       supplierId: Yup.string().required(t("suppliers.errorSupplierRequired")),
       productId: Yup.string().required(t("suppliers.errorProductRequired")),
-      price: numberSchema(t("suppliers.errorPriceInvalid"), { min: 0 }),
+      price: numberSchema(t("suppliers.errorPriceInvalid"), { min: 0, decimals: MONEY_DECIMALS }),
       date: Yup.string()
         .required(t("suppliers.errorDateInvalid"))
         .test("not-future", t("suppliers.errorDateInvalid"), (value) => !value || value <= today()),
@@ -113,7 +115,7 @@ export function OfferFormModal({ productId, supplierId, onClose }: OfferFormModa
         id: crypto.randomUUID(),
         supplier_id: values.supplierId,
         product_id: values.productId,
-        price: Number(values.price),
+        price: parseAmount(values.price),
         source: "manual",
         recorded_at: recordedAtFor(values.date),
         updated_at: now,
@@ -224,9 +226,7 @@ export function OfferFormModal({ productId, supplierId, onClose }: OfferFormModa
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-muted">{t("suppliers.offerPriceLabel")}</span>
-              <input
-                type="number"
-                min="0"
+              <AmountInput
                 name="price"
                 value={formik.values.price}
                 onChange={formik.handleChange}

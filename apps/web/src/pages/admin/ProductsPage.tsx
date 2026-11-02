@@ -15,11 +15,13 @@ import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { PaginationControls } from "@/components/admin/PaginationControls";
+import { usePageSize } from "@/hooks/usePageSize";
 import { ProductFilters } from "@/components/pos/ProductFilters";
 import { ProductFormDrawer } from "@/components/admin/products/ProductFormDrawer";
 import { CategoryManagerModal } from "@/components/admin/products/CategoryManagerModal";
 import { ProductDetailDrawer } from "@/components/admin/products/ProductDetailDrawer";
 import type { Product } from "@/types/db";
+import { ProductThumb } from "@/components/ui/product-thumb";
 
 type SortKey = "name" | "price" | "stock";
 type SortDir = "asc" | "desc";
@@ -27,7 +29,6 @@ interface ProductFilters_ {
   category: string;
 }
 
-const PAGE_SIZE = 25;
 
 const NEUTRAL_BUTTON_CLASS =
   "rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent";
@@ -117,6 +118,7 @@ export function ProductsPage() {
   const [sortKey, setSortKeyState] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("products");
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -147,7 +149,7 @@ export function ProductsPage() {
   const { rows: visibleProducts, totalCount, totalPages } = usePaginatedQuery({
     params: {
       page,
-      pageSize: PAGE_SIZE,
+      pageSize,
       searchTerm,
       sortKey,
       sortDir,
@@ -232,10 +234,10 @@ export function ProductsPage() {
             <p className="text-sm text-muted">{t("admin.products.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] border-collapse text-sm">
+              <table className="w-full min-w-[1000px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="py-2 pr-3" />
+                    <th className="w-12 py-2 pr-3" />
                     <th className="cursor-pointer select-none py-2 pr-3" onClick={() => toggleSort("name")}>
                       {t("admin.products.fieldName")}
                       {sortIndicator("name")}
@@ -267,16 +269,17 @@ export function ProductsPage() {
                         onClick={() => setDetailProduct(product)}
                         className="cursor-pointer border-b border-border last:border-0 hover:bg-surface2"
                       >
-                        <td className="py-2 pr-3">
-                          {product.image_url ? (
-                            <img src={product.image_url} alt="" className="h-8 w-8 rounded object-cover" />
-                          ) : (
-                            <span className="text-xl" aria-hidden>
-                              {product.emoji || "📦"}
-                            </span>
-                          )}
+                        <td className="w-12 py-2 pr-3">
+                          <ProductThumb product={product} size="sm" />
                         </td>
-                        <td className="py-2 pr-3 font-medium text-foreground underline-offset-2 hover:underline">{product.name}</td>
+                        <td className="py-2 pr-3 font-medium text-foreground">
+                          <span
+                            className="block max-w-[14rem] truncate whitespace-nowrap underline-offset-2 hover:underline"
+                            title={product.name}
+                          >
+                            {product.name}
+                          </span>
+                        </td>
                         <td className="py-2 pr-3 text-muted">{product.barcode ?? "—"}</td>
                         <td className="py-2 pr-3">
                           {product.category_id && categoryNameById.get(product.category_id) ? (
@@ -353,7 +356,13 @@ export function ProductsPage() {
             </div>
           )}
           {visibleProducts !== undefined && totalCount > 0 && (
-            <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
+            <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+            />
           )}
           {!isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
         </div>

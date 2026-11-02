@@ -12,6 +12,7 @@ import { pushOutbox } from "@/services/sync/push";
 import { mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
 import { printService } from "@/services/hardware/printService";
 import type { CartItem, PaymentMethod, Profile, Sale, SaleItem, StudentWallet } from "@/types/db";
+import { roundMoney } from "@/lib/money";
 
 const SETTINGS_ID = "default";
 
@@ -208,7 +209,7 @@ export function usePosCheckout() {
         }
 
         if (isWalletPayment && selectedStudent) {
-          const nextBalance = selectedStudent.balance - cart.totalAmount;
+          const nextBalance = roundMoney(selectedStudent.balance - cart.totalAmount);
           await db.student_wallets.update(selectedStudent.id, { balance: nextBalance });
         }
 

@@ -3,16 +3,10 @@ import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import type { CartItem } from "@/types/db";
+import { ProductThumb } from "@/components/ui/product-thumb";
 
 export function CartLineVisual({ image_url, emoji }: { image_url?: string; emoji?: string }) {
-  if (image_url) {
-    return <img src={image_url} alt="" className="h-10 w-10 rounded-md object-cover" />;
-  }
-  return (
-    <span className="text-2xl" aria-hidden>
-      {emoji || "📦"}
-    </span>
-  );
+  return <ProductThumb product={{ image_url, emoji }} size="sm" />;
 }
 
 interface CartLineItemProps {

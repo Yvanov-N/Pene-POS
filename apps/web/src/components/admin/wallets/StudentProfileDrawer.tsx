@@ -12,12 +12,14 @@ import { formatCurrency } from "@/lib/currency";
 import { printService } from "@/services/hardware/printService";
 import { PAYMENT_BADGE_CLASS, STATUS_BADGE_CLASS } from "@/lib/paymentMethodStyles";
 import { isRevenueRelevant } from "@/lib/salesAggregation";
-import { numberSchema } from "@/lib/validation";
+import { MONEY_DECIMALS, numberSchema } from "@/lib/validation";
 import { listWalletTransactions, type WalletTransaction } from "@/services/sync/walletHistory";
 import { StatCard } from "@/components/admin/StatCard";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { FieldError } from "@/components/ui/field-error";
 import type { Profile, Sale, StudentWallet } from "@/types/db";
+import { AmountInput } from "@/components/ui/amount-input";
+import { parseAmount, roundMoney } from "@/lib/money";
 
 const SETTINGS_ID = "default";
 const QUICK_ADD_AMOUNTS = [1000, 2000, 5000] as const;
@@ -63,10 +65,10 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
   const rechargeFormik = useFormik<{ rechargeAmount: string }>({
     initialValues: { rechargeAmount: "" },
     validationSchema: Yup.object({
-      rechargeAmount: numberSchema(t("admin.recharge.errorAmountInvalid"), { moreThan: 0 }),
+      rechargeAmount: numberSchema(t("admin.recharge.errorAmountInvalid"), { moreThan: 0, decimals: MONEY_DECIMALS }),
     }),
     onSubmit: async (values) => {
-      const delta = Number(values.rechargeAmount);
+      const delta = parseAmount(values.rechargeAmount);
 
       // reason: "recharge" -- tags this as a genuine admin top-up, distinct
       // from a checkout debit or refund credit-back (which are no longer
@@ -79,7 +81,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
         delta,
         reason: "recharge",
       });
-      const nextBalance = wallet.balance + delta;
+      const nextBalance = roundMoney(wallet.balance + delta);
       await commitLocal(db.student_wallets, () => db.student_wallets.update(wallet.id, { balance: nextBalance }), entry);
       const outcome = await pushOutbox(entry);
       if (outcome !== "synced") {
@@ -101,7 +103,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
       // now lets settle to a negative balance instead of blocking, the same
       // way it does for stock. Bound to the live wallet.balance prop, so
       // this schema is rebuilt every render rather than memoized.
-      withdrawAmount: numberSchema(t("admin.withdrawal.errorAmountInvalid"), { moreThan: 0 }).test(
+      withdrawAmount: numberSchema(t("admin.withdrawal.errorAmountInvalid"), { moreThan: 0, decimals: MONEY_DECIMALS }).test(
         "sufficient-balance",
         t("admin.withdrawal.errorInsufficientBalance"),
         (value) => value === undefined || Number(value) <= wallet.balance,
@@ -112,14 +114,14 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
       // (ButtonCustom resolves it via its own PinPadModal, requiredRole
       // "admin") -- a cashier's PIN never reaches this handler at all.
       if (!withdrawPendingProfileRef.current) return;
-      const amount = Number(values.withdrawAmount);
+      const amount = parseAmount(values.withdrawAmount);
 
       const entry = makeOutboxEntry("adjust_wallet_balance", "student_wallets", {
         wallet_id: wallet.id,
         delta: -amount,
         reason: "withdrawal",
       });
-      const nextBalance = wallet.balance - amount;
+      const nextBalance = roundMoney(wallet.balance - amount);
       await commitLocal(db.student_wallets, () => db.student_wallets.update(wallet.id, { balance: nextBalance }), entry);
       const outcome = await pushOutbox(entry);
       if (outcome !== "synced") {
@@ -146,7 +148,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
       if (sale.payment_method === "student_wallet") walletSpend += sale.total_amount;
     }
     const totalTransactions = relevant.length;
-    const averageBasket = totalTransactions === 0 ? 0 : Math.round(lifetimeValue / totalTransactions);
+    const averageBasket = totalTransactions === 0 ? 0 : roundMoney(lifetimeValue / totalTransactions);
     const walletUsagePct = lifetimeValue === 0 ? 0 : Math.round((walletSpend / lifetimeValue) * 100);
 
     const saleIds = relevant.map((sale) => sale.id);
@@ -169,7 +171,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
 
     return {
       sales,
-      lifetimeValue: Math.round(lifetimeValue),
+      lifetimeValue: roundMoney(lifetimeValue),
       averageBasket,
       totalTransactions,
       walletUsagePct,
@@ -257,10 +259,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
+                  <AmountInput
                     name="rechargeAmount"
                     value={rechargeFormik.values.rechargeAmount}
                     onChange={rechargeFormik.handleChange}
@@ -286,11 +285,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
                 <div className="mt-3 border-t border-border pt-3">
                   <p className="mb-2 text-xs font-medium text-muted">{t("admin.withdrawal.title")}</p>
                   <div className="flex gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max={wallet.balance}
-                      step="1"
+                    <AmountInput
                       name="withdrawAmount"
                       value={withdrawFormik.values.withdrawAmount}
                       onChange={withdrawFormik.handleChange}

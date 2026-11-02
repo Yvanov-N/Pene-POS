@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -11,6 +11,7 @@ import type { Product } from "@/types/db";
 import { formatCurrency } from "@/lib/currency";
 import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
 import { isExactPriceMatch, matchesProductSearch } from "@/lib/productSearch";
+import { ProductThumb } from "@/components/ui/product-thumb";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EXPIRY_WARNING_DAYS = 7;
@@ -38,27 +39,6 @@ function getExpiryLabel(t: TFunction, expiryDate?: string): string | null {
   if (daysLeft < 0) return t("pos.grid.expired");
   if (daysLeft <= EXPIRY_WARNING_DAYS) return t("pos.grid.expiringSoon");
   return null;
-}
-
-function ProductVisual({ product }: { product: Product }) {
-  const [imageFailed, setImageFailed] = useState(false);
-
-  if (product.image_url && !imageFailed) {
-    return (
-      <img
-        src={product.image_url}
-        alt={product.name}
-        className="h-16 w-16 rounded-md object-cover"
-        onError={() => setImageFailed(true)}
-      />
-    );
-  }
-
-  return (
-    <span className="text-4xl" aria-hidden>
-      {product.emoji || "📦"}
-    </span>
-  );
 }
 
 export function ProductGrid({ searchTerm, category, onProductSelect }: ProductGridProps) {
@@ -164,7 +144,7 @@ const ProductCard = memo(function ProductCard({ product, onSelect }: ProductCard
         expiryLabel ? "border-destructive" : "border-border"
       }`}
     >
-      <ProductVisual product={product} />
+      <ProductThumb product={product} size="lg" />
       <span className="line-clamp-2 text-sm font-medium text-foreground">{product.name}</span>
       <span className="text-sm font-semibold text-foreground">{formatCurrency(product.price)}</span>
       <span className="text-xs text-muted">{t("pos.grid.stockLabel", { count: product.stock })}</span>

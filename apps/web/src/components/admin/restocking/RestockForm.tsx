@@ -10,7 +10,7 @@ import { makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
-import { numberSchema } from "@/lib/validation";
+import { MONEY_DECIMALS, numberSchema } from "@/lib/validation";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { FieldError } from "@/components/ui/field-error";
@@ -20,6 +20,9 @@ import type { Product, StockPurchase } from "@/types/db";
 import { ProductSupplierPanel } from "./ProductSupplierPanel";
 import { SupplierFormModal } from "./SupplierFormModal";
 import { INPUT_CLASS, SMALL_BUTTON_CLASS } from "./styles";
+import { ProductThumb } from "@/components/ui/product-thumb";
+import { AmountInput } from "@/components/ui/amount-input";
+import { parseAmount, roundMoney } from "@/lib/money";
 
 const QUICK_ADD_AMOUNTS = [10, 24, 50, 100] as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -90,7 +93,7 @@ export function RestockForm() {
       quantity: numberSchema(t("restocking.errorQuantityInvalid"), { integer: true, moreThan: 0 }),
       expiryInput: Yup.string(),
       supplierId: Yup.string().required(t("restocking.errorSupplierRequired")),
-      unitCost: numberSchema(t("restocking.errorUnitCostInvalid"), { min: 0 }),
+      unitCost: numberSchema(t("restocking.errorUnitCostInvalid"), { min: 0, decimals: MONEY_DECIMALS }),
     }),
     onSubmit: async (values) => {
       if (!selected) return;
@@ -107,7 +110,7 @@ export function RestockForm() {
       // as before: a sale on another terminal between this read and the
       // push must not be overwritten. The purchase row's id is the
       // operationId, so the pulled server row replaces this optimistic one.
-      const unitCost = Number(values.unitCost);
+      const unitCost = parseAmount(values.unitCost);
       const nextExpiry = values.expiryInput ? new Date(values.expiryInput).toISOString() : fresh.expiry_date;
       const now = new Date().toISOString();
       const updated: Product = {
@@ -132,7 +135,7 @@ export function RestockForm() {
         supplier_id: values.supplierId,
         quantity: values.quantity,
         unit_cost: unitCost,
-        total_cost: values.quantity * unitCost,
+        total_cost: roundMoney(values.quantity * unitCost),
         expiry_date: nextExpiry,
         created_at: now,
         updated_at: now,
@@ -212,9 +215,11 @@ export function RestockForm() {
     if (row?.effectivePrice !== undefined) void formik.setFieldValue("unitCost", row.effectivePrice);
   };
 
-  const unitCostValue = formik.values.unitCost === "" ? undefined : Number(formik.values.unitCost);
-  const lineTotal = unitCostValue !== undefined ? unitCostValue * (Number(formik.values.quantity) || 0) : undefined;
-  const unitMargin = selected && unitCostValue !== undefined ? selected.price - unitCostValue : undefined;
+  // Live preview only -- an unparseable entry ("12,") just hides it.
+  const parsedCost = formik.values.unitCost === "" ? Number.NaN : parseAmount(formik.values.unitCost);
+  const unitCostValue = Number.isFinite(parsedCost) ? parsedCost : undefined;
+  const lineTotal = unitCostValue !== undefined ? roundMoney(unitCostValue * (Number(formik.values.quantity) || 0)) : undefined;
+  const unitMargin = selected && unitCostValue !== undefined ? roundMoney(selected.price - unitCostValue) : undefined;
 
   return (
     <>
@@ -260,13 +265,7 @@ export function RestockForm() {
           ) : (
             <div className="flex flex-col gap-4 rounded-lg border border-border p-4">
               <div className="flex items-center gap-3">
-                {selected.image_url ? (
-                  <img src={selected.image_url} alt="" className="h-14 w-14 rounded-md object-cover" />
-                ) : (
-                  <span className="text-4xl" aria-hidden>
-                    {selected.emoji || "📦"}
-                  </span>
-                )}
+                <ProductThumb product={selected} size="md" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-semibold text-foreground">{selected.name}</p>
                   <p className="text-sm text-muted">
@@ -345,9 +344,7 @@ export function RestockForm() {
 
                 <label className="flex flex-col gap-1 text-sm">
                   <span className="text-muted">{t("restocking.unitCostLabel")}</span>
-                  <input
-                    type="number"
-                    min="0"
+                  <AmountInput
                     name="unitCost"
                     value={formik.values.unitCost}
                     onChange={formik.handleChange}

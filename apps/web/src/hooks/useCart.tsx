@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { useToast } from "./useToast";
 import type { CartItem, Product } from "@/types/db";
+import { roundMoney } from "@/lib/money";
 
 interface CartDataValue {
   items: CartItem[];
@@ -119,7 +120,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const dataValue = useMemo<CartDataValue>(() => {
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+    // roundMoney: decimal prices (12.5 x 3) must not drift (0.1 + 0.2).
+    const totalAmount = roundMoney(items.reduce((sum, item) => sum + item.quantity * item.price, 0));
     return { items, totalItems, subtotal: totalAmount, totalAmount };
   }, [items]);
 

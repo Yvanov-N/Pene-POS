@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.20.0",
+    "date": "2026-11-02",
+    "changes": [
+      "rows-per-page on every table, decimal amounts everywhere, robust product images"
+    ]
+  },
+  {
     "version": "1.19.0",
     "date": "2026-11-02",
     "changes": [

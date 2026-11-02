@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { mapSaleRow, writeBackIfNewer } from "@/services/sync/pull";
 import { usePaginatedQuery, type PageParams, type PageResult } from "@/hooks/usePaginatedQuery";
 import { PaginationControls } from "@/components/admin/PaginationControls";
+import { usePageSize } from "@/hooks/usePageSize";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { useShareReceipt } from "@/hooks/useShareReceipt";
@@ -24,7 +25,6 @@ import type { Database } from "@/types/supabase";
 import type { PaymentMethod, Profile, Sale } from "@/types/db";
 
 const SETTINGS_ID = "default";
-const PAGE_SIZE = 50;
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
 const STATUS_FILTERS = ["all", "completed", "refunded"] as const;
@@ -170,6 +170,7 @@ export function SalesHistoryPage() {
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("sales");
 
   // Any search/filter/date change while on page 3 could otherwise land on
   // an empty page -- every setter below also resets back to page 1.
@@ -235,7 +236,7 @@ export function SalesHistoryPage() {
   } = usePaginatedQuery({
     params: {
       page,
-      pageSize: PAGE_SIZE,
+      pageSize,
       searchTerm,
       sortKey: "created_at",
       sortDir: "desc",
@@ -605,7 +606,13 @@ export function SalesHistoryPage() {
           </>
         )}
         {filteredSales !== undefined && totalCount > 0 && (
-          <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
+          <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+            />
         )}
         {!isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>

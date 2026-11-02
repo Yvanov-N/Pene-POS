@@ -1,13 +1,24 @@
 import type { Product } from "@/types/db";
 
-// "500", "1 000", "1.000", "500f", "500 FCFA" -> "500" / "1000". Returns null
+// "500", "1 000", "1.000", "500f", "500 FCFA" -> "500" / "1000"; "12,5" or
+// "12.50" -> "12.5". A separator followed by exactly 3 digits groups
+// thousands; one followed by 1-2 digits is the decimal point. Returns null
 // when the term isn't a price (has letters other than a trailing currency).
 export function parsePriceTerm(term: string): string | null {
-  const compact = term
+  let compact = term
     .toLowerCase()
+    .trim()
     .replace(/(fcfa|xaf|f)$/, "")
-    .replace(/[\s.,  ]/g, "");
-  return /^\d+$/.test(compact) ? compact : null;
+    .replace(/[\s\u00a0\u202f]/g, "");
+  const decimal = compact.match(/^(.*)[.,](\d{1,2})$/);
+  let fraction = "";
+  if (decimal) {
+    compact = decimal[1];
+    fraction = decimal[2].replace(/0+$/, "");
+  }
+  compact = compact.replace(/[.,](?=\d{3}(\D|$))/g, "");
+  if (!/^\d+$/.test(compact)) return null;
+  return fraction ? `${compact}.${fraction}` : compact;
 }
 
 // POS search: name or barcode substring, or -- when the term reads as a

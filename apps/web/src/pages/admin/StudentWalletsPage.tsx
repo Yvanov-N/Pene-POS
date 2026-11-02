@@ -15,17 +15,19 @@ import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
 import { isRevenueRelevant } from "@/lib/salesAggregation";
-import { notTakenByOther, numberSchema } from "@/lib/validation";
+import { MONEY_DECIMALS, notTakenByOther, numberSchema } from "@/lib/validation";
 import { MoMoVerificationCard } from "@/components/admin/MoMoVerificationCard";
 import { PaginationControls } from "@/components/admin/PaginationControls";
+import { usePageSize } from "@/hooks/usePageSize";
 import { StudentProfileDrawer } from "@/components/admin/wallets/StudentProfileDrawer";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { FieldError } from "@/components/ui/field-error";
 import { Switch } from "@/components/ui/switch";
 import type { StudentWallet } from "@/types/db";
+import { AmountInput } from "@/components/ui/amount-input";
+import { parseAmount } from "@/lib/money";
 
-const PAGE_SIZE = 25;
 type WalletFilters_ = Record<string, never>;
 
 // Local fallback (offline, or the server attempt timed out/failed) -- same
@@ -101,6 +103,7 @@ export function StudentWalletsPage() {
 
   const [searchTerm, setSearchTermState] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("students");
   const setSearchTerm = (value: string) => {
     setSearchTermState(value);
     setPage(1); // a changed search term while on page 3 could otherwise land on an empty page
@@ -144,14 +147,14 @@ export function StudentWalletsPage() {
           return notTakenByOther(existing, editingId ?? undefined);
         }),
       // No min/moreThan -- debt (a negative balance) is a valid state here.
-      balance: numberSchema(t("admin.students.errorBalanceInvalid")),
+      balance: numberSchema(t("admin.students.errorBalanceInvalid"), { decimals: MONEY_DECIMALS }),
       email: Yup.string(),
       phone: Yup.string(),
     }),
     onSubmit: async (values) => {
       const studentName = values.student_name.trim();
       const badgeCode = values.badge_code.trim();
-      const balance = Number(values.balance);
+      const balance = parseAmount(values.balance);
 
       // Preserve the existing email_opt_in preference on edit -- this form
       // has no field for it (the directory table's own Switch column owns
@@ -182,7 +185,7 @@ export function StudentWalletsPage() {
   });
 
   const { rows: visibleStudents, totalCount, totalPages } = usePaginatedQuery({
-    params: { page, pageSize: PAGE_SIZE, searchTerm, sortKey: "student_name", sortDir: "asc", filters: {} },
+    params: { page, pageSize, searchTerm, sortKey: "student_name", sortDir: "asc", filters: {} },
     queryLocal: queryLocalWallets,
     fetchServer: fetchServerWallets,
     writeBack: writeBackWallets,
@@ -422,7 +425,13 @@ export function StudentWalletsPage() {
           </div>
         )}
         {!showArchived && visibleStudents !== undefined && totalCount > 0 && (
-          <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
+          <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+            />
         )}
         {!showArchived && !isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>
@@ -481,9 +490,7 @@ export function StudentWalletsPage() {
                 </label>
                 <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
                   <span className="text-muted">{t("admin.students.fieldBalance")}</span>
-                  <input
-                    type="number"
-                    step="1"
+                  <AmountInput
                     name="balance"
                     value={formik.values.balance}
                     onChange={formik.handleChange}
