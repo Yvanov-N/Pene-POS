@@ -276,7 +276,8 @@
       },
       "walletChip": "Wallet · {{name}}",
       "showItems": "Show items",
-      "hideItems": "Hide items"
+      "hideItems": "Hide items",
+      "sortBy": "Sort by"
     },
     "products": {
       "title": "Products",

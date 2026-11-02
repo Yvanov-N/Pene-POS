@@ -276,7 +276,8 @@
       },
       "walletChip": "Portefeuille · {{name}}",
       "showItems": "Voir les articles",
-      "hideItems": "Masquer les articles"
+      "hideItems": "Masquer les articles",
+      "sortBy": "Trier par"
     },
     "products": {
       "title": "Produits",

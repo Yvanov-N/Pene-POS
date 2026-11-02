@@ -8,6 +8,9 @@ import { supabase } from "@/lib/supabase";
 import { mapSaleRow, writeBackIfNewer } from "@/services/sync/pull";
 import { usePaginatedQuery, type PageParams, type PageResult } from "@/hooks/usePaginatedQuery";
 import { PaginationControls } from "@/components/admin/PaginationControls";
+import { SortableTh } from "@/components/admin/SortableTh";
+import { useTableSort } from "@/hooks/useTableSort";
+import { sortRows, type SortDir } from "@/lib/sorting";
 import { usePageSize } from "@/hooks/usePageSize";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
@@ -27,6 +30,21 @@ import type { PaymentMethod, Profile, Sale } from "@/types/db";
 const SETTINGS_ID = "default";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
+
+type SaleSortKey = "date" | "id" | "device" | "payment" | "status" | "total";
+const SALE_SORT_KEYS: SaleSortKey[] = ["date", "id", "device", "payment", "status", "total"];
+
+const SERVER_SORT_COLUMN: Record<SaleSortKey, string> = {
+  date: "created_at",
+  id: "id_text",
+  device: "device_label",
+  payment: "payment_method",
+  status: "status",
+  total: "total_amount",
+};
+
+// Newest / biggest first on the first click; text columns A->Z.
+const FIRST_DIR: Partial<Record<SaleSortKey, SortDir>> = { date: "desc", total: "desc" };
 const STATUS_FILTERS = ["all", "completed", "refunded"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
@@ -41,7 +59,7 @@ interface SalesFilters_ {
 // truncation (which previously ran BEFORE filtering, so a search/date-range
 // query could silently miss real matches beyond row 200 -- fixed here as a
 // side effect of building real pagination).
-async function queryLocalSales(params: PageParams<"created_at", SalesFilters_>): Promise<PageResult<Sale>> {
+async function queryLocalSales(params: PageParams<SaleSortKey, SalesFilters_>): Promise<PageResult<Sale>> {
   const term = params.searchTerm.trim().toLowerCase();
   const [sales, profiles, students, products] = await Promise.all([
     db.sales.orderBy("created_at").reverse().toArray(),
@@ -68,8 +86,26 @@ async function queryLocalSales(params: PageParams<"created_at", SalesFilters_>):
     return true;
   });
 
+  const sortValue = (sale: Sale) => {
+    switch (params.sortKey) {
+      case "date":
+        return sale.created_at;
+      case "id":
+        return sale.id;
+      case "device":
+        return sale.device_label ?? searchContext.cashierNames.get(sale.cashier_id);
+      case "payment":
+        return sale.payment_method;
+      case "status":
+        return sale.status;
+      case "total":
+        return sale.total_amount;
+    }
+  };
+  const sorted = sortRows(filtered, sortValue, params.sortDir);
+
   const offset = (params.page - 1) * params.pageSize;
-  return { rows: filtered.slice(offset, offset + params.pageSize), totalCount: filtered.length };
+  return { rows: sorted.slice(offset, offset + params.pageSize), totalCount: sorted.length };
 }
 
 // Server path. Reads the sales_search view (migration 00037): plain sales
@@ -79,7 +115,7 @@ async function queryLocalSales(params: PageParams<"created_at", SalesFilters_>):
 // resolve matching profile/student ids first, then OR them into the sales
 // filter alongside id_text.
 async function fetchServerSales(
-  params: PageParams<"created_at", SalesFilters_>,
+  params: PageParams<SaleSortKey, SalesFilters_>,
   signal: AbortSignal,
 ): Promise<PageResult<Sale>> {
   const term = params.searchTerm.trim().replace(/[%,()]/g, "");
@@ -115,7 +151,7 @@ async function fetchServerSales(
 
   const offset = (params.page - 1) * params.pageSize;
   const { data, error, count } = await query
-    .order("created_at", { ascending: false })
+    .order(SERVER_SORT_COLUMN[params.sortKey], { ascending: params.sortDir === "asc" })
     .range(offset, offset + params.pageSize - 1)
     .abortSignal(signal);
   if (error) throw error;
@@ -133,6 +169,15 @@ async function writeBackSales(rows: Sale[]): Promise<void> {
 // concept of), not the dashboard's 7/30-day rollups.
 const DATE_FILTERS = ["all", "today", "yesterday", "custom"] as const;
 type DateFilter = (typeof DATE_FILTERS)[number];
+
+const SORT_LABEL = {
+  date: "admin.salesHistory.columnDate",
+  id: "admin.salesHistory.columnSaleId",
+  device: "admin.salesHistory.columnCashier",
+  payment: "admin.salesHistory.columnPayment",
+  status: "admin.salesHistory.columnStatus",
+  total: "admin.salesHistory.columnTotal",
+} as const satisfies Record<SaleSortKey, string>;
 
 const VOID_ERROR_KEY = {
   "not-authorized": "admin.salesHistory.voidErrorNotAuthorized",
@@ -170,6 +215,7 @@ export function SalesHistoryPage() {
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const { sortKey, sortDir, toggleSort, setSort } = useTableSort<SaleSortKey>("date", "desc", FIRST_DIR, () => setPage(1));
   const [pageSize, setPageSize] = usePageSize("sales");
 
   // Any search/filter/date change while on page 3 could otherwise land on
@@ -238,8 +284,8 @@ export function SalesHistoryPage() {
       page,
       pageSize,
       searchTerm,
-      sortKey: "created_at",
-      sortDir: "desc",
+      sortKey,
+      sortDir,
       filters: { paymentFilter, statusFilter, dateRange },
     },
     queryLocal: queryLocalSales,
@@ -437,6 +483,30 @@ export function SalesHistoryPage() {
             </select>
           </div>
 
+          {/* Phones show cards, not column headers -- sort from here instead. */}
+          <div className="flex items-center gap-2 md:hidden">
+            <label className="text-xs text-muted" htmlFor="sales-sort">
+              {t("admin.salesHistory.sortBy")}
+            </label>
+            <select
+              id="sales-sort"
+              value={`${sortKey}:${sortDir}`}
+              onChange={(e) => {
+                const [key, dir] = e.target.value.split(":") as [SaleSortKey, SortDir];
+                setSort(key, dir);
+              }}
+              className="min-w-0 flex-1 rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-foreground"
+            >
+              {SALE_SORT_KEYS.flatMap((column) =>
+                (["asc", "desc"] as const).map((dir) => (
+                  <option key={`${column}:${dir}`} value={`${column}:${dir}`}>
+                    {t(SORT_LABEL[column])} {dir === "asc" ? "↑" : "↓"}
+                  </option>
+                )),
+              )}
+            </select>
+          </div>
+
           {/* One scrollable row on a phone instead of wrapping into a tall block. */}
           <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
             {STATUS_FILTERS.map((status) => (
@@ -538,12 +608,16 @@ export function SalesHistoryPage() {
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
                     <th className="py-2 pr-3" />
-                    <th className="py-2 pr-3">{t("admin.salesHistory.columnDate")}</th>
-                    <th className="py-2 pr-3">{t("admin.salesHistory.columnSaleId")}</th>
-                    <th className="py-2 pr-3">{t("admin.salesHistory.columnCashier")}</th>
-                    <th className="py-2 pr-3">{t("admin.salesHistory.columnPayment")}</th>
-                    <th className="py-2 pr-3">{t("admin.salesHistory.columnStatus")}</th>
-                    <th className="py-2 pr-3">{t("admin.salesHistory.columnTotal")}</th>
+                    {SALE_SORT_KEYS.map((column) => (
+                      <SortableTh
+                        key={column}
+                        column={column}
+                        label={t(SORT_LABEL[column])}
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onSort={toggleSort}
+                      />
+                    ))}
                     <th className="py-2 text-right">{t("admin.salesHistory.columnActions")}</th>
                   </tr>
                 </thead>

@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronUp, ChevronDown } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { mapProductRow, writeBackIfNewer } from "@/services/sync/pull";
@@ -15,6 +14,9 @@ import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { PaginationControls } from "@/components/admin/PaginationControls";
+import { SortableTh } from "@/components/admin/SortableTh";
+import { useTableSort } from "@/hooks/useTableSort";
+import { sortRows, type SortDir } from "@/lib/sorting";
 import { usePageSize } from "@/hooks/usePageSize";
 import { ProductFilters } from "@/components/pos/ProductFilters";
 import { ProductFormDrawer } from "@/components/admin/products/ProductFormDrawer";
@@ -23,8 +25,24 @@ import { ProductDetailDrawer } from "@/components/admin/products/ProductDetailDr
 import type { Product } from "@/types/db";
 import { ProductThumb } from "@/components/ui/product-thumb";
 
-type SortKey = "name" | "price" | "stock";
-type SortDir = "asc" | "desc";
+type SortKey = "name" | "barcode" | "category" | "price" | "cost" | "margin" | "stock" | "expiry";
+
+// Server .order() needs a real column; the two computed sorts fall back to a
+// related one. Rows are always rendered from the local query (sorted exactly
+// below), the server page only refreshes Dexie and the total count.
+const SERVER_SORT_COLUMN: Record<SortKey, string> = {
+  name: "name",
+  barcode: "barcode",
+  category: "category_id",
+  price: "price",
+  cost: "cost_price",
+  margin: "price",
+  stock: "stock",
+  expiry: "expiry_date",
+};
+
+// First click on a column: text A->Z, amounts/stock highest first, expiry soonest first.
+const FIRST_DIR: Partial<Record<SortKey, SortDir>> = { price: "desc", cost: "desc", margin: "desc", stock: "desc" };
 interface ProductFilters_ {
   category: string;
 }
@@ -50,7 +68,8 @@ function isExpiringSoon(expiryDate?: string): boolean {
 // exact same filter/sort this page always did, just sliced to the requested
 // page instead of rendering the whole table.
 async function queryLocalProducts(params: PageParams<SortKey, ProductFilters_>): Promise<PageResult<Product>> {
-  const all = await db.products.toArray();
+  const [all, categories] = await Promise.all([db.products.toArray(), db.categories.toArray()]);
+  const categoryNames = new Map(categories.map((c) => [c.id, c.name]));
   const term = params.searchTerm.trim().toLowerCase();
 
   const filtered = all.filter((product) => {
@@ -59,11 +78,27 @@ async function queryLocalProducts(params: PageParams<SortKey, ProductFilters_>):
     return product.name.toLowerCase().includes(term) || (product.barcode ?? "").toLowerCase().includes(term);
   });
 
-  const dir = params.sortDir === "asc" ? 1 : -1;
-  const sorted = [...filtered].sort((a, b) => {
-    if (params.sortKey === "name") return a.name.localeCompare(b.name) * dir;
-    return (a[params.sortKey] - b[params.sortKey]) * dir;
-  });
+  const sortValue = (product: Product) => {
+    switch (params.sortKey) {
+      case "name":
+        return product.name;
+      case "barcode":
+        return product.barcode;
+      case "category":
+        return product.category_id ? categoryNames.get(product.category_id) : undefined;
+      case "price":
+        return product.price;
+      case "cost":
+        return product.cost_price;
+      case "margin":
+        return product.cost_price === undefined ? undefined : product.price - product.cost_price;
+      case "stock":
+        return product.stock;
+      case "expiry":
+        return product.expiry_date;
+    }
+  };
+  const sorted = sortRows(filtered, sortValue, params.sortDir);
 
   const offset = (params.page - 1) * params.pageSize;
   return { rows: sorted.slice(offset, offset + params.pageSize), totalCount: sorted.length };
@@ -87,7 +122,7 @@ async function fetchServerProducts(
   if (term) query = query.or(`name.ilike.%${term}%,barcode.ilike.%${term}%`);
 
   const { data, error, count } = await query
-    .order(params.sortKey, { ascending: params.sortDir === "asc" })
+    .order(SERVER_SORT_COLUMN[params.sortKey], { ascending: params.sortDir === "asc" })
     .range(offset, offset + params.pageSize - 1)
     .abortSignal(signal);
   if (error) throw error;
@@ -115,9 +150,8 @@ export function ProductsPage() {
 
   const [searchTerm, setSearchTermState] = useState("");
   const [activeCategory, setActiveCategoryState] = useState(ALL_CATEGORIES_VALUE);
-  const [sortKey, setSortKeyState] = useState<SortKey>("name");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
+  const { sortKey, sortDir, toggleSort } = useTableSort<SortKey>("name", "asc", FIRST_DIR, () => setPage(1));
   const [pageSize, setPageSize] = usePageSize("products");
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -136,16 +170,6 @@ export function ProductsPage() {
     setPage(1);
   };
 
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKeyState(key);
-      setSortDir("asc");
-    }
-    setPage(1);
-  };
-
   const { rows: visibleProducts, totalCount, totalPages } = usePaginatedQuery({
     params: {
       page,
@@ -160,11 +184,9 @@ export function ProductsPage() {
     writeBack: writeBackProducts,
   });
 
-  const sortIndicator = (key: SortKey) => {
-    if (sortKey !== key) return null;
-    const Icon = sortDir === "asc" ? ChevronUp : ChevronDown;
-    return <Icon className="ml-0.5 inline h-3 w-3" aria-hidden />;
-  };
+  const sortTh = (column: SortKey, label: string) => (
+    <SortableTh column={column} label={label} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+  );
 
   const openCreateDrawer = () => {
     setEditingProduct(null);
@@ -239,23 +261,14 @@ export function ProductsPage() {
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
                     <th className="w-12 py-2 pr-3" />
-                    <th className="cursor-pointer select-none py-2 pr-3" onClick={() => toggleSort("name")}>
-                      {t("admin.products.fieldName")}
-                      {sortIndicator("name")}
-                    </th>
-                    <th className="py-2 pr-3">{t("admin.products.fieldBarcode")}</th>
-                    <th className="py-2 pr-3">{t("admin.products.fieldCategory")}</th>
-                    <th className="cursor-pointer select-none py-2 pr-3" onClick={() => toggleSort("price")}>
-                      {t("admin.products.fieldPrice")}
-                      {sortIndicator("price")}
-                    </th>
-                    <th className="py-2 pr-3">{t("admin.products.columnCost")}</th>
-                    <th className="py-2 pr-3">{t("admin.products.columnMargin")}</th>
-                    <th className="cursor-pointer select-none py-2 pr-3" onClick={() => toggleSort("stock")}>
-                      {t("admin.products.fieldStock")}
-                      {sortIndicator("stock")}
-                    </th>
-                    <th className="py-2 pr-3">{t("admin.products.fieldExpiry")}</th>
+                    {sortTh("name", t("admin.products.fieldName"))}
+                    {sortTh("barcode", t("admin.products.fieldBarcode"))}
+                    {sortTh("category", t("admin.products.fieldCategory"))}
+                    {sortTh("price", t("admin.products.fieldPrice"))}
+                    {sortTh("cost", t("admin.products.columnCost"))}
+                    {sortTh("margin", t("admin.products.columnMargin"))}
+                    {sortTh("stock", t("admin.products.fieldStock"))}
+                    {sortTh("expiry", t("admin.products.fieldExpiry"))}
                     <th className="py-2" />
                   </tr>
                 </thead>

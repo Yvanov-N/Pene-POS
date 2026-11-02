@@ -12,8 +12,12 @@ import { PaginationControls } from "@/components/admin/PaginationControls";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { INPUT_CLASS } from "./styles";
+import { SortableTh } from "@/components/admin/SortableTh";
+import { useTableSort } from "@/hooks/useTableSort";
+import { sortRows } from "@/lib/sorting";
 
 const ALL = "all";
+type PurchaseSortKey = "date" | "product" | "supplier" | "quantity" | "unitCost" | "total" | "change";
 
 // Every restock (stock_purchases), newest first, with the unit cost change vs
 // the previous purchase of the same product -- the price-evolution log.
@@ -24,6 +28,12 @@ export function PurchaseHistory() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
+  const { sortKey, sortDir, toggleSort } = useTableSort<PurchaseSortKey>(
+    "date",
+    "desc",
+    { date: "desc", quantity: "desc", unitCost: "desc", total: "desc", change: "desc" },
+    () => setPage(1),
+  );
   const [pageSize, setPageSize] = usePageSize("purchases");
   // Any filter change could otherwise leave us on a page that no longer exists.
   const withPageReset = <T,>(setter: (value: T) => void) => (value: T) => {
@@ -49,15 +59,41 @@ export function PurchaseHistory() {
     const changes = priceChangeByPurchase(data.purchases);
     const start = from ? new Date(`${from}T00:00:00`).toISOString() : null;
     const end = to ? new Date(`${to}T23:59:59.999`).toISOString() : null;
-    const rows = data.purchases.filter(
+    const filtered = data.purchases.filter(
       (p) =>
         (productFilter === ALL || p.product_id === productFilter) &&
         (supplierFilter === ALL || p.supplier_id === supplierFilter) &&
         (!start || p.created_at >= start) &&
         (!end || p.created_at <= end),
     );
+    const rows = sortRows(
+      filtered,
+      (p) => {
+        switch (sortKey) {
+          case "date":
+            return p.created_at;
+          case "product":
+            return productNames.get(p.product_id);
+          case "supplier":
+            return supplierNames.get(p.supplier_id);
+          case "quantity":
+            return p.quantity;
+          case "unitCost":
+            return p.unit_cost;
+          case "total":
+            return p.quantity * p.unit_cost;
+          case "change":
+            return changes.get(p.id);
+        }
+      },
+      sortDir,
+    );
     return { rows, changes, productNames, supplierNames, summary: summarizePurchases(rows) };
-  }, [data, productFilter, supplierFilter, from, to]);
+  }, [data, productFilter, supplierFilter, from, to, sortKey, sortDir]);
+
+  const sortTh = (column: PurchaseSortKey, label: string, align?: "right") => (
+    <SortableTh column={column} label={label} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align={align} />
+  );
 
   const pageView = view ? paginate(view.rows, page, pageSize) : null;
 
@@ -152,13 +188,13 @@ export function PurchaseHistory() {
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
-                  <th className="py-2 pr-3">{t("restocking.history.columnDate")}</th>
-                  <th className="py-2 pr-3">{t("restocking.history.columnProduct")}</th>
-                  <th className="py-2 pr-3">{t("restocking.history.columnSupplier")}</th>
-                  <th className="py-2 pr-3 text-right">{t("restocking.history.columnQuantity")}</th>
-                  <th className="py-2 pr-3 text-right">{t("restocking.history.columnUnitCost")}</th>
-                  <th className="py-2 pr-3 text-right">{t("restocking.history.columnTotal")}</th>
-                  <th className="py-2 text-right">{t("restocking.history.columnChange")}</th>
+                  {sortTh("date", t("restocking.history.columnDate"))}
+                  {sortTh("product", t("restocking.history.columnProduct"))}
+                  {sortTh("supplier", t("restocking.history.columnSupplier"))}
+                  {sortTh("quantity", t("restocking.history.columnQuantity"), "right")}
+                  {sortTh("unitCost", t("restocking.history.columnUnitCost"), "right")}
+                  {sortTh("total", t("restocking.history.columnTotal"), "right")}
+                  {sortTh("change", t("restocking.history.columnChange"), "right")}
                 </tr>
               </thead>
               <tbody>

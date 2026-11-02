@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.25.0",
+    "date": "2026-11-02",
+    "changes": [
+      "sort every table by any column"
+    ]
+  },
+  {
     "version": "1.24.1",
     "date": "2026-11-02",
     "changes": [
