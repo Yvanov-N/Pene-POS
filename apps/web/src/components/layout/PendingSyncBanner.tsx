@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { usePendingSync } from "@/hooks/usePendingSync";
+import { requestNotificationPermission } from "@/services/pushService";
 
 // Thin bar above every page while operations wait to be sent for a while (or
 // the device is offline): on a phone, closing or locking the app at that
@@ -11,6 +13,11 @@ export function PendingSyncBanner() {
   const { t } = useTranslation();
   const { isOnline, isSyncing, triggerManualSync } = useSyncEngine();
   const { count, sales, stuck } = usePendingSync(isOnline);
+  // The reminder notification (with its "Send" button) needs permission --
+  // offer it right here, the moment it's useful, rather than buried in Settings.
+  const [permission, setPermission] = useState(() =>
+    typeof Notification === "undefined" ? "unsupported" : Notification.permission,
+  );
 
   if (!stuck) return null;
 
@@ -25,6 +32,15 @@ export function PendingSyncBanner() {
       <p className="min-w-0 flex-1">
         <span className="font-semibold">{what}</span> {isOnline ? t("sync.pendingHintOnline") : t("sync.pendingHintOffline")}
       </p>
+      {permission === "default" && (
+        <button
+          type="button"
+          onClick={() => void requestNotificationPermission().then(setPermission)}
+          className="shrink-0 rounded-lg border border-border bg-surface px-2 py-1 font-medium hover:border-accent"
+        >
+          {t("sync.notifyMe")}
+        </button>
+      )}
       {isOnline && (
         <button
           type="button"

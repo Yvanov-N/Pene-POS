@@ -13,7 +13,12 @@ import { createClient } from "@supabase/supabase-js";
 import { db } from "@/lib/db";
 import { drainOutboxWith } from "@/services/sync/drainCore";
 import { pushOutboxWith } from "@/services/sync/pushCore";
-import { OUTBOX_SYNC_TAG, PENDING_SYNC_NOTIFICATION_TAG } from "@/services/sync/syncTags";
+import {
+  OUTBOX_SYNC_TAG,
+  PENDING_SYNC_NOTIFICATION_TAG,
+  SEND_NOW_ACTION,
+  type PendingNotificationData,
+} from "@/services/sync/syncTags";
 import type { Database } from "@/types/supabase";
 
 declare const self: ServiceWorkerGlobalScope;
@@ -117,6 +122,8 @@ self.addEventListener("push", (event: PushEvent) => {
 });
 
 self.addEventListener("notificationclick", (event: NotificationEvent) => {
+  // The unsent-sales reminder has its own handler (bottom of this file).
+  if (event.notification.tag === PENDING_SYNC_NOTIFICATION_TAG) return;
   event.notification.close();
   const targetUrl = (event.notification.data as { url?: string } | undefined)?.url ?? "/";
 
@@ -157,17 +164,14 @@ async function closePendingSyncNotifications(): Promise<void> {
   for (const notification of notifications) notification.close();
 }
 
-async function backgroundDrain(): Promise<void> {
-  // A visible app tab runs its own sync (and holds the same drain lock);
-  // nothing to do from here.
-  const windows = await self.clients.matchAll({ type: "window" });
-  if (windows.some((client) => (client as WindowClient).visibilityState === "visible")) return;
+type WorkerDrainResult = "sent" | "unsent" | "no-session";
 
-  // Access token mirrored by the page (lib/authSessionMirror.ts). Never
-  // refreshed here: rotating the refresh token from the worker would sign
-  // the app out. Expired -> leave the outbox for the app's next open.
+// Sends the outbox from the worker with the access token the page mirrored
+// (lib/authSessionMirror.ts). Never refreshes it: rotating the refresh token
+// from here would sign the app out. Expired -> "no-session", left for the app.
+async function drainFromWorker(): Promise<WorkerDrainResult> {
   const session = await db.auth_session.get("current");
-  if (!session || session.expires_at - TOKEN_MIN_VALIDITY_S < Date.now() / 1000) return;
+  if (!session || session.expires_at - TOKEN_MIN_VALIDITY_S < Date.now() / 1000) return "no-session";
 
   const client = createClient<Database>(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -177,16 +181,89 @@ async function backgroundDrain(): Promise<void> {
   await drainOutboxWith((entry) => pushOutboxWith(client, entry));
 
   const left = await db.sync_outbox.where("status").anyOf(["pending", "error"]).count();
-  if (left === 0) {
-    await closePendingSyncNotifications();
-    return;
-  }
+  if (left === 0) await closePendingSyncNotifications();
+  return left === 0 ? "sent" : "unsent";
+}
+
+async function backgroundDrain(): Promise<void> {
+  // A visible app tab runs its own sync (and holds the same drain lock);
+  // nothing to do from here.
+  const windows = await self.clients.matchAll({ type: "window" });
+  if (windows.some((client) => (client as WindowClient).visibilityState === "visible")) return;
+
   // Throwing tells the browser this sync didn't complete, so it retries later.
-  throw new Error(`${left} outbox entries still unsent`);
+  if ((await drainFromWorker()) === "unsent") throw new Error("outbox entries still unsent");
 }
 
 self.addEventListener("sync", (event) => {
   const syncEvent = event as SyncEvent;
   if (syncEvent.tag !== OUTBOX_SYNC_TAG) return;
   syncEvent.waitUntil(backgroundDrain());
+});
+
+// ---- "Send" button on the unsent-sales reminder -----------------------------
+
+async function openApp(url: string): Promise<void> {
+  const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const existing = windows[0] as WindowClient | undefined;
+  if (existing) {
+    await existing.focus();
+    return;
+  }
+  await self.clients.openWindow(url);
+}
+
+async function sendNow(notification: Notification): Promise<void> {
+  const data = notification.data as PendingNotificationData | undefined;
+  const result = await drainFromWorker();
+
+  if (result === "sent") {
+    if (data) {
+      const doneTag = `${PENDING_SYNC_NOTIFICATION_TAG}-done`;
+      await self.registration.showNotification(data.texts.sentTitle, {
+        body: data.texts.sentBody,
+        tag: doneTag,
+        icon: "/pwa-192x192.png",
+        badge: "/pwa-192x192.png",
+      });
+      // A short confirmation, not something left in the shade.
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+      for (const done of await self.registration.getNotifications({ tag: doneTag })) done.close();
+    }
+    return;
+  }
+
+  if (result === "no-session") {
+    // Session too old to use from here: the app sends everything on open.
+    notification.close();
+    await openApp(data?.url ?? "/");
+    return;
+  }
+
+  // Still no network: keep the reminder (with its button) and let Background
+  // Sync retry on its own once connectivity is back.
+  await self.registration.showNotification(notification.title, {
+    body: data?.texts.offlineBody ?? notification.body,
+    tag: PENDING_SYNC_NOTIFICATION_TAG,
+    icon: "/pwa-192x192.png",
+    badge: "/pwa-192x192.png",
+    requireInteraction: true,
+    data,
+    actions: data ? [{ action: SEND_NOW_ACTION, title: data.texts.sendAction }] : [],
+  } as NotificationOptions);
+  await (self.registration as ServiceWorkerRegistration & { sync?: { register(tag: string): Promise<void> } }).sync
+    ?.register(OUTBOX_SYNC_TAG)
+    .catch(() => undefined);
+}
+
+self.addEventListener("notificationclick", (event: NotificationEvent) => {
+  if (event.notification.tag !== PENDING_SYNC_NOTIFICATION_TAG) return;
+  if (event.action === SEND_NOW_ACTION) {
+    event.waitUntil(sendNow(event.notification));
+    return;
+  }
+  // Tapping the notification body: open the app, which syncs on open.
+  event.notification.close();
+  const data = event.notification.data as PendingNotificationData | undefined;
+  event.waitUntil(openApp(data?.url ?? "/"));
 });

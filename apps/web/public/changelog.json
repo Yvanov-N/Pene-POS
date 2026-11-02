@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.27.0",
+    "date": "2026-11-02",
+    "changes": [
+      "unsent-sales notification with a Send button"
+    ]
+  },
+  {
     "version": "1.26.0",
     "date": "2026-11-02",
     "changes": [

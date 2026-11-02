@@ -780,9 +780,14 @@
     "retryNow": "Retry",
     "pendingNotificationTitle_one": "{{count}} operation not sent yet",
     "pendingNotificationTitle_other": "{{count}} operations not sent yet",
-    "pendingNotificationBody": "Reopen Pene POS with a connection to send them.",
+    "pendingNotificationBody": "Tap Send as soon as you have a connection.",
     "pendingNotificationTitleSales_one": "{{count}} sale not sent yet",
-    "pendingNotificationTitleSales_other": "{{count}} sales not sent yet"
+    "pendingNotificationTitleSales_other": "{{count}} sales not sent yet",
+    "sendNow": "Send",
+    "sentNotificationTitle": "Sales sent",
+    "sentNotificationBody": "Everything is synced with the server.",
+    "sendNowOfflineBody": "Still no connection. Try again later -- they'll also go out automatically once the network is back.",
+    "notifyMe": "Notify me"
   },
   "update": {
     "toast": {

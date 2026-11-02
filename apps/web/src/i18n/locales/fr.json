@@ -780,9 +780,14 @@
     "retryNow": "Reessayer",
     "pendingNotificationTitle_one": "{{count}} operation pas encore envoyee",
     "pendingNotificationTitle_other": "{{count}} operations pas encore envoyees",
-    "pendingNotificationBody": "Rouvrez Pene POS avec du reseau pour les envoyer.",
+    "pendingNotificationBody": "Appuyez sur Envoyer des que vous avez du reseau.",
     "pendingNotificationTitleSales_one": "{{count}} vente pas encore envoyee",
-    "pendingNotificationTitleSales_other": "{{count}} ventes pas encore envoyees"
+    "pendingNotificationTitleSales_other": "{{count}} ventes pas encore envoyees",
+    "sendNow": "Envoyer",
+    "sentNotificationTitle": "Ventes envoyees",
+    "sentNotificationBody": "Tout est synchronise avec le serveur.",
+    "sendNowOfflineBody": "Toujours pas de reseau. Reessayez plus tard -- l'envoi se fera aussi automatiquement au retour du reseau.",
+    "notifyMe": "Me prevenir"
   },
   "update": {
     "toast": {
