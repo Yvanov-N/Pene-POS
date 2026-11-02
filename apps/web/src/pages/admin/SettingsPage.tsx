@@ -26,10 +26,13 @@ export function SettingsPage() {
         <PrinterSettingsCard />
         <ScannerSettingsCard />
         <NotificationSettingsCard />
+      </div>
+      {/* Emergency tool, kept apart near the bottom, full width -- then
+          "About", always the last tile. */}
+      <div className="flex flex-col gap-4">
+        <DataBackupCard />
         <AboutSettingsCard />
       </div>
-      {/* Emergency tool, kept apart at the very bottom, full width. */}
-      <DataBackupCard />
     </div>
   );
 }
