@@ -19,12 +19,13 @@ import { drainOutbox } from "@/services/sync/drain";
 import { fetchWatermarks, pullAll } from "@/services/sync/pull";
 
 // Periodic safety-net cycle. Fast while Realtime is down (it's then the only
-// way to see other tills' changes), slow while Realtime is subscribed (it
-// already triggers a pull within ~1s of any change). Either way a quiet
+// way to see other tills' changes), slow while Realtime is subscribed (its
+// payloads are applied straight into Dexie, so this only reconciles and
+// picks up the admin-only tables that aren't broadcast). Either way a quiet
 // cycle is one request (sync_watermarks), and none at all while the page
 // is hidden or in a non-leader tab.
 const SYNC_INTERVAL_MS = 30000;
-const SYNC_INTERVAL_REALTIME_MS = 180000;
+const SYNC_INTERVAL_REALTIME_MS = 300000;
 const LAST_SYNCED_STORAGE_KEY = "pene-pos-last-synced-at";
 // A stock conflict needs a cashier/admin to actually notice and act on it
 // (go resolve it in the conflicts dashboard) -- longer than the default 3s

@@ -96,7 +96,7 @@ export function mapProductRow(row: ProductRow): Product {
   };
 }
 
-function mapCategoryRow(row: CategoryRow): Category {
+export function mapCategoryRow(row: CategoryRow): Category {
   return { id: row.id, name: row.name, updated_at: row.updated_at, sync_seq: row.sync_seq };
 }
 
@@ -134,7 +134,7 @@ export function mapSaleRow(row: SaleRow): Sale {
   };
 }
 
-function mapSaleItemRow(row: SaleItemRow): SaleItem {
+export function mapSaleItemRow(row: SaleItemRow): SaleItem {
   return {
     id: row.id,
     sale_id: row.sale_id,
@@ -202,7 +202,7 @@ export function mapStockPurchaseRow(row: StockPurchaseRow): StockPurchase {
   };
 }
 
-function mapShopStatusRow(row: ShopStatusRow): ShopStatus {
+export function mapShopStatusRow(row: ShopStatusRow): ShopStatus {
   return {
     id: row.id,
     is_open: row.is_open,
