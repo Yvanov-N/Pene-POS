@@ -9,6 +9,12 @@ import { cleanupOutdatedCaches, precacheAndRoute } from "workbox-precaching";
 import { registerRoute } from "workbox-routing";
 import { NetworkFirst } from "workbox-strategies";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
+import { createClient } from "@supabase/supabase-js";
+import { db } from "@/lib/db";
+import { drainOutboxWith } from "@/services/sync/drainCore";
+import { pushOutboxWith } from "@/services/sync/pushCore";
+import { OUTBOX_SYNC_TAG, PENDING_SYNC_NOTIFICATION_TAG } from "@/services/sync/syncTags";
+import type { Database } from "@/types/supabase";
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -129,4 +135,58 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
       await self.clients.openWindow(targetUrl);
     })(),
   );
+});
+
+// ---- Background Sync: send queued sales while the app is closed ------------
+//
+// The page registers OUTBOX_SYNC_TAG whenever an outbox entry couldn't be
+// sent (services/sync/push.ts). Chromium (Android) then fires "sync" here as
+// soon as connectivity returns -- even with the app closed -- and retries a
+// few times with backoff if this throws. Safari/iOS has no Background Sync:
+// there the app's own sync on next open does it, as before.
+
+interface SyncEvent extends ExtendableEvent {
+  readonly tag: string;
+}
+
+// Don't start a send with a token about to expire mid-request.
+const TOKEN_MIN_VALIDITY_S = 60;
+
+async function closePendingSyncNotifications(): Promise<void> {
+  const notifications = await self.registration.getNotifications({ tag: PENDING_SYNC_NOTIFICATION_TAG });
+  for (const notification of notifications) notification.close();
+}
+
+async function backgroundDrain(): Promise<void> {
+  // A visible app tab runs its own sync (and holds the same drain lock);
+  // nothing to do from here.
+  const windows = await self.clients.matchAll({ type: "window" });
+  if (windows.some((client) => (client as WindowClient).visibilityState === "visible")) return;
+
+  // Access token mirrored by the page (lib/authSessionMirror.ts). Never
+  // refreshed here: rotating the refresh token from the worker would sign
+  // the app out. Expired -> leave the outbox for the app's next open.
+  const session = await db.auth_session.get("current");
+  if (!session || session.expires_at - TOKEN_MIN_VALIDITY_S < Date.now() / 1000) return;
+
+  const client = createClient<Database>(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: `Bearer ${session.access_token}` } },
+  });
+
+  await drainOutboxWith((entry) => pushOutboxWith(client, entry));
+
+  const left = await db.sync_outbox.where("status").anyOf(["pending", "error"]).count();
+  if (left === 0) {
+    await closePendingSyncNotifications();
+    return;
+  }
+  // Throwing tells the browser this sync didn't complete, so it retries later.
+  throw new Error(`${left} outbox entries still unsent`);
+}
+
+self.addEventListener("sync", (event) => {
+  const syncEvent = event as SyncEvent;
+  if (syncEvent.tag !== OUTBOX_SYNC_TAG) return;
+  syncEvent.waitUntil(backgroundDrain());
 });

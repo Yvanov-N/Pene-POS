@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.26.0",
+    "date": "2026-11-02",
+    "changes": [
+      "protect and deliver unsent sales on phones"
+    ]
+  },
+  {
     "version": "1.25.2",
     "date": "2026-11-02",
     "changes": [

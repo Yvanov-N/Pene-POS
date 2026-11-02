@@ -539,7 +539,10 @@
       "aboutBuildLabel": "Build",
       "aboutBuildDateLabel": "Compilee le",
       "aboutLoading": "Verification...",
-      "aboutUnavailable": "Indisponible"
+      "aboutUnavailable": "Indisponible",
+      "aboutStorageLabel": "Donnees locales",
+      "aboutStorageProtected": "Protegees",
+      "aboutStorageNotProtected": "Non protegees -- installez l'app sur l'ecran d'accueil"
     },
     "routeGuard": {
       "locked": "Cette section est verrouillee. Saisissez le code PIN administrateur pour continuer.",
@@ -767,7 +770,19 @@
     "toastSuccess_one": "Synchronisation Cloud reussie ({{count}} vente sauvegardee)",
     "toastSuccess_other": "Synchronisation Cloud reussie ({{count}} ventes sauvegardees)",
     "toastConflict": "Conflit de synchronisation detecte !",
-    "offlineFallbackToast": "Reseau indisponible — enregistre localement, synchronisation automatique a venir."
+    "offlineFallbackToast": "Reseau indisponible — enregistre localement, synchronisation automatique a venir.",
+    "pendingSales_one": "{{count}} vente pas encore envoyee.",
+    "pendingSales_other": "{{count}} ventes pas encore envoyees.",
+    "pendingOperations_one": "{{count}} operation pas encore envoyee.",
+    "pendingOperations_other": "{{count}} operations pas encore envoyees.",
+    "pendingHintOffline": "Elles partiront au retour du reseau -- gardez l'app ouverte.",
+    "pendingHintOnline": "Envoi en cours -- gardez l'app ouverte jusqu'a la fin.",
+    "retryNow": "Reessayer",
+    "pendingNotificationTitle_one": "{{count}} operation pas encore envoyee",
+    "pendingNotificationTitle_other": "{{count}} operations pas encore envoyees",
+    "pendingNotificationBody": "Rouvrez Pene POS avec du reseau pour les envoyer.",
+    "pendingNotificationTitleSales_one": "{{count}} vente pas encore envoyee",
+    "pendingNotificationTitleSales_other": "{{count}} ventes pas encore envoyees"
   },
   "update": {
     "toast": {
