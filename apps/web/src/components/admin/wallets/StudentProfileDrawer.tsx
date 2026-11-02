@@ -227,7 +227,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
         <div className="mb-4 rounded-lg border border-border p-4">
           <p className="text-xs text-muted">{t("admin.wallets.currentBalance")}</p>
           <p
-            className={`text-2xl font-bold ${
+            className={`break-words text-2xl font-bold ${
               wallet.balance > 0 ? "text-success" : wallet.balance < 0 ? "text-destructive" : "text-foreground"
             }`}
           >
@@ -358,7 +358,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
           <p className="text-sm text-muted">{t("admin.wallets.loading")}</p>
         ) : tab === "analytics" ? (
           <div className="flex flex-col gap-4">
-            <div className="stat-grid">
+            <div className="stat-grid-compact">
               <StatCard icon={<Wallet className="h-5 w-5" />} label={t("admin.wallets.lifetimeValue")} value={profile.lifetimeValue} formatValue={formatCurrency} />
               <StatCard icon={<ShoppingCart className="h-5 w-5" />} label={t("admin.wallets.averageBasket")} value={profile.averageBasket} formatValue={formatCurrency} />
               <StatCard icon={<Receipt className="h-5 w-5" />} label={t("admin.wallets.totalTransactions")} value={profile.totalTransactions} />

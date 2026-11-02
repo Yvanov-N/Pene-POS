@@ -1,7 +1,20 @@
 import type { Table } from "dexie";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { computeFullName, type Category, type Product, type Profile, type Sale, type SaleItem, type ShopStatus, type StudentWallet } from "@/types/db";
+import {
+  computeFullName,
+  type Category,
+  type Product,
+  type Profile,
+  type Sale,
+  type SaleItem,
+  type ShopStatus,
+  type StockPurchase,
+  type StudentWallet,
+  type Supplier,
+  type SupplierPriceHistory,
+  type SupplierProduct,
+} from "@/types/db";
 import type { Database } from "@/types/supabase";
 
 // ============================================================================
@@ -40,6 +53,10 @@ type WalletRow = Database["public"]["Tables"]["student_wallets"]["Row"];
 type SaleRow = Database["public"]["Tables"]["sales"]["Row"];
 type SaleItemRow = Database["public"]["Tables"]["sale_items"]["Row"];
 type ShopStatusRow = Database["public"]["Tables"]["shop_status"]["Row"];
+type SupplierRow = Database["public"]["Tables"]["suppliers"]["Row"];
+type SupplierProductRow = Database["public"]["Tables"]["supplier_products"]["Row"];
+type StockPurchaseRow = Database["public"]["Tables"]["stock_purchases"]["Row"];
+type SupplierPriceHistoryRow = Database["public"]["Tables"]["supplier_price_history"]["Row"];
 // Only the columns this pull actually requests -- pin_code was never
 // granted (see that select's own comment below), so a `select("*")` here
 // would fail outright with "permission denied for table profiles".
@@ -68,6 +85,7 @@ export function mapProductRow(row: ProductRow): Product {
     image_url: row.image_url ?? undefined,
     emoji: row.emoji ?? undefined,
     expiry_date: row.expiry_date ?? undefined,
+    cost_price: row.cost_price ?? undefined,
     updated_at: row.updated_at,
     sync_seq: row.sync_seq,
   };
@@ -118,6 +136,62 @@ function mapSaleItemRow(row: SaleItemRow): SaleItem {
     product_id: row.product_id,
     quantity: row.quantity,
     unit_price: row.unit_price,
+    unit_cost: row.unit_cost ?? undefined,
+    updated_at: row.updated_at,
+    sync_seq: row.sync_seq,
+  };
+}
+
+export function mapSupplierRow(row: SupplierRow): Supplier {
+  return {
+    id: row.id,
+    name: row.name,
+    contact_name: row.contact_name ?? undefined,
+    phone: row.phone ?? undefined,
+    location: row.location ?? undefined,
+    notes: row.notes ?? undefined,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    sync_seq: row.sync_seq,
+  };
+}
+
+export function mapSupplierProductRow(row: SupplierProductRow): SupplierProduct {
+  return {
+    id: row.id,
+    supplier_id: row.supplier_id,
+    product_id: row.product_id,
+    price: row.price,
+    updated_at: row.updated_at,
+    sync_seq: row.sync_seq,
+  };
+}
+
+export function mapSupplierPriceHistoryRow(row: SupplierPriceHistoryRow): SupplierPriceHistory {
+  return {
+    id: row.id,
+    supplier_id: row.supplier_id,
+    product_id: row.product_id,
+    price: row.price,
+    source: row.source as SupplierPriceHistory["source"],
+    recorded_at: row.recorded_at,
+    updated_at: row.updated_at,
+    sync_seq: row.sync_seq,
+  };
+}
+
+export function mapStockPurchaseRow(row: StockPurchaseRow): StockPurchase {
+  return {
+    id: row.id,
+    product_id: row.product_id,
+    supplier_id: row.supplier_id,
+    quantity: row.quantity,
+    unit_cost: row.unit_cost,
+    // Generated column -- never null in practice, typed nullable by gen types.
+    total_cost: row.total_cost ?? row.quantity * row.unit_cost,
+    expiry_date: row.expiry_date ?? undefined,
+    created_by: row.created_by ?? undefined,
+    created_at: row.created_at,
     updated_at: row.updated_at,
     sync_seq: row.sync_seq,
   };
@@ -289,4 +363,10 @@ export async function pullAll(): Promise<void> {
   await pullTable("sale_items", db.sale_items, "*", mapSaleItemRow);
   await pullProfiles();
   await pullTable("shop_status", db.shop_status, "*", mapShopStatusRow);
+  // Admin-only under RLS (migration 00036) -- a cashier session just pulls
+  // nothing here.
+  await pullSoftDeletableTable("suppliers", db.suppliers, mapSupplierRow);
+  await pullSoftDeletableTable("supplier_products", db.supplier_products, mapSupplierProductRow);
+  await pullTable("stock_purchases", db.stock_purchases, "*", mapStockPurchaseRow);
+  await pullSoftDeletableTable("supplier_price_history", db.supplier_price_history, mapSupplierPriceHistoryRow);
 }

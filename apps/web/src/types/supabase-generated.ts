@@ -77,6 +77,7 @@ export type Database = {
         Row: {
           barcode: string | null
           category_id: string | null
+          cost_price: number | null
           deleted_at: string | null
           emoji: string | null
           expiry_date: string | null
@@ -91,6 +92,7 @@ export type Database = {
         Insert: {
           barcode?: string | null
           category_id?: string | null
+          cost_price?: number | null
           deleted_at?: string | null
           emoji?: string | null
           expiry_date?: string | null
@@ -105,6 +107,7 @@ export type Database = {
         Update: {
           barcode?: string | null
           category_id?: string | null
+          cost_price?: number | null
           deleted_at?: string | null
           emoji?: string | null
           expiry_date?: string | null
@@ -222,6 +225,7 @@ export type Database = {
           quantity: number
           sale_id: string
           sync_seq: number
+          unit_cost: number | null
           unit_price: number
           updated_at: string
         }
@@ -231,6 +235,7 @@ export type Database = {
           quantity: number
           sale_id: string
           sync_seq?: number
+          unit_cost?: number | null
           unit_price: number
           updated_at?: string
         }
@@ -240,6 +245,7 @@ export type Database = {
           quantity?: number
           sale_id?: string
           sync_seq?: number
+          unit_cost?: number | null
           unit_price?: number
           updated_at?: string
         }
@@ -256,6 +262,13 @@ export type Database = {
             columns: ["sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales_search"
             referencedColumns: ["id"]
           },
         ]
@@ -352,6 +365,63 @@ export type Database = {
           },
         ]
       }
+      stock_purchases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expiry_date: string | null
+          id: string
+          product_id: string
+          quantity: number
+          supplier_id: string
+          sync_seq: number
+          total_cost: number | null
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          product_id: string
+          quantity: number
+          supplier_id: string
+          sync_seq?: number
+          total_cost?: number | null
+          unit_cost: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          product_id?: string
+          quantity?: number
+          supplier_id?: string
+          sync_seq?: number
+          total_cost?: number | null
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_purchases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_purchases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_wallets: {
         Row: {
           badge_code: string
@@ -386,6 +456,144 @@ export type Database = {
           id?: string
           phone?: string | null
           student_name?: string
+          sync_seq?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      supplier_price_history: {
+        Row: {
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          price: number
+          product_id: string
+          recorded_at: string
+          source: string
+          supplier_id: string
+          sync_seq: number
+          updated_at: string
+        }
+        Insert: {
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          price: number
+          product_id: string
+          recorded_at?: string
+          source?: string
+          supplier_id: string
+          sync_seq?: number
+          updated_at?: string
+        }
+        Update: {
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          price?: number
+          product_id?: string
+          recorded_at?: string
+          source?: string
+          supplier_id?: string
+          sync_seq?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_price_history_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_products: {
+        Row: {
+          deleted_at: string | null
+          id: string
+          price: number
+          product_id: string
+          supplier_id: string
+          sync_seq: number
+          updated_at: string
+        }
+        Insert: {
+          deleted_at?: string | null
+          id?: string
+          price: number
+          product_id: string
+          supplier_id: string
+          sync_seq?: number
+          updated_at?: string
+        }
+        Update: {
+          deleted_at?: string | null
+          id?: string
+          price?: number
+          product_id?: string
+          supplier_id?: string
+          sync_seq?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          contact_name: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          sync_seq: number
+          updated_at: string
+        }
+        Insert: {
+          contact_name?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          sync_seq?: number
+          updated_at?: string
+        }
+        Update: {
+          contact_name?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
           sync_seq?: number
           updated_at?: string
         }
@@ -474,7 +682,69 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      sales_search: {
+        Row: {
+          cashier_id: string | null
+          created_at: string | null
+          device_label: string | null
+          id: string | null
+          id_text: string | null
+          momo_verification_status: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
+          product_names: string | null
+          status: Database["public"]["Enums"]["sale_status"] | null
+          student_id: string | null
+          sync_seq: number | null
+          total_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          cashier_id?: string | null
+          created_at?: string | null
+          device_label?: string | null
+          id?: string | null
+          id_text?: string | null
+          momo_verification_status?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          product_names?: never
+          status?: Database["public"]["Enums"]["sale_status"] | null
+          student_id?: string | null
+          sync_seq?: number | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          cashier_id?: string | null
+          created_at?: string | null
+          device_label?: string | null
+          id?: string | null
+          id_text?: string | null
+          momo_verification_status?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          product_names?: never
+          status?: Database["public"]["Enums"]["sale_status"] | null
+          student_id?: string | null
+          sync_seq?: number | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_cashier_id_fkey"
+            columns: ["cashier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_student_wallet_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       adjust_product_stock: {
@@ -501,6 +771,7 @@ export type Database = {
             Returns: {
               badge_code: string
               balance: number
+              deleted_at: string | null
               email: string | null
               email_opt_in: boolean
               id: string
@@ -553,6 +824,7 @@ export type Database = {
         Returns: {
           barcode: string | null
           category_id: string | null
+          cost_price: number | null
           deleted_at: string | null
           emoji: string | null
           expiry_date: string | null
@@ -575,6 +847,17 @@ export type Database = {
       oauth_provider_linked: {
         Args: { provider_name: string }
         Returns: boolean
+      }
+      record_restock: {
+        Args: {
+          p_expiry_date?: string
+          p_operation_id: string
+          p_product_id: string
+          p_quantity: number
+          p_supplier_id: string
+          p_unit_cost: number
+        }
+        Returns: Json
       }
       update_own_pin_code: { Args: { new_pin: string }; Returns: undefined }
       void_sale: {

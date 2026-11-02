@@ -155,14 +155,20 @@ export function MobileCartSheet() {
           className="mx-auto flex w-full flex-col items-center gap-1 py-1"
         >
           <span className="h-1 w-10 rounded-full bg-border" aria-hidden />
-          <span className="flex items-center gap-2 text-xs font-medium text-foreground">
+          <span className="flex w-full items-center gap-2 text-xs font-medium text-foreground">
             <span className="badge-blue">{t("pos.cart.itemsBadge", { count: cart.totalItems })}</span>
             <span className="font-semibold">{formatCurrency(cart.totalAmount)}</span>
-            {expanded ? (
-              <ChevronDown className="h-3.5 w-3.5 text-muted" aria-hidden />
-            ) : (
-              <ChevronUp className="h-3.5 w-3.5 text-muted" aria-hidden />
-            )}
+            {/* Explicit "this panel opens, upward" affordance -- the arrow
+                flips to point down once the cart is open. */}
+            <span className="ml-auto flex items-center gap-1.5 text-muted">
+              {expanded ? t("pos.cart.hideCartShort") : t("pos.cart.viewCartShort")}
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface2 text-foreground"
+                aria-hidden
+              >
+                {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              </span>
+            </span>
           </span>
         </button>
 

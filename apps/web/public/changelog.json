@@ -1,5 +1,33 @@
 [
   {
+    "version": "1.19.0",
+    "date": "2026-11-02",
+    "changes": [
+      "keep a dated history of each supplier's prices per product"
+    ]
+  },
+  {
+    "version": "1.18.0",
+    "date": "2026-11-02",
+    "changes": [
+      "product sales detail, search sales by product, page jump, mobile sales UX"
+    ]
+  },
+  {
+    "version": "1.17.0",
+    "date": "2026-11-02",
+    "changes": [
+      "suppliers, purchase prices, restock history and real profit"
+    ]
+  },
+  {
+    "version": "1.16.0",
+    "date": "2026-11-02",
+    "changes": [
+      "POS & admin UX fixes — desktop PIN entry, pinned POS search, price search, student names in sales history"
+    ]
+  },
+  {
     "version": "1.15.0",
     "date": "2026-08-14",
     "changes": [

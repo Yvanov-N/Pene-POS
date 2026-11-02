@@ -55,6 +55,62 @@ export interface Product {
   image_url?: string;
   emoji?: string;
   expiry_date?: string;
+  // Last purchase price (migration 00036) -- set by each restock, used as the
+  // cost snapshot on new sale lines. Undefined until the first priced restock.
+  cost_price?: number;
+  updated_at: string;
+  sync_seq?: number;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact_name?: string;
+  phone?: string;
+  location?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  sync_seq?: number;
+}
+
+// A supplier's offered price for one product (unique per supplier+product).
+// record_restock overwrites it with the price actually paid.
+export interface SupplierProduct {
+  id: string;
+  supplier_id: string;
+  product_id: string;
+  price: number;
+  updated_at: string;
+  sync_seq?: number;
+}
+
+// One dated price point for a supplier+product (migration 00038). The current
+// price is SupplierProduct.price; this keeps every earlier one too.
+export type PriceHistorySource = "manual" | "restock";
+
+export interface SupplierPriceHistory {
+  id: string;
+  supplier_id: string;
+  product_id: string;
+  price: number;
+  source: PriceHistorySource;
+  recorded_at: string;
+  updated_at: string;
+  sync_seq?: number;
+}
+
+// One restock: what was bought, from whom, at what unit cost.
+export interface StockPurchase {
+  id: string;
+  product_id: string;
+  supplier_id: string;
+  quantity: number;
+  unit_cost: number;
+  total_cost: number;
+  expiry_date?: string;
+  created_by?: string;
+  created_at: string;
   updated_at: string;
   sync_seq?: number;
 }
@@ -112,6 +168,10 @@ export interface SaleItem {
   product_id: string;
   quantity: number;
   unit_price: number;
+  // Purchase cost snapshot (product's cost_price at sale time, migration
+  // 00036). Undefined = unknown cost (sales before purchase prices existed),
+  // which profit figures exclude rather than count as free.
+  unit_cost?: number;
   updated_at: string;
   sync_seq?: number;
 }
@@ -153,6 +213,7 @@ export type OutboxOpType =
   | "adjust_wallet_balance"
   | "adjust_product_stock"
   | "void_sale"
+  | "record_restock"
   | "generic_insert"
   | "generic_update"
   | "generic_delete";
@@ -179,6 +240,14 @@ export interface VoidSalePayload {
   admin_id: string;
 }
 
+export interface RecordRestockPayload {
+  product_id: string;
+  supplier_id: string;
+  quantity: number;
+  unit_cost: number;
+  expiry_date?: string | null;
+}
+
 // The generic INSERT/UPDATE/DELETE path (products/categories/student_wallets
 // /profiles/shop_status admin CRUD not covered by a dedicated RPC) -- payload
 // shape varies per table, but every caller needs at least the row's id
@@ -199,6 +268,7 @@ export type OutboxPayload =
   | AdjustWalletBalancePayload
   | AdjustProductStockPayload
   | VoidSalePayload
+  | RecordRestockPayload
   | GenericMutationPayload;
 
 interface OutboxOperationBase {
@@ -227,6 +297,7 @@ export type OutboxOperation =
   | (OutboxOperationBase & { opType: "adjust_wallet_balance"; payload: AdjustWalletBalancePayload })
   | (OutboxOperationBase & { opType: "adjust_product_stock"; payload: AdjustProductStockPayload })
   | (OutboxOperationBase & { opType: "void_sale"; payload: VoidSalePayload })
+  | (OutboxOperationBase & { opType: "record_restock"; payload: RecordRestockPayload })
   | (OutboxOperationBase & {
       opType: "generic_insert" | "generic_update" | "generic_delete";
       payload: GenericMutationPayload;

@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Wallet, Receipt, GraduationCap, AlertTriangle, Package } from "lucide-react";
+import { Wallet, Receipt, GraduationCap, AlertTriangle, Package, TrendingUp, ShoppingBag } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
+import { downloadCsv } from "@/lib/csv";
 import { useDashboardAnalytics } from "@/hooks/useDashboardAnalytics";
 import { useStudentDebtSummary, useStockValueSummary } from "@/hooks/useDashboardWidgetData";
 import { useShopStatus } from "@/hooks/useShopStatus";
@@ -16,6 +17,7 @@ import {
   SyncConflictStatusBar,
 } from "@/components/admin/dashboard/OperationalWidgets";
 import { CriticalDebtWidget } from "@/components/admin/dashboard/CriticalDebtWidget";
+import { ProfitabilityTable } from "@/components/admin/dashboard/ProfitabilityTable";
 
 const TIME_RANGE_FILTERS: TimeRangeFilter[] = ["today", "yesterday", "last7days", "last30days", "custom"];
 
@@ -27,11 +29,6 @@ function StatCardSkeleton({ className }: { className?: string }) {
       <div className="mt-2 h-3 w-28 rounded bg-surface2" />
     </div>
   );
-}
-
-function csvField(value: string | number): string {
-  const stringValue = String(value);
-  return /[",\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
 }
 
 export function DashboardPage() {
@@ -73,23 +70,38 @@ export function DashboardPage() {
       [],
       ["Indicateur", "Valeur"],
       [t("admin.dashboard.revenueLabel"), String(analytics.grossRevenue)],
+      [t("admin.dashboard.costOfGoodsLabel"), String(analytics.costOfGoods)],
+      [t("admin.dashboard.profitLabel"), String(analytics.grossProfit)],
+      [t("admin.dashboard.marginLabel"), analytics.marginPct === null ? "" : `${analytics.marginPct}%`],
+      [t("admin.dashboard.uncostedRevenueLabel"), String(analytics.uncostedRevenue)],
       [t("admin.dashboard.transactionsLabel"), String(analytics.totalTransactions)],
       [t("admin.dashboard.walletRechargesLabel"), String(analytics.totalWalletRecharges)],
       [t("admin.dashboard.studentDebtLabel"), String(totalStudentDebt ?? 0)],
-      [t("admin.dashboard.stockValueLabel"), String(stockValue ?? 0)],
+      [t("admin.dashboard.stockValueLabel"), String(stockValue?.retail ?? 0)],
+      [t("admin.dashboard.stockValueAtCostLabel"), String(stockValue?.atCost ?? 0)],
       [],
       [t("admin.dashboard.exportTopProductsHeader"), "Quantite", "Chiffre d'affaires"],
       ...analytics.topProducts.map((product) => [product.name, String(product.quantitySold), String(product.revenue)]),
+      [],
+      [
+        t("admin.dashboard.profit.title"),
+        t("admin.dashboard.profit.columnQuantity"),
+        t("admin.dashboard.profit.columnRevenue"),
+        t("admin.dashboard.profit.columnCost"),
+        t("admin.dashboard.profit.columnProfit"),
+        t("admin.dashboard.profit.columnMargin"),
+      ],
+      ...analytics.productProfitability.map((product) => [
+        product.name,
+        String(product.quantitySold),
+        String(product.revenue),
+        product.marginPct === null ? "" : String(product.cost),
+        product.marginPct === null ? "" : String(product.profit),
+        product.marginPct === null ? "" : `${product.marginPct}%`,
+      ]),
     ];
 
-    const csv = rows.map((row) => row.map(csvField).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `cite-shop-rapport-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`cite-shop-rapport-${new Date().toISOString().slice(0, 10)}.csv`, rows);
   }, [t, rangeFilter, analytics, totalStudentDebt, stockValue]);
 
   const revenueChangeNode: ReactNode = useMemo(() => {
@@ -99,6 +111,31 @@ export function DashboardPage() {
     if (pct < 0) return <span className="text-destructive">{pct}% {t("admin.dashboard.revenueChangeSuffix")}</span>;
     return <span className="text-muted">0% {t("admin.dashboard.revenueChangeSuffix")}</span>;
   }, [analytics.revenueChangePct, t]);
+
+  const profitSubNode: ReactNode = useMemo(() => {
+    const pct = analytics.profitChangePct;
+    const margin =
+      analytics.marginPct === null ? null : t("admin.dashboard.marginSub", { pct: analytics.marginPct });
+    const change =
+      pct === null || pct === 0 ? null : (
+        <span className={pct > 0 ? "text-success" : "text-destructive"}>
+          {pct > 0 ? "+" : ""}
+          {pct}% {t("admin.dashboard.revenueChangeSuffix")}
+        </span>
+      );
+    return (
+      <>
+        {margin}
+        {margin && change ? " · " : null}
+        {change}
+        {analytics.uncostedRevenue > 0 && (
+          <span className="block">
+            {t("admin.dashboard.uncostedRevenueNote", { amount: formatCurrency(analytics.uncostedRevenue) })}
+          </span>
+        )}
+      </>
+    );
+  }, [analytics.profitChangePct, analytics.marginPct, analytics.uncostedRevenue, t]);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4">
@@ -158,7 +195,9 @@ export function DashboardPage() {
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
-            <StatCardSkeleton className="lg:col-span-4" />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton className="md:col-span-2" />
           </>
         ) : (
           <>
@@ -170,6 +209,21 @@ export function DashboardPage() {
               sub={revenueChangeNode}
             />
             <StatCard
+              icon={<ShoppingBag className="h-6 w-6" />}
+              label={t("admin.dashboard.costOfGoodsLabel")}
+              value={analytics.costOfGoods}
+              formatValue={formatCurrency}
+              sub={t("admin.dashboard.costOfGoodsSub")}
+            />
+            <StatCard
+              icon={<TrendingUp className="h-6 w-6" />}
+              label={t("admin.dashboard.profitLabel")}
+              value={analytics.grossProfit}
+              formatValue={formatCurrency}
+              valueClassName={analytics.grossProfit < 0 ? "text-destructive" : "text-success"}
+              sub={profitSubNode}
+            />
+            <StatCard
               icon={<Receipt className="h-6 w-6" />}
               label={t("admin.dashboard.transactionsLabel")}
               value={analytics.totalTransactions}
@@ -178,9 +232,18 @@ export function DashboardPage() {
             <StatCard
               icon={<Package className="h-6 w-6" />}
               label={t("admin.dashboard.stockValueLabel")}
-              value={stockValue ?? 0}
+              value={stockValue?.retail ?? 0}
               formatValue={formatCurrency}
-              sub={t("admin.dashboard.stockValueSub")}
+              sub={
+                <>
+                  {t("admin.dashboard.stockValueAtCostSub", { amount: formatCurrency(stockValue?.atCost ?? 0) })}
+                  {stockValue && stockValue.uncostedProducts > 0 && (
+                    <span className="block">
+                      {t("admin.dashboard.stockUncostedNote", { count: stockValue.uncostedProducts })}
+                    </span>
+                  )}
+                </>
+              }
             />
             <StatCard
               icon={<GraduationCap className="h-6 w-6" />}
@@ -196,13 +259,17 @@ export function DashboardPage() {
               formatValue={formatCurrency}
               valueClassName="text-destructive"
               sub={t("admin.dashboard.studentDebtSub")}
-              className="lg:col-span-4"
+              className="md:col-span-2"
             />
           </>
         )}
       </div>
 
       <CriticalDebtWidget debtors={debtSummary?.criticalDebtors} />
+
+      <CardCustom title={t("admin.dashboard.profit.title")}>
+        <ProfitabilityTable data={analytics.productProfitability} />
+      </CardCustom>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CardCustom title={t("admin.dashboard.revenueChartTitle")}>

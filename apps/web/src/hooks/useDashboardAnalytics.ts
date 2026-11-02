@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { getRangeForFilter, type CustomRange, type TimeRangeFilter } from "@/lib/dateHelpers";
-import { isRevenueRelevant, buildProductTotals } from "@/lib/salesAggregation";
+import { isRevenueRelevant, buildProductTotals, emptyProductTotals, type ProductTotals } from "@/lib/salesAggregation";
 import type { OutboxOperation, PaymentMethod } from "@/types/db";
 
 export type { TimeRangeFilter, CustomRange };
@@ -27,8 +27,29 @@ export interface TopProduct {
   revenue: number;
 }
 
+export interface ProductProfit {
+  productId: string;
+  name: string;
+  quantitySold: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  // Over costed lines only; null when none of its lines has a known cost.
+  marginPct: number | null;
+  uncostedQuantity: number;
+}
+
 export interface DashboardAnalytics {
   grossRevenue: number;
+  // Real profit = selling price - purchase cost snapshotted on each sale
+  // line (sale_items.unit_cost). Lines with no known cost (sold before any
+  // priced restock) are excluded and reported via uncostedRevenue.
+  costOfGoods: number;
+  grossProfit: number;
+  marginPct: number | null;
+  profitChangePct: number | null;
+  uncostedRevenue: number;
+  productProfitability: ProductProfit[];
   // null when the previous period had zero revenue to compare against --
   // any positive current revenue would otherwise read as a meaningless
   // "+Infinity%".
@@ -68,6 +89,23 @@ async function sumRevenueForRange(start: string, end: string): Promise<number> {
   return sales.filter(isRevenueRelevant).reduce((sum, sale) => sum + sale.total_amount, 0);
 }
 
+async function sumProfitForRange(start: string, end: string): Promise<number> {
+  const sales = await db.sales.where("created_at").between(start, end, true, true).toArray();
+  const totals = await buildProductTotals(sales.filter(isRevenueRelevant).map((sale) => sale.id));
+  let profit = 0;
+  for (const bucket of totals.values()) profit += bucket.profit;
+  return profit;
+}
+
+function changePct(current: number, previous: number): number | null {
+  if (previous === 0) return current === 0 ? 0 : null;
+  return Math.round(((current - previous) / Math.abs(previous)) * 1000) / 10;
+}
+
+function marginOf(totals: Pick<ProductTotals, "profit" | "costedRevenue">): number | null {
+  return totals.costedRevenue > 0 ? Math.round((totals.profit / totals.costedRevenue) * 1000) / 10 : null;
+}
+
 // No dedicated recharge-history table exists anywhere (server or local) --
 // db.sync_outbox is the durable local record of an adjust_wallet_balance
 // mutation, since nothing prunes synced outbox entries. Filtered to
@@ -93,9 +131,10 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
   const { current, previous } = useMemo(() => getRangeForFilter(filter, customRange), [filter, customRange]);
 
   const result = useLiveQuery(async () => {
-    const [sales, previousRevenue, totalWalletRecharges] = await Promise.all([
+    const [sales, previousRevenue, previousProfit, totalWalletRecharges] = await Promise.all([
       db.sales.where("created_at").between(current.start, current.end, true, true).toArray(),
       sumRevenueForRange(previous.start, previous.end),
+      sumProfitForRange(previous.start, previous.end),
       sumWalletRechargesForRange(current.start, current.end),
     ]);
 
@@ -151,24 +190,51 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
     const saleIds = relevantSales.map((sale) => sale.id);
     const productTotals = await buildProductTotals(saleIds);
 
-    const topEntries = Array.from(productTotals.entries())
-      .map(([productId, totals]) => ({ productId, ...totals }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
+    const entries = Array.from(productTotals.entries()).map(([productId, totals]) => ({ productId, ...totals }));
+    const topEntries = [...entries].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
-    // Only the top-5 products need a display name -- bulkGet by primary key
-    // instead of scanning the entire products table just to build a lookup
-    // Map that's overwhelmingly discarded.
-    const topProductRows = await db.products.bulkGet(topEntries.map((entry) => entry.productId));
-    const topProducts: TopProduct[] = topEntries.map((entry, index) => ({
+    // The profitability table lists every product sold in the range, so names
+    // are needed for all of them (not just the top 5) -- still a bulkGet by
+    // primary key rather than a full products scan.
+    const productRows = await db.products.bulkGet(entries.map((entry) => entry.productId));
+    const productNames = new Map(entries.map((entry, index) => [entry.productId, productRows[index]?.name ?? "Produit"]));
+
+    const topProducts: TopProduct[] = topEntries.map((entry) => ({
       productId: entry.productId,
-      name: topProductRows[index]?.name ?? "Produit",
+      name: productNames.get(entry.productId) ?? "Produit",
       quantitySold: entry.quantitySold,
       revenue: Math.round(entry.revenue),
     }));
 
+    const overall = emptyProductTotals();
+    for (const entry of entries) {
+      overall.revenue += entry.revenue;
+      overall.costedRevenue += entry.costedRevenue;
+      overall.cost += entry.cost;
+      overall.profit += entry.profit;
+    }
+
+    const productProfitability: ProductProfit[] = entries
+      .map((entry) => ({
+        productId: entry.productId,
+        name: productNames.get(entry.productId) ?? "Produit",
+        quantitySold: entry.quantitySold,
+        revenue: Math.round(entry.revenue),
+        cost: Math.round(entry.cost),
+        profit: Math.round(entry.profit),
+        marginPct: marginOf(entry),
+        uncostedQuantity: entry.uncostedQuantity,
+      }))
+      .sort((a, b) => b.profit - a.profit || b.revenue - a.revenue);
+
     return {
       grossRevenue,
+      costOfGoods: Math.round(overall.cost),
+      grossProfit: Math.round(overall.profit),
+      marginPct: marginOf(overall),
+      profitChangePct: changePct(overall.profit, previousProfit),
+      uncostedRevenue: Math.round(overall.revenue - overall.costedRevenue),
+      productProfitability,
       revenueChangePct,
       totalTransactions,
       totalWalletRecharges: Math.round(totalWalletRecharges),
@@ -181,6 +247,12 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
   if (!result) {
     return {
       grossRevenue: 0,
+      costOfGoods: 0,
+      grossProfit: 0,
+      marginPct: null,
+      profitChangePct: null,
+      uncostedRevenue: 0,
+      productProfitability: [],
       revenueChangePct: null,
       totalTransactions: 0,
       totalWalletRecharges: 0,

@@ -152,12 +152,18 @@ export function usePosCheckout() {
       momo_verification_status: paymentMethod === "momo_mtn" || paymentMethod === "momo_orange" ? "pending" : undefined,
       updated_at: now,
     };
+    // Local cost snapshot so the dashboard's profit is right offline; the
+    // server's sale_items_snapshot_cost trigger (migration 00036) sets the
+    // authoritative value, which the next pull brings back.
+    const cartProducts = await db.products.bulkGet(cart.items.map((item) => item.product_id));
+    const costByProduct = new Map(cartProducts.flatMap((p) => (p ? [[p.id, p.cost_price] as const] : [])));
     const saleItems: SaleItem[] = cart.items.map((item) => ({
       id: crypto.randomUUID(),
       sale_id: saleId,
       product_id: item.product_id,
       quantity: item.quantity,
       unit_price: item.price,
+      unit_cost: costByProduct.get(item.product_id),
       updated_at: now,
     }));
     const entry = makeOutboxEntry("complete_sale", "sales", { sale, items: saleItems });

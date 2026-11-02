@@ -9,6 +9,10 @@ import type {
   Profile,
   LocalSettings,
   ShopStatus,
+  Supplier,
+  SupplierProduct,
+  StockPurchase,
+  SupplierPriceHistory,
   OutboxOperation,
   OutboxOpType,
   SyncCursor,
@@ -27,6 +31,10 @@ export class PosDatabase extends Dexie {
   profiles!: Table<Profile, string>;
   local_settings!: Table<LocalSettings, string>;
   shop_status!: Table<ShopStatus, number>;
+  suppliers!: Table<Supplier, string>;
+  supplier_products!: Table<SupplierProduct, string>;
+  stock_purchases!: Table<StockPurchase, string>;
+  supplier_price_history!: Table<SupplierPriceHistory, string>;
 
   constructor() {
     super("pene_pos");
@@ -211,6 +219,19 @@ export class PosDatabase extends Dexie {
           });
         }
       });
+
+    // Suppliers, offers and restock history (migration 00036) -- purely
+    // additive; the next pullAll() fills them.
+    this.version(11).stores({
+      suppliers: "id, name",
+      supplier_products: "id, supplier_id, product_id",
+      stock_purchases: "id, product_id, supplier_id, created_at",
+    });
+
+    // Supplier price history (migration 00038) -- additive.
+    this.version(12).stores({
+      supplier_price_history: "id, product_id, supplier_id, recorded_at",
+    });
   }
 }
 
