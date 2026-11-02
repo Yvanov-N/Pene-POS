@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.17.0",
+    "date": "2026-11-02",
+    "changes": [
+      "suppliers, purchase prices, restock history and real profit"
+    ]
+  },
+  {
     "version": "1.16.0",
     "date": "2026-11-02",
     "changes": [

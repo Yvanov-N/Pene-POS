@@ -230,7 +230,7 @@ export function ProductsPage() {
             <p className="text-sm text-muted">{t("admin.products.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse text-sm">
+              <table className="w-full min-w-[920px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
                     <th className="py-2 pr-3" />
@@ -244,6 +244,8 @@ export function ProductsPage() {
                       {t("admin.products.fieldPrice")}
                       {sortIndicator("price")}
                     </th>
+                    <th className="py-2 pr-3">{t("admin.products.columnCost")}</th>
+                    <th className="py-2 pr-3">{t("admin.products.columnMargin")}</th>
                     <th className="cursor-pointer select-none py-2 pr-3" onClick={() => toggleSort("stock")}>
                       {t("admin.products.fieldStock")}
                       {sortIndicator("stock")}
@@ -278,6 +280,24 @@ export function ProductsPage() {
                           )}
                         </td>
                         <td className="py-2 pr-3 text-foreground">{formatCurrency(product.price)}</td>
+                        <td className="py-2 pr-3 text-muted">
+                          {product.cost_price !== undefined ? formatCurrency(product.cost_price) : "—"}
+                        </td>
+                        <td className="py-2 pr-3">
+                          {product.cost_price === undefined ? (
+                            <span className="text-muted">—</span>
+                          ) : (
+                            <span className={product.price - product.cost_price <= 0 ? "text-destructive" : "text-success"}>
+                              {formatCurrency(product.price - product.cost_price)}
+                              {product.price > 0 && (
+                                <span className="text-xs text-muted">
+                                  {" "}
+                                  ({Math.round(((product.price - product.cost_price) / product.price) * 100)}%)
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2 pr-3">
                           {product.stock < 0 ? (
                             <span className="badge-red">{product.stock}</span>

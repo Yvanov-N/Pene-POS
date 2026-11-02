@@ -77,6 +77,7 @@ export type Database = {
         Row: {
           barcode: string | null
           category_id: string | null
+          cost_price: number | null
           deleted_at: string | null
           emoji: string | null
           expiry_date: string | null
@@ -91,6 +92,7 @@ export type Database = {
         Insert: {
           barcode?: string | null
           category_id?: string | null
+          cost_price?: number | null
           deleted_at?: string | null
           emoji?: string | null
           expiry_date?: string | null
@@ -105,6 +107,7 @@ export type Database = {
         Update: {
           barcode?: string | null
           category_id?: string | null
+          cost_price?: number | null
           deleted_at?: string | null
           emoji?: string | null
           expiry_date?: string | null
@@ -222,6 +225,7 @@ export type Database = {
           quantity: number
           sale_id: string
           sync_seq: number
+          unit_cost: number | null
           unit_price: number
           updated_at: string
         }
@@ -231,6 +235,7 @@ export type Database = {
           quantity: number
           sale_id: string
           sync_seq?: number
+          unit_cost?: number | null
           unit_price: number
           updated_at?: string
         }
@@ -240,6 +245,7 @@ export type Database = {
           quantity?: number
           sale_id?: string
           sync_seq?: number
+          unit_cost?: number | null
           unit_price?: number
           updated_at?: string
         }
@@ -352,6 +358,63 @@ export type Database = {
           },
         ]
       }
+      stock_purchases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expiry_date: string | null
+          id: string
+          product_id: string
+          quantity: number
+          supplier_id: string
+          sync_seq: number
+          total_cost: number | null
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          product_id: string
+          quantity: number
+          supplier_id: string
+          sync_seq?: number
+          total_cost?: number | null
+          unit_cost: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          product_id?: string
+          quantity?: number
+          supplier_id?: string
+          sync_seq?: number
+          total_cost?: number | null
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_purchases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_purchases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_wallets: {
         Row: {
           badge_code: string
@@ -386,6 +449,90 @@ export type Database = {
           id?: string
           phone?: string | null
           student_name?: string
+          sync_seq?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      supplier_products: {
+        Row: {
+          deleted_at: string | null
+          id: string
+          price: number
+          product_id: string
+          supplier_id: string
+          sync_seq: number
+          updated_at: string
+        }
+        Insert: {
+          deleted_at?: string | null
+          id?: string
+          price: number
+          product_id: string
+          supplier_id: string
+          sync_seq?: number
+          updated_at?: string
+        }
+        Update: {
+          deleted_at?: string | null
+          id?: string
+          price?: number
+          product_id?: string
+          supplier_id?: string
+          sync_seq?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          contact_name: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          sync_seq: number
+          updated_at: string
+        }
+        Insert: {
+          contact_name?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          sync_seq?: number
+          updated_at?: string
+        }
+        Update: {
+          contact_name?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
           sync_seq?: number
           updated_at?: string
         }
@@ -501,6 +648,7 @@ export type Database = {
             Returns: {
               badge_code: string
               balance: number
+              deleted_at: string | null
               email: string | null
               email_opt_in: boolean
               id: string
@@ -553,6 +701,7 @@ export type Database = {
         Returns: {
           barcode: string | null
           category_id: string | null
+          cost_price: number | null
           deleted_at: string | null
           emoji: string | null
           expiry_date: string | null
@@ -575,6 +724,17 @@ export type Database = {
       oauth_provider_linked: {
         Args: { provider_name: string }
         Returns: boolean
+      }
+      record_restock: {
+        Args: {
+          p_expiry_date?: string
+          p_operation_id: string
+          p_product_id: string
+          p_quantity: number
+          p_supplier_id: string
+          p_unit_cost: number
+        }
+        Returns: Json
       }
       update_own_pin_code: { Args: { new_pin: string }; Returns: undefined }
       void_sale: {

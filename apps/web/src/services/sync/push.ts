@@ -31,6 +31,8 @@ const UNIQUE_VIOLATION_CODE = "23505";
 
 type QueueOutcome = "completed" | "conflict";
 
+const SOFT_DELETABLE_TABLES = new Set(["products", "categories", "student_wallets", "suppliers", "supplier_products"]);
+
 async function pushCompleteSale(
   entry: Extract<OutboxOperation, { opType: "complete_sale" }>,
   signal: AbortSignal,
@@ -97,6 +99,25 @@ async function pushVoidSale(
   return data as unknown as SyncRpcResult;
 }
 
+async function pushRecordRestock(
+  entry: Extract<OutboxOperation, { opType: "record_restock" }>,
+  signal: AbortSignal,
+): Promise<SyncRpcResult> {
+  const { product_id, supplier_id, quantity, unit_cost, expiry_date } = entry.payload;
+  const { data, error } = await supabase
+    .rpc("record_restock", {
+      p_operation_id: entry.operationId,
+      p_product_id: product_id,
+      p_supplier_id: supplier_id,
+      p_quantity: quantity,
+      p_unit_cost: unit_cost,
+      p_expiry_date: expiry_date ?? undefined,
+    })
+    .abortSignal(signal);
+  if (error) throw error;
+  return data as unknown as SyncRpcResult;
+}
+
 // The generic INSERT/UPDATE/DELETE path -- any table/feature with no
 // dedicated RPC gets this for free (categories, products, student_wallets,
 // profiles, shop_status admin CRUD). A "generic_delete" against
@@ -126,7 +147,7 @@ async function pushGenericMutation(
   // (nothing, at the type level, past this boundary).
   const table = supabase.from(tableName as never);
   const { id } = payload;
-  const softDeletable = tableName === "products" || tableName === "categories" || tableName === "student_wallets";
+  const softDeletable = SOFT_DELETABLE_TABLES.has(tableName);
 
   const { error } =
     opType === "generic_insert"
@@ -191,7 +212,8 @@ export async function pushOutbox(entry: OutboxOperation): Promise<PushOutcome> {
       case "complete_sale":
       case "adjust_wallet_balance":
       case "adjust_product_stock":
-      case "void_sale": {
+      case "void_sale":
+      case "record_restock": {
         const result =
           entry.opType === "complete_sale"
             ? await pushCompleteSale(entry, controller.signal)
@@ -199,7 +221,9 @@ export async function pushOutbox(entry: OutboxOperation): Promise<PushOutcome> {
               ? await pushAdjustWalletBalance(entry, controller.signal)
               : entry.opType === "adjust_product_stock"
                 ? await pushAdjustProductStock(entry, controller.signal)
-                : await pushVoidSale(entry, controller.signal);
+                : entry.opType === "record_restock"
+                  ? await pushRecordRestock(entry, controller.signal)
+                  : await pushVoidSale(entry, controller.signal);
         outcome = result.outcome === "conflict" ? "conflict" : "synced";
         conflictReason = result.reason;
         break;

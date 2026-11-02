@@ -66,9 +66,31 @@ export function useStudentDebtSummary(): StudentDebtSummary | undefined {
 // db.products directly (same table sales, restocking, and sync pulls all
 // write to), so it rises/falls live with every one of those without any
 // extra wiring.
-export function useStockValueSummary(): number | undefined {
+export interface StockValueSummary {
+  // At selling price (catalogue value).
+  retail: number;
+  // At last purchase price, over products that have one.
+  atCost: number;
+  // Products in stock with no purchase price recorded yet.
+  uncostedProducts: number;
+}
+
+export function useStockValueSummary(): StockValueSummary | undefined {
   return useNetworkFirstQuery(
-    () => db.products.toArray().then((products) => products.reduce((sum, p) => sum + p.price * p.stock, 0)),
+    () =>
+      db.products.toArray().then((products) =>
+        products.reduce<StockValueSummary>(
+          (summary, p) => {
+            // Negative stock (oversell, migration 00019) has no value on hand.
+            const onHand = Math.max(0, p.stock);
+            summary.retail += p.price * p.stock;
+            if (p.cost_price !== undefined) summary.atCost += p.cost_price * onHand;
+            else if (onHand > 0) summary.uncostedProducts += 1;
+            return summary;
+          },
+          { retail: 0, atCost: 0, uncostedProducts: 0 },
+        ),
+      ),
     [],
     { fetchRemote: fetchProductsRemote, writeBack: writeBackProducts },
   );
