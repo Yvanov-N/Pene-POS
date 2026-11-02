@@ -28,6 +28,16 @@ const text = (conventional?.[4] ?? header).trim();
 entries.unshift({ version: nextVersion, date: new Date().toISOString().slice(0, 10), changes: [text] });
 writeFileSync(changelogPath, JSON.stringify(entries, null, 2) + "\n");
 
-execSync("git add apps/web/public/changelog.json", { cwd: root });
+// Keep the package manifests on the same version as the changelog (they used
+// to sit at 0.0.0 forever). Only the "version" value is rewritten, so the
+// rest of each file's formatting is left untouched.
+const packageFiles = ["package.json", "apps/web/package.json"];
+for (const file of packageFiles) {
+  const filePath = path.join(root, file);
+  const content = readFileSync(filePath, "utf-8");
+  writeFileSync(filePath, content.replace(/("version":\s*")[^"]*(")/, (_, open, close) => `${open}${nextVersion}${close}`));
+}
+
+execSync(`git add apps/web/public/changelog.json ${packageFiles.join(" ")}`, { cwd: root });
 execSync("git commit --amend --no-edit", { cwd: root, env: { ...process.env, SKIP_VERSION_HOOK: "1" } });
 console.log(`[version-hook] bumped to v${nextVersion} (${bump})`);
