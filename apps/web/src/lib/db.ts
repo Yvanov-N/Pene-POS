@@ -12,6 +12,7 @@ import type {
   Supplier,
   SupplierProduct,
   StockPurchase,
+  SupplierPriceHistory,
   OutboxOperation,
   OutboxOpType,
   SyncCursor,
@@ -33,6 +34,7 @@ export class PosDatabase extends Dexie {
   suppliers!: Table<Supplier, string>;
   supplier_products!: Table<SupplierProduct, string>;
   stock_purchases!: Table<StockPurchase, string>;
+  supplier_price_history!: Table<SupplierPriceHistory, string>;
 
   constructor() {
     super("pene_pos");
@@ -224,6 +226,11 @@ export class PosDatabase extends Dexie {
       suppliers: "id, name",
       supplier_products: "id, supplier_id, product_id",
       stock_purchases: "id, product_id, supplier_id, created_at",
+    });
+
+    // Supplier price history (migration 00038) -- additive.
+    this.version(12).stores({
+      supplier_price_history: "id, product_id, supplier_id, recorded_at",
     });
   }
 }

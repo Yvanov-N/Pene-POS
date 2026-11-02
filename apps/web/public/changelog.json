@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.19.0",
+    "date": "2026-11-02",
+    "changes": [
+      "keep a dated history of each supplier's prices per product"
+    ]
+  },
+  {
     "version": "1.18.0",
     "date": "2026-11-02",
     "changes": [

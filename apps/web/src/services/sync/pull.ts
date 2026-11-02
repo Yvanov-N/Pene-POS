@@ -12,6 +12,7 @@ import {
   type StockPurchase,
   type StudentWallet,
   type Supplier,
+  type SupplierPriceHistory,
   type SupplierProduct,
 } from "@/types/db";
 import type { Database } from "@/types/supabase";
@@ -55,6 +56,7 @@ type ShopStatusRow = Database["public"]["Tables"]["shop_status"]["Row"];
 type SupplierRow = Database["public"]["Tables"]["suppliers"]["Row"];
 type SupplierProductRow = Database["public"]["Tables"]["supplier_products"]["Row"];
 type StockPurchaseRow = Database["public"]["Tables"]["stock_purchases"]["Row"];
+type SupplierPriceHistoryRow = Database["public"]["Tables"]["supplier_price_history"]["Row"];
 // Only the columns this pull actually requests -- pin_code was never
 // granted (see that select's own comment below), so a `select("*")` here
 // would fail outright with "permission denied for table profiles".
@@ -160,6 +162,19 @@ export function mapSupplierProductRow(row: SupplierProductRow): SupplierProduct 
     supplier_id: row.supplier_id,
     product_id: row.product_id,
     price: row.price,
+    updated_at: row.updated_at,
+    sync_seq: row.sync_seq,
+  };
+}
+
+export function mapSupplierPriceHistoryRow(row: SupplierPriceHistoryRow): SupplierPriceHistory {
+  return {
+    id: row.id,
+    supplier_id: row.supplier_id,
+    product_id: row.product_id,
+    price: row.price,
+    source: row.source as SupplierPriceHistory["source"],
+    recorded_at: row.recorded_at,
     updated_at: row.updated_at,
     sync_seq: row.sync_seq,
   };
@@ -353,4 +368,5 @@ export async function pullAll(): Promise<void> {
   await pullSoftDeletableTable("suppliers", db.suppliers, mapSupplierRow);
   await pullSoftDeletableTable("supplier_products", db.supplier_products, mapSupplierProductRow);
   await pullTable("stock_purchases", db.stock_purchases, "*", mapStockPurchaseRow);
+  await pullSoftDeletableTable("supplier_price_history", db.supplier_price_history, mapSupplierPriceHistoryRow);
 }

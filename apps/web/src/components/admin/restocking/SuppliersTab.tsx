@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronDown, ChevronRight, MapPin, Phone, Star, User } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, MapPin, Phone, Star, User } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
-import { buildProductOffers, summarizeSuppliers } from "@/lib/purchaseStats";
+import { buildProductOffers, summarizeSuppliers, supplierPriceTimeline } from "@/lib/purchaseStats";
 import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
 import { useToast } from "@/hooks/useToast";
@@ -26,13 +26,14 @@ export function SuppliersTab() {
   const [offerModal, setOfferModal] = useState<{ supplierId: string; productId?: string } | null>(null);
 
   const data = useLiveQuery(async () => {
-    const [suppliers, offers, purchases, products] = await Promise.all([
+    const [suppliers, offers, purchases, products, history] = await Promise.all([
       db.suppliers.orderBy("name").toArray(),
       db.supplier_products.toArray(),
       db.stock_purchases.toArray(),
       db.products.toArray(),
+      db.supplier_price_history.toArray(),
     ]);
-    return { suppliers, offers, purchases, products };
+    return { suppliers, offers, purchases, products, history };
   }, []);
 
   const view = useMemo(() => {
@@ -179,6 +180,7 @@ export function SuppliersTab() {
                             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
                               <th className="py-2 pr-3">{t("suppliers.productLabel")}</th>
                               <th className="py-2 pr-3 text-right">{t("suppliers.offerPriceLabel")}</th>
+                              <th className="py-2 pr-3 text-right">{t("restocking.history.columnChange")}</th>
                               <th className="py-2 pr-3 text-right">{t("suppliers.bestElsewhere")}</th>
                               <th className="py-2 text-right" />
                             </tr>
@@ -189,6 +191,8 @@ export function SuppliersTab() {
                               const own = ranked.find((r) => r.supplier.id === supplier.id);
                               const bestOther = ranked.find((r) => r.supplier.id !== supplier.id);
                               const offer = data.offers.find((o) => o.supplier_id === supplier.id && o.product_id === productId);
+                              const timeline = supplierPriceTimeline(data.history, supplier.id, productId);
+                              const change = timeline[0]?.changePct;
                               return (
                                 <tr key={productId} className="border-b border-border">
                                   <td className="py-2 pr-3 text-foreground">
@@ -199,6 +203,19 @@ export function SuppliersTab() {
                                   </td>
                                   <td className="py-2 pr-3 text-right font-semibold text-foreground">
                                     {own?.effectivePrice !== undefined ? formatCurrency(own.effectivePrice) : "—"}
+                                  </td>
+                                  <td className="py-2 pr-3 text-right">
+                                    {change === undefined || Math.abs(change) < 0.05 ? (
+                                      <span className="text-muted">—</span>
+                                    ) : (
+                                      <span
+                                        className={`inline-flex items-center gap-0.5 text-xs ${change > 0 ? "text-destructive" : "text-success"}`}
+                                        title={t("suppliers.pricePointsCount", { count: timeline.length })}
+                                      >
+                                        {change > 0 ? <ArrowUpRight className="h-3 w-3" aria-hidden /> : <ArrowDownRight className="h-3 w-3" aria-hidden />}
+                                        {Math.abs(change).toFixed(1)}%
+                                      </span>
+                                    )}
                                   </td>
                                   <td className="py-2 pr-3 text-right text-muted">
                                     {bestOther?.effectivePrice !== undefined

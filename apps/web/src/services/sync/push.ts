@@ -31,7 +31,14 @@ const UNIQUE_VIOLATION_CODE = "23505";
 
 type QueueOutcome = "completed" | "conflict";
 
-const SOFT_DELETABLE_TABLES = new Set(["products", "categories", "student_wallets", "suppliers", "supplier_products"]);
+const SOFT_DELETABLE_TABLES = new Set([
+  "products",
+  "categories",
+  "student_wallets",
+  "suppliers",
+  "supplier_products",
+  "supplier_price_history",
+]);
 
 async function pushCompleteSale(
   entry: Extract<OutboxOperation, { opType: "complete_sale" }>,

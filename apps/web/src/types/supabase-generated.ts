@@ -461,6 +461,60 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_price_history: {
+        Row: {
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          price: number
+          product_id: string
+          recorded_at: string
+          source: string
+          supplier_id: string
+          sync_seq: number
+          updated_at: string
+        }
+        Insert: {
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          price: number
+          product_id: string
+          recorded_at?: string
+          source?: string
+          supplier_id: string
+          sync_seq?: number
+          updated_at?: string
+        }
+        Update: {
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          price?: number
+          product_id?: string
+          recorded_at?: string
+          source?: string
+          supplier_id?: string
+          sync_seq?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_price_history_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_products: {
         Row: {
           deleted_at: string | null

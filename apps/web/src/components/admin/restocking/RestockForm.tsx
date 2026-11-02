@@ -138,19 +138,34 @@ export function RestockForm() {
         updated_at: now,
       };
 
-      await db.transaction("rw", [db.products, db.stock_purchases, db.supplier_products, db.sync_outbox], async () => {
-        await db.products.put(updated);
-        await db.stock_purchases.put(purchase);
-        // Mirror the RPC's offer upsert only for an existing offer: a new one
-        // gets its id server-side and arrives with the next pull.
-        const offer = await db.supplier_products
-          .where("product_id")
-          .equals(selected.id)
-          .filter((o) => o.supplier_id === values.supplierId)
-          .first();
-        if (offer) await db.supplier_products.put({ ...offer, price: unitCost, updated_at: now });
-        await recordOutbox(entry);
-      });
+      await db.transaction(
+        "rw",
+        [db.products, db.stock_purchases, db.supplier_products, db.supplier_price_history, db.sync_outbox],
+        async () => {
+          await db.products.put(updated);
+          await db.stock_purchases.put(purchase);
+          // Same id the RPC gives the server row (migration 00038), so the pull
+          // replaces this one instead of adding a twin.
+          await db.supplier_price_history.put({
+            id: entry.operationId,
+            supplier_id: values.supplierId,
+            product_id: selected.id,
+            price: unitCost,
+            source: "restock",
+            recorded_at: now,
+            updated_at: now,
+          });
+          // Mirror the RPC's offer upsert only for an existing offer: a new one
+          // gets its id server-side and arrives with the next pull.
+          const offer = await db.supplier_products
+            .where("product_id")
+            .equals(selected.id)
+            .filter((o) => o.supplier_id === values.supplierId)
+            .first();
+          if (offer) await db.supplier_products.put({ ...offer, price: unitCost, updated_at: now });
+          await recordOutbox(entry);
+        },
+      );
 
       const outcome = await pushOutbox(entry);
       if (outcome !== "synced") {

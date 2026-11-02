@@ -85,6 +85,21 @@ export interface SupplierProduct {
   sync_seq?: number;
 }
 
+// One dated price point for a supplier+product (migration 00038). The current
+// price is SupplierProduct.price; this keeps every earlier one too.
+export type PriceHistorySource = "manual" | "restock";
+
+export interface SupplierPriceHistory {
+  id: string;
+  supplier_id: string;
+  product_id: string;
+  price: number;
+  source: PriceHistorySource;
+  recorded_at: string;
+  updated_at: string;
+  sync_seq?: number;
+}
+
 // One restock: what was bought, from whom, at what unit cost.
 export interface StockPurchase {
   id: string;

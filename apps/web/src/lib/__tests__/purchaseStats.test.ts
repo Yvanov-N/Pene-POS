@@ -5,8 +5,9 @@ import {
   priceChangeByPurchase,
   summarizePurchases,
   summarizeSuppliers,
+  supplierPriceTimeline,
 } from "../purchaseStats";
-import type { StockPurchase, Supplier, SupplierProduct } from "@/types/db";
+import type { StockPurchase, Supplier, SupplierPriceHistory, SupplierProduct } from "@/types/db";
 
 const NOW = "2026-11-01T00:00:00.000Z";
 
@@ -30,6 +31,11 @@ function purchase(id: string, productId: string, supplierId: string, quantity: n
     created_at: createdAt,
     updated_at: createdAt,
   };
+}
+
+function pricePoint(id: string, supplierId: string, productId: string, price: number, day: number): SupplierPriceHistory {
+  const at = `2026-10-${String(day).padStart(2, "0")}T10:00:00.000Z`;
+  return { id, supplier_id: supplierId, product_id: productId, price, source: "manual", recorded_at: at, updated_at: at };
 }
 
 const marche = supplier("s1", "Marché Mokolo");
@@ -87,10 +93,29 @@ describe("priceChangeByPurchase", () => {
 
 describe("buildPriceSeries", () => {
   it("returns chronological points keyed by supplier", () => {
-    const series = buildPriceSeries("p1", [purchase("b", "p1", "s2", 1, 300, 5), purchase("a", "p1", "s1", 1, 350, 1)]);
+    const series = buildPriceSeries("p1", [pricePoint("b", "s2", "p1", 300, 5), pricePoint("a", "s1", "p1", 350, 1)]);
     expect(series.supplierIds).toEqual(["s1", "s2"]);
     expect(series.points[0]).toMatchObject({ s1: 350 });
     expect(series.points[1]).toMatchObject({ s2: 300 });
+  });
+});
+
+describe("supplierPriceTimeline", () => {
+  it("lists one supplier's prices newest first with the change vs the previous one", () => {
+    const timeline = supplierPriceTimeline(
+      [
+        pricePoint("a", "s1", "p1", 400, 1),
+        pricePoint("c", "s1", "p1", 380, 9),
+        pricePoint("b", "s1", "p1", 440, 5),
+        pricePoint("x", "s2", "p1", 100, 3),
+      ],
+      "s1",
+      "p1",
+    );
+    expect(timeline.map((p) => p.entry.id)).toEqual(["c", "b", "a"]);
+    expect(timeline[0].changePct).toBeCloseTo(((380 - 440) / 440) * 100);
+    expect(timeline[1].changePct).toBeCloseTo(10);
+    expect(timeline[2].changePct).toBeUndefined();
   });
 });
 

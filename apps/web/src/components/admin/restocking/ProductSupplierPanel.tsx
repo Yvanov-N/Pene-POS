@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Phone, MapPin, Star } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Phone, MapPin, Star } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
-import { buildPriceSeries, buildProductOffers, summarizePurchases } from "@/lib/purchaseStats";
+import { buildPriceSeries, buildProductOffers, summarizePurchases, supplierPriceTimeline } from "@/lib/purchaseStats";
 import type { Product } from "@/types/db";
 import { OfferFormModal } from "./OfferFormModal";
 import { SMALL_BUTTON_CLASS } from "./styles";
@@ -33,12 +33,13 @@ export function ProductSupplierPanel({ product }: ProductSupplierPanelProps) {
   const [offerModal, setOfferModal] = useState<{ supplierId?: string } | null>(null);
 
   const data = useLiveQuery(async () => {
-    const [suppliers, offers, purchases] = await Promise.all([
+    const [suppliers, offers, purchases, history] = await Promise.all([
       db.suppliers.toArray(),
       db.supplier_products.where("product_id").equals(product.id).toArray(),
       db.stock_purchases.where("product_id").equals(product.id).toArray(),
+      db.supplier_price_history.where("product_id").equals(product.id).toArray(),
     ]);
-    return { suppliers, offers, purchases };
+    return { suppliers, offers, purchases, history };
   }, [product.id]);
 
   const view = useMemo(() => {
@@ -47,7 +48,11 @@ export function ProductSupplierPanel({ product }: ProductSupplierPanelProps) {
     return {
       offers: buildProductOffers(product.id, data.suppliers, data.offers, data.purchases),
       summary: summarizePurchases(data.purchases),
-      series: buildPriceSeries(product.id, data.purchases),
+      series: buildPriceSeries(product.id, data.history),
+      // Latest price change per supplier, shown next to its current price.
+      lastChange: new Map(
+        data.suppliers.map((s) => [s.id, supplierPriceTimeline(data.history, s.id, product.id)[0]?.changePct]),
+      ),
       supplierNames,
     };
   }, [data, product.id]);
@@ -131,8 +136,20 @@ export function ProductSupplierPanel({ product }: ProductSupplierPanelProps) {
                   )}
                 </p>
               </div>
-              <span className="font-semibold text-foreground">
-                {row.effectivePrice !== undefined ? formatCurrency(row.effectivePrice) : "—"}
+              <span className="flex flex-col items-end">
+                <span className="font-semibold text-foreground">
+                  {row.effectivePrice !== undefined ? formatCurrency(row.effectivePrice) : "—"}
+                </span>
+                {(() => {
+                  const change = view.lastChange.get(row.supplier.id);
+                  if (change === undefined || Math.abs(change) < 0.05) return null;
+                  return (
+                    <span className={`inline-flex items-center gap-0.5 text-xs ${change > 0 ? "text-destructive" : "text-success"}`}>
+                      {change > 0 ? <ArrowUpRight className="h-3 w-3" aria-hidden /> : <ArrowDownRight className="h-3 w-3" aria-hidden />}
+                      {Math.abs(change).toFixed(1)}%
+                    </span>
+                  );
+                })()}
               </span>
               <button type="button" className={SMALL_BUTTON_CLASS} onClick={() => setOfferModal({ supplierId: row.supplier.id })}>
                 {t("suppliers.editOffer")}

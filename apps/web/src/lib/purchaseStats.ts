@@ -1,4 +1,4 @@
-import type { StockPurchase, Supplier, SupplierProduct } from "@/types/db";
+import type { StockPurchase, Supplier, SupplierPriceHistory, SupplierProduct } from "@/types/db";
 
 // Pure helpers behind the restocking screens (offers comparison, history,
 // supplier ranking) -- no Dexie access here so they're unit-testable.
@@ -105,19 +105,46 @@ export function priceChangeByPurchase(purchases: StockPurchase[]): Map<string, n
 }
 
 export interface PriceSeries {
-  // One point per purchase date; keys other than `date` are supplier ids.
+  // One point per price entry; keys other than `date` are supplier ids.
   points: Array<{ date: string } & Record<string, number | string>>;
   supplierIds: string[];
 }
 
-// Chart data for one product's purchase price over time, one line per supplier.
-export function buildPriceSeries(productId: string, purchases: StockPurchase[]): PriceSeries {
-  const chronological = purchases
-    .filter((p) => p.product_id === productId)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at));
-  const supplierIds = [...new Set(chronological.map((p) => p.supplier_id))];
-  const points = chronological.map((p) => ({ date: p.created_at, [p.supplier_id]: p.unit_cost }));
+// Chart data for one product's supplier prices over time (price history:
+// manual updates and restocks), one line per supplier.
+export function buildPriceSeries(productId: string, history: SupplierPriceHistory[]): PriceSeries {
+  const chronological = history
+    .filter((h) => h.product_id === productId)
+    .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
+  const supplierIds = [...new Set(chronological.map((h) => h.supplier_id))];
+  const points = chronological.map((h) => ({ date: h.recorded_at, [h.supplier_id]: h.price }));
   return { points, supplierIds };
+}
+
+export interface PricePoint {
+  entry: SupplierPriceHistory;
+  // % vs the previous (older) point of the same supplier+product.
+  changePct?: number;
+}
+
+// A supplier's prices for one product, newest first, each with its change
+// vs the one before it.
+export function supplierPriceTimeline(
+  history: SupplierPriceHistory[],
+  supplierId: string,
+  productId: string,
+): PricePoint[] {
+  const chronological = history
+    .filter((h) => h.supplier_id === supplierId && h.product_id === productId)
+    .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
+  const points = chronological.map((entry, index) => {
+    const previous = chronological[index - 1];
+    return {
+      entry,
+      changePct: previous && previous.price > 0 ? ((entry.price - previous.price) / previous.price) * 100 : undefined,
+    };
+  });
+  return points.reverse();
 }
 
 export interface SupplierSummary {
