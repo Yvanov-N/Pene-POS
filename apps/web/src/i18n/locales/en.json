@@ -593,7 +593,7 @@
   },
   "restocking": {
     "title": "Fast restocking",
-    "searchPlaceholder": "Search for a product by name...",
+    "searchPlaceholder": "Search a product by name or barcode...",
     "noMatches": "No matching products.",
     "noProductSelected": "Scan a barcode or search for a product to get started.",
     "currentStock": "Current stock: {{count}}",

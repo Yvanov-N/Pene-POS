@@ -82,7 +82,11 @@ export function RestockForm() {
     const term = nameSearch.trim().toLowerCase();
     if (!term) return [];
     const products = await db.products.toArray();
-    return products.filter((product) => product.name.toLowerCase().includes(term)).slice(0, 6);
+    // Also matches a barcode typed by hand (the dedicated barcode field only
+    // shows while a hardware scanner is paired).
+    return products
+      .filter((product) => product.name.toLowerCase().includes(term) || (product.barcode ?? "").toLowerCase().includes(term))
+      .slice(0, 6);
   }, [nameSearch]);
 
   const expiryBadge = useMemo(() => (selected ? getExpiryBadge(t, selected.expiry_date) : null), [t, selected]);

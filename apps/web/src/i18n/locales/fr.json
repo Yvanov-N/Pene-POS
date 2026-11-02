@@ -593,7 +593,7 @@
   },
   "restocking": {
     "title": "Reapprovisionnement rapide",
-    "searchPlaceholder": "Rechercher un produit par nom...",
+    "searchPlaceholder": "Rechercher un produit par nom ou code-barres...",
     "noMatches": "Aucun produit trouve.",
     "noProductSelected": "Scannez un code-barres ou recherchez un produit pour commencer.",
     "currentStock": "Stock actuel : {{count}}",

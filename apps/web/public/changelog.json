@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.22.0",
+    "date": "2026-11-02",
+    "changes": [
+      "hide the barcode field unless a hardware scanner is paired"
+    ]
+  },
+  {
     "version": "1.21.0",
     "date": "2026-11-02",
     "changes": [

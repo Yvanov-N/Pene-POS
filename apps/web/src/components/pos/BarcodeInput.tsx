@@ -65,8 +65,9 @@ export const BarcodeInput = forwardRef<BarcodeInputHandle, BarcodeInputProps>(fu
 
   useEffect(() => {
     inputRef.current?.focus();
-    return () => clearTimeout(notFoundTimeoutRef.current);
-  }, []);
+  }, [isConnected]);
+
+  useEffect(() => () => clearTimeout(notFoundTimeoutRef.current), []);
 
   const statusLabel =
     connectionType === "hid"
@@ -74,6 +75,15 @@ export const BarcodeInput = forwardRef<BarcodeInputHandle, BarcodeInputProps>(fu
       : connectionType === "serial"
         ? t("pos.barcode.connectedSerial")
         : t("pos.barcode.keyboardMode");
+
+  // Nothing to show without a paired hardware scanner: keyboard-emulation
+  // scanners are still picked up in the background by useBarcodeScanner
+  // (fast keystrokes + Enter, wherever focus is), and a barcode can be typed
+  // by hand in the search field next to this component. The hook above stays
+  // mounted either way -- only the markup goes away.
+  if (!isConnected) {
+    return notFound ? <span className="text-sm text-destructive">{t("pos.barcode.notFound")}</span> : null;
+  }
 
   return (
     <div className="barcode-area flex flex-col gap-1">
@@ -94,15 +104,10 @@ export const BarcodeInput = forwardRef<BarcodeInputHandle, BarcodeInputProps>(fu
         }}
       />
 
-      {/* Only worth the space once a hardware scanner is actually paired --
-          keyboard-wedge scanning works without it, and pairing lives in
-          Settings > Scanner. */}
-      {isConnected && (
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted" title={statusLabel}>
-          <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
-          {statusLabel}
-        </span>
-      )}
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted" title={statusLabel}>
+        <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
+        {statusLabel}
+      </span>
 
       {notFound && <span className="text-sm text-destructive">{t("pos.barcode.notFound")}</span>}
     </div>
