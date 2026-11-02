@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.31.2",
+    "date": "2026-11-02",
+    "changes": [
+      "button icons aligned and buttons responsive"
+    ]
+  },
+  {
     "version": "1.31.1",
     "date": "2026-11-02",
     "changes": [

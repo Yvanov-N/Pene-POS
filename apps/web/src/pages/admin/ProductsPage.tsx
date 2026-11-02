@@ -347,24 +347,40 @@ export function ProductsPage() {
                         {/* Stops the row's "open details" click -- including clicks
                             inside the delete button's PIN modal, which renders here. */}
                         <td className="py-2" onClick={(e) => e.stopPropagation()}>
+                          {/* Icon-only below lg (labels kept as aria-label/title) so the
+                              actions column doesn't force the table wider than a tablet. */}
                           <div className="flex justify-end gap-2">
-                            <button type="button" className={NEUTRAL_BUTTON_CLASS} onClick={() => setDetailProduct(product)}>
+                            <button
+                              type="button"
+                              className={NEUTRAL_BUTTON_CLASS}
+                              aria-label={t("admin.products.details")}
+                              title={t("admin.products.details")}
+                              onClick={() => setDetailProduct(product)}
+                            >
                               <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                              {t("admin.products.details")}
+                              <span className="hidden lg:inline">{t("admin.products.details")}</span>
                             </button>
-                            <button type="button" className={NEUTRAL_BUTTON_CLASS} onClick={() => openEditDrawer(product)}>
+                            <button
+                              type="button"
+                              className={NEUTRAL_BUTTON_CLASS}
+                              aria-label={t("admin.products.edit")}
+                              title={t("admin.products.edit")}
+                              onClick={() => openEditDrawer(product)}
+                            >
                               <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                              {t("admin.products.edit")}
+                              <span className="hidden lg:inline">{t("admin.products.edit")}</span>
                             </button>
                             <ButtonCustom
                               variant="danger"
                               size="sm"
                               requiresAdminPin
                               pinModalTitle={t("admin.products.deletePinTitle")}
+                              aria-label={t("admin.products.delete")}
+                              title={t("admin.products.delete")}
                               onClick={() => void handleDelete(product)}
                             >
                               <Trash2 aria-hidden />
-                              {t("admin.products.delete")}
+                              <span className="hidden lg:inline">{t("admin.products.delete")}</span>
                             </ButtonCustom>
                           </div>
                         </td>
