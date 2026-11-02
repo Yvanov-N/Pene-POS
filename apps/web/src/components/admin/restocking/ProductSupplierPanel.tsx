@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDownRight, ArrowUpRight, Phone, MapPin, Star } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Phone, MapPin, Star, History, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { buildPriceSeries, buildProductOffers, summarizePurchases, supplierPriceTimeline } from "@/lib/purchaseStats";
@@ -68,6 +68,7 @@ export function ProductSupplierPanel({ product }: ProductSupplierPanelProps) {
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-foreground">{t("suppliers.panelTitle")}</h3>
         <button type="button" className={SMALL_BUTTON_CLASS} onClick={() => setOfferModal({})}>
+          <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {t("suppliers.addOffer")}
         </button>
       </div>
@@ -152,6 +153,7 @@ export function ProductSupplierPanel({ product }: ProductSupplierPanelProps) {
                 })()}
               </span>
               <button type="button" className={SMALL_BUTTON_CLASS} onClick={() => setOfferModal({ supplierId: row.supplier.id })}>
+                <History className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {t("suppliers.editOffer")}
               </button>
             </li>

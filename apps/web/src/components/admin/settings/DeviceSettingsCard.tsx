@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/useToast";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { FieldError } from "@/components/ui/field-error";
+import { Save } from "lucide-react";
 
 const SETTINGS_ID = "default";
 
@@ -85,6 +86,7 @@ export function DeviceSettingsCard() {
           isLoading={formik.isSubmitting}
           onClick={() => void formik.submitForm()}
         >
+          <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {t("admin.settings.deviceSaveButton")}
         </ButtonCustom>
       </div>

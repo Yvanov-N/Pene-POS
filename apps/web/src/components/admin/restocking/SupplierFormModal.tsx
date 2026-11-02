@@ -1,7 +1,7 @@
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { X, Save } from "lucide-react";
 import { db } from "@/lib/db";
 import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
@@ -127,6 +127,7 @@ export function SupplierFormModal({ supplier, onClose, onSaved }: SupplierFormMo
           </label>
 
           <ButtonCustom variant="primary" isLoading={formik.isSubmitting} onClick={() => void formik.submitForm()}>
+            <Save className="h-4 w-4 shrink-0" aria-hidden />
             {t("suppliers.save")}
           </ButtonCustom>
         </form>

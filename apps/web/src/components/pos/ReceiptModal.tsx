@@ -170,6 +170,7 @@ export function ReceiptModal({ receipt, onClose, onPrint }: ReceiptModalProps) {
               {t("pos.receipt.shareButton")}
             </ButtonCustom>
             <ButtonCustom variant="primary" className="flex-1" onClick={onClose}>
+              <X className="h-4 w-4 shrink-0" aria-hidden />
               {t("pos.receipt.closeButton")}
             </ButtonCustom>
           </div>

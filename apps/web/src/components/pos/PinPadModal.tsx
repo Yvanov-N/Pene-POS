@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { X, Send } from "lucide-react";
 import { db } from "@/lib/db";
 import { hashPin } from "@/lib/hashPin";
 import { supabase } from "@/lib/supabase";
@@ -226,8 +226,9 @@ export function PinPadModal({ title, onSuccess, onClose, requiredRole }: PinPadM
             <button
               type="submit"
               disabled={forgotFormik.isSubmitting}
-              className="rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
+              <Send className="h-4 w-4 shrink-0" aria-hidden />
               {t("pos.pin.sendResetLink")}
             </button>
             <button type="button" onClick={backToPad} className="text-xs text-muted hover:text-foreground">

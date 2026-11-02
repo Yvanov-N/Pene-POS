@@ -6,6 +6,7 @@ import { printService } from "@/services/hardware/printService";
 import { CardCustom } from "@/components/ui/card-custom";
 import { Switch } from "@/components/ui/switch";
 import type { PrintMode } from "@/types/db";
+import { Bluetooth, BluetoothOff } from "lucide-react";
 
 const SETTINGS_ID = "default";
 const PRINT_MODES: PrintMode[] = ["browser", "bluetooth"];
@@ -111,6 +112,7 @@ export function PrinterSettingsCard() {
               onClick={() => void handleDisconnectBluetooth()}
               className="w-full rounded-lg border border-border bg-surface2 py-2 text-sm font-medium text-foreground hover:border-accent"
             >
+              <BluetoothOff className="h-4 w-4 shrink-0" aria-hidden />
               {t("admin.settings.disconnectBluetooth")}
             </button>
           ) : (
@@ -120,6 +122,7 @@ export function PrinterSettingsCard() {
               onClick={() => void handlePairBluetooth()}
               className="w-full rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
+              <Bluetooth className="h-4 w-4 shrink-0" aria-hidden />
               {t("admin.settings.pairBluetooth")}
             </button>
           )}

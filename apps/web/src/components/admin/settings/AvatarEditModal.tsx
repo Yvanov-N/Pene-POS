@@ -2,7 +2,7 @@ import { useRef, useState, type ChangeEvent } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
-import { CircleUserRound, X } from "lucide-react";
+import { CircleUserRound, X, Save, Trash2, Upload } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
@@ -158,6 +158,7 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
             onChange={(e) => void handleFileSelected(e)}
           />
           <ButtonCustom variant="primary" isLoading={uploading} onClick={() => fileInputRef.current?.click()}>
+            <Upload className="h-4 w-4 shrink-0" aria-hidden />
             {t("admin.profile.avatarImportButton")}
           </ButtonCustom>
 
@@ -193,6 +194,7 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
                 void formik.submitForm();
               }}
             >
+              <Trash2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {t("admin.profile.avatarDelete")}
             </ButtonCustom>
             <ButtonCustom
@@ -204,6 +206,7 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
                 void formik.submitForm();
               }}
             >
+              <Save className="h-4 w-4 shrink-0" aria-hidden />
               {t("admin.profile.avatarSave")}
             </ButtonCustom>
           </div>

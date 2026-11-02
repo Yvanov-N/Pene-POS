@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { passwordSchema, passwordConfirmationSchema } from "@/lib/validation";
 import { FieldError } from "@/components/ui/field-error";
+import { KeyRound } from "lucide-react";
 
 interface ResetPasswordFormProps {
   onComplete: () => void;
@@ -77,8 +78,9 @@ export function ResetPasswordForm({ onComplete }: ResetPasswordFormProps) {
             <button
               type="submit"
               disabled={formik.isSubmitting}
-              className="rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
+              <KeyRound className="h-4 w-4 shrink-0" aria-hidden />
               {t("auth.updatePassword")}
             </button>
           </form>

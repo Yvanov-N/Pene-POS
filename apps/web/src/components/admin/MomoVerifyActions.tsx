@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/currency";
 import { confirmMomoSale, rejectMomoSale } from "@/services/momoVerification";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import type { Profile, Sale } from "@/types/db";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 const VOID_ERROR_KEY = {
   "not-authorized": "admin.salesHistory.voidErrorNotAuthorized",
@@ -63,6 +64,7 @@ export function MomoVerifyActions({ sale, onDone }: MomoVerifyActionsProps) {
   return (
     <div className="grid grid-cols-2 gap-2">
       <ButtonCustom variant="success" size="sm" className="w-full" disabled={busy} onClick={() => void handleConfirm()}>
+        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
         {t("admin.momo.confirm")}
       </ButtonCustom>
       <ButtonCustom
@@ -74,6 +76,7 @@ export function MomoVerifyActions({ sale, onDone }: MomoVerifyActionsProps) {
         pinModalTitle={t("admin.momo.rejectPinTitle")}
         onClick={(profile) => void handleReject(profile)}
       >
+        <XCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
         {t("admin.momo.reject")}
       </ButtonCustom>
     </div>

@@ -24,6 +24,7 @@ import { CategoryManagerModal } from "@/components/admin/products/CategoryManage
 import { ProductDetailDrawer } from "@/components/admin/products/ProductDetailDrawer";
 import type { Product } from "@/types/db";
 import { ProductThumb } from "@/components/ui/product-thumb";
+import { Eye, Pencil, Plus, Tags, Trash2 } from "lucide-react";
 
 type SortKey = "name" | "barcode" | "category" | "price" | "cost" | "margin" | "stock" | "expiry";
 
@@ -49,7 +50,7 @@ interface ProductFilters_ {
 
 
 const NEUTRAL_BUTTON_CLASS =
-  "rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent";
+  "inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent";
 
 // Same thresholds as ProductGrid.tsx (POS grid) / OperationalWidgets.tsx
 // (admin dashboard) -- one low-stock/expiry definition used consistently
@@ -235,9 +236,11 @@ export function ProductsPage() {
         header={
           <div className="flex gap-2">
             <ButtonCustom variant="primary" size="sm" onClick={() => setCategoryManagerOpen(true)}>
+              <Tags className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {t("admin.categories.manageButton")}
             </ButtonCustom>
             <ButtonCustom variant="primary" size="sm" onClick={openCreateDrawer}>
+              <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {t("admin.products.add")}
             </ButtonCustom>
           </div>
@@ -346,9 +349,11 @@ export function ProductsPage() {
                         <td className="py-2" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
                             <button type="button" className={NEUTRAL_BUTTON_CLASS} onClick={() => setDetailProduct(product)}>
+                              <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
                               {t("admin.products.details")}
                             </button>
                             <button type="button" className={NEUTRAL_BUTTON_CLASS} onClick={() => openEditDrawer(product)}>
+                              <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                               {t("admin.products.edit")}
                             </button>
                             <ButtonCustom
@@ -358,6 +363,7 @@ export function ProductsPage() {
                               pinModalTitle={t("admin.products.deletePinTitle")}
                               onClick={() => void handleDelete(product)}
                             >
+                              <Trash2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
                               {t("admin.products.delete")}
                             </ButtonCustom>
                           </div>

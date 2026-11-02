@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Wallet, Receipt, GraduationCap, AlertTriangle, Package, TrendingUp, ShoppingBag } from "lucide-react";
+import { Wallet, Receipt, GraduationCap, AlertTriangle, Package, TrendingUp, ShoppingBag, Download } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { downloadCsv } from "@/lib/csv";
 import { useDashboardAnalytics } from "@/hooks/useDashboardAnalytics";
@@ -150,6 +150,7 @@ export function DashboardPage() {
           )}
         </div>
         <ButtonCustom variant="primary" size="sm" onClick={handleExportCsv}>
+          <Download className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {t("admin.dashboard.exportButton")}
         </ButtonCustom>
       </div>

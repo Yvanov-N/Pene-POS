@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
 import cashierPhoto from "@/assets/cashier.jpg";
+import { ArrowLeft, LogIn, Send } from "lucide-react";
 
 const OAUTH_LINKED_CACHE_KEY = "pene_pos.oauthLinked";
 
@@ -178,8 +179,9 @@ export function GlobalLogin() {
                 <button
                   type="submit"
                   disabled={formik.isSubmitting}
-                  className="rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
                 >
+                  <LogIn className="h-4 w-4 shrink-0" aria-hidden />
                   {t("auth.submit")}
                 </button>
 
@@ -254,8 +256,9 @@ export function GlobalLogin() {
                   <button
                     type="submit"
                     disabled={formik.isSubmitting}
-                    className="rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
                   >
+                    <Send className="h-4 w-4 shrink-0" aria-hidden />
                     {t("auth.sendResetLink")}
                   </button>
                 </form>
@@ -264,8 +267,9 @@ export function GlobalLogin() {
               <button
                 type="button"
                 onClick={backToLogin}
-                className="text-xs text-muted hover:text-foreground"
+                className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground"
               >
+                <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {t("auth.backToLogin")}
               </button>
             </>

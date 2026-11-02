@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { X, RefreshCw } from "lucide-react";
 import {
   listStuckItems,
   listRecentSyncEvents,
@@ -99,6 +99,7 @@ export function AdminConflictDashboard({ onClose }: AdminConflictDashboardProps)
                           onClick={() => void withBusy(item.id, () => retryStuckItem(item.id))}
                           className="flex-1 rounded-lg border border-border bg-surface2 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
                         >
+                          <RefreshCw className="h-4 w-4 shrink-0" aria-hidden />
                           {t("admin.conflicts.retry")}
                         </button>
                         <button
@@ -107,6 +108,7 @@ export function AdminConflictDashboard({ onClose }: AdminConflictDashboardProps)
                           onClick={() => void withBusy(item.id, () => dismissStuckItem(item.id))}
                           className="flex-1 rounded-lg border border-border bg-surface2 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
                         >
+                          <X className="h-4 w-4 shrink-0" aria-hidden />
                           {t("admin.conflicts.dismiss")}
                         </button>
                       </div>

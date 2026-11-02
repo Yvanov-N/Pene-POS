@@ -23,6 +23,7 @@ import { INPUT_CLASS, SMALL_BUTTON_CLASS } from "./styles";
 import { ProductThumb } from "@/components/ui/product-thumb";
 import { AmountInput } from "@/components/ui/amount-input";
 import { parseAmount, purchaseLineTotal, roundMoney } from "@/lib/money";
+import { PackageCheck, Plus } from "lucide-react";
 
 const QUICK_ADD_AMOUNTS = [10, 24, 50, 100] as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -311,6 +312,7 @@ export function RestockForm() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-muted">{t("restocking.supplierLabel")}</span>
                     <button type="button" className={SMALL_BUTTON_CLASS} onClick={() => setShowSupplierModal(true)}>
+                      <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       {t("restocking.newSupplier")}
                     </button>
                   </div>
@@ -398,6 +400,7 @@ export function RestockForm() {
                 isLoading={formik.isSubmitting}
                 onClick={() => void formik.submitForm()}
               >
+                <PackageCheck className="h-4 w-4 shrink-0" aria-hidden />
                 {t("restocking.validate")}
               </ButtonCustom>
             </div>

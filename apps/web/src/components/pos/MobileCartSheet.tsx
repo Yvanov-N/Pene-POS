@@ -1,20 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banknote, Smartphone, GraduationCap, Trash2, ChevronUp, ChevronDown, type LucideIcon } from "lucide-react";
+import { Trash2, ChevronUp, ChevronDown, CreditCard, UserX } from "lucide-react";
 import { usePosCheckout, PAYMENT_METHODS } from "@/hooks/usePosCheckout";
 import { formatCurrency } from "@/lib/currency";
+import { PAYMENT_ICON } from "@/lib/paymentMethodStyles";
 import { PinPadModal } from "./PinPadModal";
 import { ReceiptModal } from "./ReceiptModal";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { CartLineItem } from "./CartLineItem";
-import type { PaymentMethod } from "@/types/db";
-
-const PAYMENT_ICON: Record<PaymentMethod, LucideIcon> = {
-  cash: Banknote,
-  momo_mtn: Smartphone,
-  momo_orange: Smartphone,
-  student_wallet: GraduationCap,
-};
 
 // Mobile chrome only (below md) -- PosLayout mounts this or PosCart based on
 // viewport, never both, so this owns its own usePosCheckout() instance
@@ -95,8 +88,9 @@ export function MobileCartSheet() {
                   <button
                     type="button"
                     onClick={clearStudent}
-                    className="shrink-0 text-xs text-muted hover:text-foreground"
+                    className="inline-flex items-center gap-1.5 shrink-0 text-xs text-muted hover:text-foreground"
                   >
+                    <UserX className="h-3.5 w-3.5 shrink-0" aria-hidden />
                     {t("pos.cart.removeStudent")}
                   </button>
                 </div>
@@ -211,6 +205,7 @@ export function MobileCartSheet() {
             disabled={!canCheckout}
             onClick={requestCheckout}
           >
+            <CreditCard className="h-4 w-4 shrink-0" aria-hidden />
             {t("pos.cart.checkout")}
           </ButtonCustom>
         </div>
