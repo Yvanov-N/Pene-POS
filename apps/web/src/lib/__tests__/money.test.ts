@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decimalPlaces, parseAmount, roundMoney } from "../money";
+import { decimalPlaces, parseAmount, purchaseLineTotal, roundMoney } from "../money";
 import { numberSchema } from "../validation";
 
 describe("parseAmount", () => {
@@ -24,6 +24,15 @@ describe("roundMoney", () => {
     expect(roundMoney(0.1 + 0.2)).toBe(0.3);
     expect(roundMoney(12.5 * 3)).toBe(37.5);
     expect(roundMoney(1.005)).toBe(1.01);
+  });
+});
+
+describe("purchaseLineTotal", () => {
+  it("rounds a purchase line to the franc", () => {
+    expect(purchaseLineTotal(12, 83.33)).toBe(1000);
+    expect(purchaseLineTotal(3, 12.5)).toBe(38);
+    expect(purchaseLineTotal(3, 12.45)).toBe(37);
+    expect(purchaseLineTotal(24, 325)).toBe(7800);
   });
 });
 

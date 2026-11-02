@@ -15,6 +15,7 @@ import { INPUT_CLASS } from "./styles";
 import { SortableTh } from "@/components/admin/SortableTh";
 import { useTableSort } from "@/hooks/useTableSort";
 import { sortRows } from "@/lib/sorting";
+import { purchaseLineTotal } from "@/lib/money";
 
 const ALL = "all";
 type PurchaseSortKey = "date" | "product" | "supplier" | "quantity" | "unitCost" | "total" | "change";
@@ -81,7 +82,7 @@ export function PurchaseHistory() {
           case "unitCost":
             return p.unit_cost;
           case "total":
-            return p.quantity * p.unit_cost;
+            return purchaseLineTotal(p.quantity, p.unit_cost);
           case "change":
             return changes.get(p.id);
         }
@@ -120,7 +121,7 @@ export function PurchaseHistory() {
           supplierName(p.supplier_id),
           p.quantity,
           p.unit_cost,
-          p.quantity * p.unit_cost,
+          purchaseLineTotal(p.quantity, p.unit_cost),
           change !== undefined ? `${change.toFixed(1)}%` : "",
         ];
       }),
@@ -207,7 +208,7 @@ export function PurchaseHistory() {
                       <td className="py-2 pr-3 text-foreground">{supplierName(p.supplier_id)}</td>
                       <td className="py-2 pr-3 text-right text-foreground">{p.quantity}</td>
                       <td className="py-2 pr-3 text-right text-foreground">{formatCurrency(p.unit_cost)}</td>
-                      <td className="py-2 pr-3 text-right font-semibold text-foreground">{formatCurrency(p.quantity * p.unit_cost)}</td>
+                      <td className="py-2 pr-3 text-right font-semibold text-foreground">{formatCurrency(purchaseLineTotal(p.quantity, p.unit_cost))}</td>
                       <td className="py-2 text-right">
                         {change === undefined || Math.abs(change) < 0.05 ? (
                           <span className="text-muted">—</span>

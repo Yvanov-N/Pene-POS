@@ -65,6 +65,22 @@ describe("record_restock", () => {
     expect(offers).toEqual([{ price: 310 }]);
   });
 
+  it("stores the purchase total rounded to the franc", async () => {
+    const { client } = await signInAsDevAdmin();
+    const supplierId = await createSupplier(client);
+    const operationId = crypto.randomUUID();
+    const { error } = await client.rpc("record_restock", {
+      p_operation_id: operationId,
+      p_product_id: SEED_PRODUCT_ID,
+      p_supplier_id: supplierId,
+      p_quantity: 12,
+      p_unit_cost: 83.33,
+    });
+    expect(error).toBeNull();
+    const { data } = await client.from("stock_purchases").select("unit_cost, total_cost").eq("id", operationId).single();
+    expect(data).toEqual({ unit_cost: 83.33, total_cost: 1000 });
+  });
+
   it("is a conflict for a deleted supplier", async () => {
     const { client } = await signInAsDevAdmin();
     const supplierId = await createSupplier(client);

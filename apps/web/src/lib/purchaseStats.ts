@@ -1,4 +1,5 @@
 import type { StockPurchase, Supplier, SupplierPriceHistory, SupplierProduct } from "@/types/db";
+import { purchaseLineTotal } from "@/lib/money";
 
 // Pure helpers behind the restocking screens (offers comparison, history,
 // supplier ranking) -- no Dexie access here so they're unit-testable.
@@ -75,7 +76,7 @@ export function summarizePurchases(purchases: StockPurchase[]): PurchaseSummary 
   if (purchases.length === 0) return { count: 0, totalQuantity: 0, totalSpent: 0 };
   const sorted = [...purchases].sort(byNewest);
   const totalQuantity = purchases.reduce((sum, p) => sum + p.quantity, 0);
-  const totalSpent = purchases.reduce((sum, p) => sum + p.quantity * p.unit_cost, 0);
+  const totalSpent = purchases.reduce((sum, p) => sum + purchaseLineTotal(p.quantity, p.unit_cost), 0);
   const costs = purchases.map((p) => p.unit_cost);
   return {
     count: purchases.length,
@@ -170,7 +171,7 @@ export function summarizeSuppliers(
     ]);
     summaries.set(supplier.id, {
       purchaseCount: own.length,
-      totalSpent: own.reduce((sum, p) => sum + p.quantity * p.unit_cost, 0),
+      totalSpent: own.reduce((sum, p) => sum + purchaseLineTotal(p.quantity, p.unit_cost), 0),
       productCount: productIds.size,
       cheapestOn: 0,
       lastPurchaseAt: own.sort(byNewest)[0]?.created_at,

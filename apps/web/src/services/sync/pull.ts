@@ -17,6 +17,7 @@ import {
 } from "@/types/db";
 import type { Database } from "@/types/supabase";
 import { markSynced } from "@/lib/syncFreshness";
+import { purchaseLineTotal } from "@/lib/money";
 
 // ============================================================================
 // Incremental, cursor-based pulls -- replaces the old pullFromSupabase()'s
@@ -193,7 +194,7 @@ export function mapStockPurchaseRow(row: StockPurchaseRow): StockPurchase {
     quantity: row.quantity,
     unit_cost: row.unit_cost,
     // Generated column -- never null in practice, typed nullable by gen types.
-    total_cost: row.total_cost ?? row.quantity * row.unit_cost,
+    total_cost: row.total_cost ?? purchaseLineTotal(row.quantity, row.unit_cost),
     expiry_date: row.expiry_date ?? undefined,
     created_by: row.created_by ?? undefined,
     created_at: row.created_at,

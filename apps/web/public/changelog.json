@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.28.0",
+    "date": "2026-11-02",
+    "changes": [
+      "round purchase totals to the franc (12 x 83.33 = 1 000)"
+    ]
+  },
+  {
     "version": "1.27.0",
     "date": "2026-11-02",
     "changes": [

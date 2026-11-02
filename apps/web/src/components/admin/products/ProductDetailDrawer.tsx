@@ -16,6 +16,7 @@ import { PaymentChip } from "@/components/ui/payment-chip";
 import { ProductSupplierPanel } from "@/components/admin/restocking/ProductSupplierPanel";
 import type { Product } from "@/types/db";
 import { ProductThumb } from "@/components/ui/product-thumb";
+import { purchaseLineTotal } from "@/lib/money";
 
 const TABS = ["summary", "sales", "restocks"] as const;
 type Tab = (typeof TABS)[number];
@@ -237,7 +238,7 @@ export function ProductDetailDrawer({ product: initialProduct, onClose }: Produc
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-semibold text-foreground">{formatCurrency(purchase.quantity * purchase.unit_cost)}</p>
+                        <p className="font-semibold text-foreground">{formatCurrency(purchaseLineTotal(purchase.quantity, purchase.unit_cost))}</p>
                         {change !== undefined && Math.abs(change) >= 0.05 && (
                           <p className={`inline-flex items-center gap-0.5 text-xs ${change > 0 ? "text-destructive" : "text-success"}`}>
                             {change > 0 ? <ArrowUpRight className="h-3 w-3" aria-hidden /> : <ArrowDownRight className="h-3 w-3" aria-hidden />}
