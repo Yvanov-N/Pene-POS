@@ -18,6 +18,7 @@ import { PaginationControls } from "@/components/admin/PaginationControls";
 import { ProductFilters } from "@/components/pos/ProductFilters";
 import { ProductFormDrawer } from "@/components/admin/products/ProductFormDrawer";
 import { CategoryManagerModal } from "@/components/admin/products/CategoryManagerModal";
+import { ProductDetailDrawer } from "@/components/admin/products/ProductDetailDrawer";
 import type { Product } from "@/types/db";
 
 type SortKey = "name" | "price" | "stock";
@@ -119,6 +120,7 @@ export function ProductsPage() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
 
   // Changing a search/filter/sort while on page 3 could otherwise land on an
@@ -260,7 +262,11 @@ export function ProductsPage() {
                     const expiring = isExpiringSoon(product.expiry_date);
 
                     return (
-                      <tr key={product.id} className="border-b border-border last:border-0">
+                      <tr
+                        key={product.id}
+                        onClick={() => setDetailProduct(product)}
+                        className="cursor-pointer border-b border-border last:border-0 hover:bg-surface2"
+                      >
                         <td className="py-2 pr-3">
                           {product.image_url ? (
                             <img src={product.image_url} alt="" className="h-8 w-8 rounded object-cover" />
@@ -270,7 +276,7 @@ export function ProductsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="py-2 pr-3 font-medium text-foreground">{product.name}</td>
+                        <td className="py-2 pr-3 font-medium text-foreground underline-offset-2 hover:underline">{product.name}</td>
                         <td className="py-2 pr-3 text-muted">{product.barcode ?? "—"}</td>
                         <td className="py-2 pr-3">
                           {product.category_id && categoryNameById.get(product.category_id) ? (
@@ -318,8 +324,13 @@ export function ProductsPage() {
                             "—"
                           )}
                         </td>
-                        <td className="py-2">
+                        {/* Stops the row's "open details" click -- including clicks
+                            inside the delete button's PIN modal, which renders here. */}
+                        <td className="py-2" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
+                            <button type="button" className={NEUTRAL_BUTTON_CLASS} onClick={() => setDetailProduct(product)}>
+                              {t("admin.products.details")}
+                            </button>
                             <button type="button" className={NEUTRAL_BUTTON_CLASS} onClick={() => openEditDrawer(product)}>
                               {t("admin.products.edit")}
                             </button>
@@ -349,6 +360,7 @@ export function ProductsPage() {
       </CardCustom>
 
       {drawerOpen && <ProductFormDrawer product={editingProduct} onClose={() => setDrawerOpen(false)} />}
+      {detailProduct && <ProductDetailDrawer product={detailProduct} onClose={() => setDetailProduct(null)} />}
       {categoryManagerOpen && <CategoryManagerModal onClose={() => setCategoryManagerOpen(false)} />}
     </div>
   );

@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.18.0",
+    "date": "2026-11-02",
+    "changes": [
+      "product sales detail, search sales by product, page jump, mobile sales UX"
+    ]
+  },
+  {
     "version": "1.17.0",
     "date": "2026-11-02",
     "changes": [

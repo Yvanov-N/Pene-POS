@@ -52,7 +52,9 @@
       "itemsBadge_one": "{{count}} article",
       "itemsBadge_other": "{{count}} articles",
       "viewCart": "Voir le panier",
-      "hideCart": "Masquer le panier"
+      "hideCart": "Masquer le panier",
+      "viewCartShort": "Ouvrir",
+      "hideCartShort": "Fermer"
     },
     "pin": {
       "keyboardHint": "Saisissez votre code PIN au clavier",
@@ -225,8 +227,10 @@
     "pagination": {
       "previous": "Precedent",
       "next": "Suivant",
-      "pageOf": "Page {{page}} sur {{totalPages}}",
-      "offlineNotice": "Hors ligne -- affichage des donnees enregistrees localement."
+      "offlineNotice": "Hors ligne -- affichage des donnees enregistrees localement.",
+      "pageLabel": "Page",
+      "ofTotal": "sur {{totalPages}}",
+      "goTo": "Aller a la page"
     },
     "salesHistory": {
       "unknownStudent": "Etudiant archive",
@@ -234,7 +238,7 @@
       "allPaymentMethods": "Tous",
       "allStatuses": "Tous",
       "allDates": "Toutes les dates",
-      "searchPlaceholder": "N° de vente, caissier, etudiant ou appareil...",
+      "searchPlaceholder": "N° de vente, produit, caissier, etudiant ou appareil...",
       "loading": "Chargement...",
       "empty": "Aucune vente trouvee.",
       "itemsTitle": "Articles",
@@ -265,7 +269,10 @@
       "status": {
         "completed": "Terminee",
         "refunded": "Remboursee"
-      }
+      },
+      "walletChip": "Portefeuille · {{name}}",
+      "showItems": "Voir les articles",
+      "hideItems": "Masquer les articles"
     },
     "products": {
       "title": "Produits",
@@ -303,7 +310,27 @@
       "scanBarcode": "Scanner douchette",
       "categoryNone": "Non classe",
       "columnCost": "Prix d'achat",
-      "columnMargin": "Marge"
+      "columnMargin": "Marge",
+      "details": "Details",
+      "detail": {
+        "tabs": {
+          "summary": "Resume",
+          "sales": "Ventes",
+          "restocks": "Ravitaillements"
+        },
+        "costAndMargin": "achat {{cost}} · marge {{margin}} ({{pct}}%)",
+        "quantitySold": "Quantite vendue",
+        "revenue": "Chiffre d'affaires",
+        "profit": "Benefice reel",
+        "purchased": "Quantite achetee",
+        "purchasedSub_one": "{{count}} ravitaillement · {{spent}}",
+        "purchasedSub_other": "{{count}} ravitaillements · {{spent}}",
+        "neverPurchased": "Aucun ravitaillement enregistre",
+        "lastSale": "Derniere vente le {{date}}",
+        "neverSold": "Jamais vendu",
+        "noSales": "Aucune vente pour ce produit.",
+        "openSale": "Ouvrir dans l'historique des ventes"
+      }
     },
     "categories": {
       "title": "Gestion des categories",

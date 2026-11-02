@@ -52,7 +52,9 @@
       "itemsBadge_one": "{{count}} item",
       "itemsBadge_other": "{{count}} items",
       "viewCart": "View cart",
-      "hideCart": "Hide cart"
+      "hideCart": "Hide cart",
+      "viewCartShort": "Open",
+      "hideCartShort": "Close"
     },
     "pin": {
       "keyboardHint": "Type your PIN on the keyboard",
@@ -225,8 +227,10 @@
     "pagination": {
       "previous": "Previous",
       "next": "Next",
-      "pageOf": "Page {{page}} of {{totalPages}}",
-      "offlineNotice": "Offline -- showing locally saved data."
+      "offlineNotice": "Offline -- showing locally saved data.",
+      "pageLabel": "Page",
+      "ofTotal": "of {{totalPages}}",
+      "goTo": "Go to page"
     },
     "salesHistory": {
       "unknownStudent": "Archived student",
@@ -234,7 +238,7 @@
       "allPaymentMethods": "All",
       "allStatuses": "All",
       "allDates": "All dates",
-      "searchPlaceholder": "Sale #, cashier, student or device...",
+      "searchPlaceholder": "Sale #, product, cashier, student or device...",
       "loading": "Loading...",
       "empty": "No sales found.",
       "itemsTitle": "Items",
@@ -265,7 +269,10 @@
       "status": {
         "completed": "Completed",
         "refunded": "Refunded"
-      }
+      },
+      "walletChip": "Wallet · {{name}}",
+      "showItems": "Show items",
+      "hideItems": "Hide items"
     },
     "products": {
       "title": "Products",
@@ -303,7 +310,27 @@
       "scanBarcode": "Scan with scanner",
       "categoryNone": "Uncategorized",
       "columnCost": "Purchase price",
-      "columnMargin": "Margin"
+      "columnMargin": "Margin",
+      "details": "Details",
+      "detail": {
+        "tabs": {
+          "summary": "Summary",
+          "sales": "Sales",
+          "restocks": "Restocks"
+        },
+        "costAndMargin": "cost {{cost}} · margin {{margin}} ({{pct}}%)",
+        "quantitySold": "Quantity sold",
+        "revenue": "Revenue",
+        "profit": "Real profit",
+        "purchased": "Quantity purchased",
+        "purchasedSub_one": "{{count}} restock · {{spent}}",
+        "purchasedSub_other": "{{count}} restocks · {{spent}}",
+        "neverPurchased": "No restock recorded",
+        "lastSale": "Last sold on {{date}}",
+        "neverSold": "Never sold",
+        "noSales": "No sales for this product.",
+        "openSale": "Open in sales history"
+      }
     },
     "categories": {
       "title": "Category management",

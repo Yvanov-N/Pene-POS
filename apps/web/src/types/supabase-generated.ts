@@ -264,6 +264,13 @@ export type Database = {
             referencedRelation: "sales"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales_search"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sales: {
@@ -621,7 +628,69 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      sales_search: {
+        Row: {
+          cashier_id: string | null
+          created_at: string | null
+          device_label: string | null
+          id: string | null
+          id_text: string | null
+          momo_verification_status: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
+          product_names: string | null
+          status: Database["public"]["Enums"]["sale_status"] | null
+          student_id: string | null
+          sync_seq: number | null
+          total_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          cashier_id?: string | null
+          created_at?: string | null
+          device_label?: string | null
+          id?: string | null
+          id_text?: string | null
+          momo_verification_status?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          product_names?: never
+          status?: Database["public"]["Enums"]["sale_status"] | null
+          student_id?: string | null
+          sync_seq?: number | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          cashier_id?: string | null
+          created_at?: string | null
+          device_label?: string | null
+          id?: string | null
+          id_text?: string | null
+          momo_verification_status?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
+          product_names?: never
+          status?: Database["public"]["Enums"]["sale_status"] | null
+          student_id?: string | null
+          sync_seq?: number | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_cashier_id_fkey"
+            columns: ["cashier_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_student_wallet_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       adjust_product_stock: {
