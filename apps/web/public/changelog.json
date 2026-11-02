@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.23.0",
+    "date": "2026-11-02",
+    "changes": [
+      "full-height tables with internal scroll and always-visible pagination"
+    ]
+  },
+  {
     "version": "1.22.0",
     "date": "2026-11-02",
     "changes": [

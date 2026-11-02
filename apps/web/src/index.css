@@ -260,6 +260,30 @@
     box-shadow: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
   }
 
+  /* Full-height table pages (products, students, sales history): the page
+     fills <main>, the card fills the page, and only the table area scrolls --
+     the table's header row and the pagination below it stay on screen. */
+  .table-page {
+    @apply flex h-full w-full flex-col p-4;
+  }
+
+  .table-card {
+    @apply flex min-h-0 flex-1 flex-col;
+  }
+
+  /* min-height: on a very short screen the card would rather overflow (and
+     <main> scroll) than squeeze the rows to nothing. */
+  .table-scroll {
+    @apply min-h-[12rem] flex-1 overflow-auto;
+  }
+
+  .table-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: hsl(var(--surface));
+  }
+
   /* .stat-card is deliberately a separate token from .card (same radius,
      tighter 16px padding, no shadow) -- a dense 4-up grid reads better
      without the extra padding/elevation a single larger content card wants. */

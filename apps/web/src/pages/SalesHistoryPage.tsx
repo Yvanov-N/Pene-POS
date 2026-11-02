@@ -412,8 +412,8 @@ export function SalesHistoryPage() {
     "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface2 text-foreground hover:border-accent";
 
   return (
-    <div className="w-full p-4">
-      <CardCustom title={t("admin.salesHistory.title")}>
+    <div className="table-page">
+      <CardCustom className="table-card" title={t("admin.salesHistory.title")}>
         <div className="mb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
@@ -489,7 +489,7 @@ export function SalesHistoryPage() {
         ) : filteredSales.length === 0 ? (
           <p className="text-sm text-muted">{t("admin.salesHistory.empty")}</p>
         ) : (
-          <>
+          <div className="table-scroll">
             {/* Phones: one card per sale instead of an 860px table to scroll sideways. */}
             <ul className="flex flex-col gap-3 md:hidden">
               {filteredSales.map((sale) => {
@@ -533,7 +533,7 @@ export function SalesHistoryPage() {
               })}
             </ul>
 
-            <div className="hidden overflow-x-auto md:block">
+            <div className="hidden md:block">
               <table className="w-full min-w-[860px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -603,7 +603,7 @@ export function SalesHistoryPage() {
                 </tbody>
               </table>
             </div>
-          </>
+          </div>
         )}
         {filteredSales !== undefined && totalCount > 0 && (
           <PaginationControls

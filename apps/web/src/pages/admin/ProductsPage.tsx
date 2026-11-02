@@ -206,8 +206,9 @@ export function ProductsPage() {
   };
 
   return (
-    <div className="w-full p-4">
+    <div className="table-page">
       <CardCustom
+        className="table-card"
         title={t("admin.products.title")}
         header={
           <div className="flex gap-2">
@@ -227,13 +228,13 @@ export function ProductsPage() {
           onCategoryChange={setActiveCategory}
         />
 
-        <div className="mt-4">
+        <div className="mt-4 flex min-h-0 flex-1 flex-col">
           {visibleProducts === undefined ? (
             <p className="text-sm text-muted">{t("admin.products.loading")}</p>
           ) : visibleProducts.length === 0 ? (
             <p className="text-sm text-muted">{t("admin.products.empty")}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="table-scroll">
               <table className="w-full min-w-[1000px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">

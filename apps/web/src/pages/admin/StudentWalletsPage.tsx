@@ -273,9 +273,11 @@ export function StudentWalletsPage() {
   };
 
   return (
-    <div className="grid w-full grid-cols-1 items-start gap-4 p-4 xl:grid-cols-12">
+    // Phones/tablets: the table card is one screen tall and the MoMo card
+    // follows below it. xl+: table 8/12 at full height, MoMo 4/12 beside it.
+    <div className="flex h-full w-full flex-col gap-4 p-4 xl:grid xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)]">
       <CardCustom
-        className="min-w-0 xl:col-span-8"
+        className="flex h-full min-h-0 min-w-0 shrink-0 flex-col xl:col-span-8"
         title={showArchived ? t("admin.students.archivedTitle") : t("admin.students.title")}
         header={
           showArchived ? (
@@ -312,7 +314,7 @@ export function StudentWalletsPage() {
           ) : archivedStudents.length === 0 ? (
             <p className="text-sm text-muted">{t("admin.students.archivedEmpty")}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="table-scroll">
               <table className="w-full min-w-[520px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -356,7 +358,7 @@ export function StudentWalletsPage() {
         ) : visibleStudents.length === 0 ? (
           <p className="text-sm text-muted">{t("admin.students.empty")}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="table-scroll">
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -445,7 +447,7 @@ export function StudentWalletsPage() {
         {!showArchived && !isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>
 
-      <div className="min-w-0 xl:col-span-4">
+      <div className="min-w-0 xl:col-span-4 xl:self-start">
         <MoMoVerificationCard />
       </div>
 
