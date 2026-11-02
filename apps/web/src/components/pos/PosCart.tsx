@@ -1,10 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { usePosCheckout, PAYMENT_METHODS } from "@/hooks/usePosCheckout";
 import { formatCurrency } from "@/lib/currency";
+import { PAYMENT_ICON } from "@/lib/paymentMethodStyles";
 import { PinPadModal } from "./PinPadModal";
 import { ReceiptModal } from "./ReceiptModal";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { CartLineItem } from "./CartLineItem";
+import { CreditCard, Trash2, UserX } from "lucide-react";
 
 // Desktop/tablet-landscape chrome only (md and up) -- PosLayout mounts this
 // or MobileCartSheet based on viewport, never both, so this owns its own
@@ -65,20 +67,24 @@ export function PosCart() {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          {PAYMENT_METHODS.map((method) => (
-            <button
-              key={method}
-              type="button"
-              onClick={() => setPaymentMethod(method)}
-              className={`min-w-0 truncate rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${
-                paymentMethod === method
-                  ? "border-accent bg-accent text-accent-foreground"
-                  : "border-border bg-surface2 text-muted hover:text-foreground"
-              }`}
-            >
-              {t(`pos.cart.paymentMethod.${method}`)}
-            </button>
-          ))}
+          {PAYMENT_METHODS.map((method) => {
+            const Icon = PAYMENT_ICON[method];
+            return (
+              <button
+                key={method}
+                type="button"
+                onClick={() => setPaymentMethod(method)}
+                className={`flex min-w-0 items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${
+                  paymentMethod === method
+                    ? "border-accent bg-accent text-accent-foreground"
+                    : "border-border bg-surface2 text-muted hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span className="truncate">{t(`pos.cart.paymentMethod.${method}`)}</span>
+              </button>
+            );
+          })}
         </div>
 
         {paymentMethod && (
@@ -99,8 +105,9 @@ export function PosCart() {
                 <button
                   type="button"
                   onClick={clearStudent}
-                  className="shrink-0 text-xs text-muted hover:text-foreground"
+                  className="inline-flex items-center gap-1.5 shrink-0 text-xs text-muted hover:text-foreground"
                 >
+                  <UserX className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   {t("pos.cart.removeStudent")}
                 </button>
               </div>
@@ -148,9 +155,11 @@ export function PosCart() {
         {/* Instant, no PIN -- same frictionless requirement as removing a
             single item above. */}
         <ButtonCustom variant="danger" disabled={isEmpty} onClick={() => cart.clearCart()}>
+          <Trash2 aria-hidden />
           {t("pos.cart.clear")}
         </ButtonCustom>
         <ButtonCustom variant="success" disabled={!canCheckout} onClick={requestCheckout}>
+          <CreditCard aria-hidden />
           {t("pos.cart.checkout")}
         </ButtonCustom>
       </div>

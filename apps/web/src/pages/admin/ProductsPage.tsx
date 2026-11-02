@@ -24,6 +24,7 @@ import { CategoryManagerModal } from "@/components/admin/products/CategoryManage
 import { ProductDetailDrawer } from "@/components/admin/products/ProductDetailDrawer";
 import type { Product } from "@/types/db";
 import { ProductThumb } from "@/components/ui/product-thumb";
+import { Eye, Pencil, Plus, Tags, Trash2 } from "lucide-react";
 
 type SortKey = "name" | "barcode" | "category" | "price" | "cost" | "margin" | "stock" | "expiry";
 
@@ -49,7 +50,7 @@ interface ProductFilters_ {
 
 
 const NEUTRAL_BUTTON_CLASS =
-  "rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent";
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent";
 
 // Same thresholds as ProductGrid.tsx (POS grid) / OperationalWidgets.tsx
 // (admin dashboard) -- one low-stock/expiry definition used consistently
@@ -233,11 +234,13 @@ export function ProductsPage() {
         className="table-card"
         title={t("admin.products.title")}
         header={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <ButtonCustom variant="primary" size="sm" onClick={() => setCategoryManagerOpen(true)}>
+              <Tags aria-hidden />
               {t("admin.categories.manageButton")}
             </ButtonCustom>
             <ButtonCustom variant="primary" size="sm" onClick={openCreateDrawer}>
+              <Plus aria-hidden />
               {t("admin.products.add")}
             </ButtonCustom>
           </div>
@@ -344,21 +347,40 @@ export function ProductsPage() {
                         {/* Stops the row's "open details" click -- including clicks
                             inside the delete button's PIN modal, which renders here. */}
                         <td className="py-2" onClick={(e) => e.stopPropagation()}>
+                          {/* Icon-only below lg (labels kept as aria-label/title) so the
+                              actions column doesn't force the table wider than a tablet. */}
                           <div className="flex justify-end gap-2">
-                            <button type="button" className={NEUTRAL_BUTTON_CLASS} onClick={() => setDetailProduct(product)}>
-                              {t("admin.products.details")}
+                            <button
+                              type="button"
+                              className={NEUTRAL_BUTTON_CLASS}
+                              aria-label={t("admin.products.details")}
+                              title={t("admin.products.details")}
+                              onClick={() => setDetailProduct(product)}
+                            >
+                              <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                              <span className="hidden lg:inline">{t("admin.products.details")}</span>
                             </button>
-                            <button type="button" className={NEUTRAL_BUTTON_CLASS} onClick={() => openEditDrawer(product)}>
-                              {t("admin.products.edit")}
+                            <button
+                              type="button"
+                              className={NEUTRAL_BUTTON_CLASS}
+                              aria-label={t("admin.products.edit")}
+                              title={t("admin.products.edit")}
+                              onClick={() => openEditDrawer(product)}
+                            >
+                              <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                              <span className="hidden lg:inline">{t("admin.products.edit")}</span>
                             </button>
                             <ButtonCustom
                               variant="danger"
                               size="sm"
                               requiresAdminPin
                               pinModalTitle={t("admin.products.deletePinTitle")}
+                              aria-label={t("admin.products.delete")}
+                              title={t("admin.products.delete")}
                               onClick={() => void handleDelete(product)}
                             >
-                              {t("admin.products.delete")}
+                              <Trash2 aria-hidden />
+                              <span className="hidden lg:inline">{t("admin.products.delete")}</span>
                             </ButtonCustom>
                           </div>
                         </td>

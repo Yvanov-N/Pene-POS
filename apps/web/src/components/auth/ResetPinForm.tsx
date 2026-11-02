@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { hashPin } from "@/lib/hashPin";
 import { PIN_LENGTH, pinSchema, pinConfirmationSchema } from "@/lib/validation";
 import { FieldError } from "@/components/ui/field-error";
+import { Lock } from "lucide-react";
 
 // Gives the magic-link redirect's own session-parsing a brief moment to
 // land before concluding the link was invalid/expired -- see the effect
@@ -136,8 +137,9 @@ export function ResetPinForm() {
               <button
                 type="submit"
                 disabled={formik.isSubmitting}
-                className="rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
               >
+                <Lock className="h-4 w-4 shrink-0" aria-hidden />
                 {t("resetPin.submit")}
               </button>
             </form>

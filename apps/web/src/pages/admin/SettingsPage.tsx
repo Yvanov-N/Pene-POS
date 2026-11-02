@@ -6,6 +6,7 @@ import { ScannerSettingsCard } from "@/components/admin/settings/ScannerSettings
 import { NotificationSettingsCard } from "@/components/admin/settings/NotificationSettingsCard";
 import { ShopStatusCard } from "@/components/admin/settings/ShopStatusCard";
 import { AboutSettingsCard } from "@/components/admin/settings/AboutSettingsCard";
+import { DataBackupCard } from "@/components/admin/settings/DataBackupCard";
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -25,6 +26,11 @@ export function SettingsPage() {
         <PrinterSettingsCard />
         <ScannerSettingsCard />
         <NotificationSettingsCard />
+      </div>
+      {/* Emergency tool, kept apart near the bottom, full width -- then
+          "About", always the last tile. */}
+      <div className="flex flex-col gap-4">
+        <DataBackupCard />
         <AboutSettingsCard />
       </div>
     </div>

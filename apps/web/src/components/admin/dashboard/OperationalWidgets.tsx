@@ -9,6 +9,7 @@ import { ButtonCustom } from "@/components/ui/button-custom";
 import { SyncStatusIndicator } from "@/components/pos/SyncStatusIndicator";
 import { AdminConflictDashboard } from "@/components/admin/AdminConflictDashboard";
 import type { Product } from "@/types/db";
+import { AlertTriangle, PackagePlus } from "lucide-react";
 
 // Same thresholds as ProductGrid.tsx (POS grid badges) and the
 // inventory-alerts edge function -- one low-stock/expiry definition used
@@ -41,6 +42,7 @@ export function StockAlertWidget() {
       title={t("admin.dashboard.lowStockTitle")}
       header={
         <ButtonCustom variant="primary" size="sm" onClick={() => navigate("/admin/restocking")}>
+          <PackagePlus aria-hidden />
           {t("admin.dashboard.goToRestocking")}
         </ButtonCustom>
       }
@@ -145,6 +147,7 @@ export function SyncConflictStatusBar() {
               {t("admin.dashboard.conflictBanner", { count: conflictCount })}
             </p>
             <ButtonCustom variant="danger" size="sm" onClick={() => setConflictsOpen(true)}>
+              <AlertTriangle aria-hidden />
               {t("admin.dashboard.viewConflicts")}
             </ButtonCustom>
           </div>

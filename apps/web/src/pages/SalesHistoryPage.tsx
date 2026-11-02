@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useSearchParams } from "react-router-dom";
-import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Printer, Undo2, Share2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { mapSaleRow, writeBackIfNewer } from "@/services/sync/pull";
@@ -24,6 +24,7 @@ import { voidSale, type VoidSaleFailureReason } from "@/services/refundService";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { PaymentChip } from "@/components/ui/payment-chip";
+import { MomoVerifyActions } from "@/components/admin/MomoVerifyActions";
 import type { Database } from "@/types/supabase";
 import type { PaymentMethod, Profile, Sale } from "@/types/db";
 
@@ -187,7 +188,7 @@ const VOID_ERROR_KEY = {
 } as const satisfies Record<VoidSaleFailureReason, string>;
 
 const NEUTRAL_BUTTON_CLASS =
-  "rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50";
 
 const PILL_CLASS = (active: boolean) =>
   `rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
@@ -415,9 +416,11 @@ export function SalesHistoryPage() {
     return (
       <>
         <button type="button" disabled={isBusy} onClick={() => void handleReprint(sale)} className={NEUTRAL_BUTTON_CLASS}>
+          <Printer className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {t("admin.salesHistory.reprint")}
         </button>
         <button type="button" disabled={isBusy} onClick={() => void handleShare(sale)} className={NEUTRAL_BUTTON_CLASS}>
+          <Share2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {t("admin.salesHistory.share")}
         </button>
         {sale.status !== "refunded" && (
@@ -429,6 +432,7 @@ export function SalesHistoryPage() {
             pinModalTitle={t("admin.salesHistory.voidPinTitle")}
             onClick={(profile) => void handleVoid(sale, profile)}
           >
+            <Undo2 aria-hidden />
             {t("admin.salesHistory.void")}
           </ButtonCustom>
         )}
@@ -451,6 +455,32 @@ export function SalesHistoryPage() {
         ))}
       </ul>
     );
+
+  const isPendingMomo = (sale: Sale) =>
+    (sale.payment_method === "momo_mtn" || sale.payment_method === "momo_orange") &&
+    sale.momo_verification_status === "pending" &&
+    sale.status !== "refunded";
+
+  // A rejected Mobile Money payment is voided (status "refunded") -- say why
+  // instead of a plain "Refunded"; a pending one gets a "to verify" chip.
+  const statusChips = (sale: Sale) => (
+    <span className="inline-flex flex-wrap gap-1">
+      {sale.momo_verification_status === "rejected" ? (
+        <span className="badge-red whitespace-nowrap">{t("admin.salesHistory.momoRejected")}</span>
+      ) : (
+        <span className={STATUS_BADGE_CLASS[sale.status]}>{t(`admin.salesHistory.status.${sale.status}`)}</span>
+      )}
+      {isPendingMomo(sale) && <span className="badge-amber whitespace-nowrap">{t("admin.salesHistory.momoToVerify")}</span>}
+    </span>
+  );
+
+  const momoActions = (sale: Sale) =>
+    isPendingMomo(sale) ? (
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-muted">{t("pos.receipt.momoPendingHint")}</p>
+        <MomoVerifyActions sale={sale} />
+      </div>
+    ) : null;
 
   // Round, bordered icon button so it reads as "this opens" -- the arrow
   // shows the direction: right/down on desktop rows, down/up on mobile cards.
@@ -576,7 +606,7 @@ export function SalesHistoryPage() {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {paymentChip(sale)}
-                        <span className={STATUS_BADGE_CLASS[sale.status]}>{t(`admin.salesHistory.status.${sale.status}`)}</span>
+                        {statusChips(sale)}
                       </div>
                       {attributedStudent(sale)}
                       <p className="truncate text-xs text-muted">
@@ -597,7 +627,12 @@ export function SalesHistoryPage() {
                         {renderActions(sale)}
                       </div>
                     </div>
-                    {isExpanded && <div className="border-t border-border bg-surface2 p-3">{renderItems()}</div>}
+                    {isExpanded && (
+                      <div className="flex flex-col gap-3 border-t border-border bg-surface2 p-3">
+                        {renderItems()}
+                        {momoActions(sale)}
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -653,7 +688,7 @@ export function SalesHistoryPage() {
                             {attributedStudent(sale)}
                           </td>
                           <td className="py-2 pr-3">
-                            <span className={STATUS_BADGE_CLASS[sale.status]}>{t(`admin.salesHistory.status.${sale.status}`)}</span>
+                            {statusChips(sale)}
                           </td>
                           <td className="py-2 pr-3 font-semibold text-foreground">{formatCurrency(sale.total_amount)}</td>
                           <td className="py-2">
@@ -668,6 +703,7 @@ export function SalesHistoryPage() {
                                 {t("admin.salesHistory.itemsTitle")}
                               </p>
                               {renderItems()}
+                              <div className="mt-3 max-w-sm">{momoActions(sale)}</div>
                             </td>
                           </tr>
                         )}

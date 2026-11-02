@@ -12,7 +12,9 @@ export function CardCustom({ title, header, footer, children, className }: CardC
   return (
     <div className={`card${className ? ` ${className}` : ""}`}>
       {(title || header) && (
-        <div className="mb-4 flex items-center justify-between gap-3">
+        // flex-wrap: on a phone the header buttons drop below the title instead of
+        // overflowing the card.
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           {title && <h2 className="text-lg font-semibold text-foreground">{title}</h2>}
           {header}
         </div>

@@ -1,4 +1,14 @@
+import { Banknote, GraduationCap, Smartphone, type LucideIcon } from "lucide-react";
 import type { PaymentMethod, SaleStatus } from "@/types/db";
+
+// One icon per payment method, shared by the desktop cart and the mobile
+// cart sheet's payment buttons.
+export const PAYMENT_ICON: Record<PaymentMethod, LucideIcon> = {
+  cash: Banknote,
+  momo_mtn: Smartphone,
+  momo_orange: Smartphone,
+  student_wallet: GraduationCap,
+};
 
 // Shared between SalesHistoryPage and ReceiptPage (a payment method should
 // read as the same badge color everywhere) -- moved out of

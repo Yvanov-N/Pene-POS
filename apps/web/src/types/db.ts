@@ -320,6 +320,9 @@ export interface ShopStatus {
   is_open: boolean;
   updated_at: string;
   updated_by?: string;
+  // Bumped by a "replace all" data import (migration 00042): devices that see
+  // it change rebuild their local copy (services/sync/pull.ts).
+  data_epoch?: number;
   sync_seq?: number;
 }
 

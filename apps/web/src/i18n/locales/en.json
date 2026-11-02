@@ -74,7 +74,11 @@
       "title": "Sale complete",
       "printButton": "Print",
       "shareButton": "Share",
-      "closeButton": "Close"
+      "closeButton": "Close",
+      "momoPendingTitle": "Mobile Money payment to verify.",
+      "momoPendingHint": "Check that the confirmation SMS reached the shop phone.",
+      "momoConfirmed": "Mobile Money payment verified.",
+      "momoRejected": "Payment rejected -- sale cancelled."
     },
     "momoReminder": {
       "label_one": "{{count}} MoMo payment to verify",
@@ -123,7 +127,8 @@
       "confirm": "Confirm SMS",
       "reject": "Reject",
       "confirmedToast": "MoMo transaction confirmed ({{amount}})",
-      "rejectedToast": "MoMo transaction rejected, stock restored"
+      "rejectedToast": "MoMo payment rejected -- sale cancelled, stock restored",
+      "rejectPinTitle": "Admin PIN to reject this payment and cancel the sale"
     },
     "wallets": {
       "searchPlaceholder": "Search for a student (name, badge, email)...",
@@ -250,7 +255,7 @@
       "reprint": "Reprint",
       "reprintToast": "Receipt printing started",
       "reprintError": "Printing failed",
-      "share": "🔗 Share",
+      "share": "Share",
       "shareTitle": "Cite Shop receipt",
       "shareText": "Purchase receipt No. {{id}} - {{amount}}",
       "shareLinkCopiedToast": "Receipt link copied for WhatsApp/Telegram",
@@ -277,13 +282,15 @@
       "walletChip": "Wallet · {{name}}",
       "showItems": "Show items",
       "hideItems": "Hide items",
-      "sortBy": "Sort by"
+      "sortBy": "Sort by",
+      "momoToVerify": "MoMo to verify",
+      "momoRejected": "MoMo rejected"
     },
     "products": {
       "title": "Products",
       "loading": "Loading products...",
       "empty": "No products yet.",
-      "add": "+ Add a product",
+      "add": "Add a product",
       "addTitle": "Add a product",
       "editTitle": "Edit product",
       "edit": "Edit",
@@ -363,7 +370,7 @@
       "title": "Students",
       "loading": "Loading students...",
       "empty": "No students yet.",
-      "add": "+ Add a student",
+      "add": "Add a student",
       "addTitle": "Add a student",
       "editTitle": "Edit student",
       "edit": "Edit",
@@ -547,6 +554,65 @@
     "routeGuard": {
       "locked": "This section is locked. Enter the admin PIN to continue.",
       "unlock": "Unlock"
+    },
+    "backup": {
+      "title": "Data backup and migration",
+      "intro": "For emergencies: a full copy of the shop's data (products, stock, students and wallets, sales, suppliers, purchases...) to keep, restore, or load into another database system. The files contain personal data: keep them somewhere safe. Login accounts, passwords, PINs and images are not included.",
+      "offline": "A connection is required to export or import.",
+      "exportTitle": "Export",
+      "exportHint": "JSON: the app's own backup format, best for restoring. SQL: portable standard SQL (PostgreSQL, MySQL/MariaDB, SQLite) to migrate to another DBMS.",
+      "exportJson": "Export as JSON",
+      "exportSql": "Export as SQL",
+      "exportPinTitle": "Admin PIN to export the data",
+      "exportDone_one": "Export done ({{count}} row)",
+      "exportDone_other": "Export done ({{count}} rows)",
+      "exportFailed": "Export failed. Check the connection and try again.",
+      "importTitle": "Import",
+      "importHint": "A JSON or SQL file produced by this export. The import is all-or-nothing: on any error, nothing is changed.",
+      "chooseFile": "Choose a file (.json or .sql)",
+      "fileDate": "Exported on {{date}}",
+      "fileDateUnknown": "Unknown export date",
+      "totalRows_one": "{{count}} row in total",
+      "totalRows_other": "{{count}} rows in total",
+      "modeLabel": "Import mode",
+      "modes": {
+        "merge": {
+          "title": "Merge (recommended)",
+          "description": "Adds the file's rows and updates those that already exist. Nothing is deleted."
+        },
+        "replace": {
+          "title": "Replace everything",
+          "description": "Empties the shop's data, then fills it from the file. Anything not in the file is lost."
+        }
+      },
+      "replaceWarning": "All current data (products, sales, students, suppliers, purchases...) will be deleted and replaced by the file's content. Export a backup of the current state first. Every device will reload its data.",
+      "replaceConfirmLabel": "Type {{word}} to confirm",
+      "importMerge": "Import (merge)",
+      "importReplace": "Replace all data",
+      "importPinTitle": "Admin PIN to import data",
+      "importDone": "Import done",
+      "importFailed": "Import cancelled, nothing was changed: {{reason}}",
+      "resultTitle": "Imported rows",
+      "remappedCashiers_one": "{{count}} sale had a cashier unknown here: it was attributed to you.",
+      "remappedCashiers_other": "{{count}} sales had a cashier unknown here: they were attributed to you.",
+      "fileErrors": {
+        "not-a-backup": "This file is not a Pene POS backup.",
+        "bad-json": "Unreadable JSON file.",
+        "bad-sql": "Unreadable SQL file (only files produced by this export are supported)."
+      },
+      "tables": {
+        "categories": "Categories",
+        "products": "Products",
+        "student_wallets": "Students / wallets",
+        "profiles": "Profiles",
+        "shop_status": "Shop status",
+        "suppliers": "Suppliers",
+        "supplier_products": "Supplier prices",
+        "sales": "Sales",
+        "sale_items": "Sale lines",
+        "stock_purchases": "Restocks",
+        "supplier_price_history": "Price history"
+      }
     }
   },
   "sidebar": {
@@ -620,7 +686,7 @@
       "suppliers": "Suppliers"
     },
     "supplierLabel": "Supplier",
-    "newSupplier": "+ New supplier",
+    "newSupplier": "New supplier",
     "knownSuppliers": "Suppliers of this product",
     "otherSuppliers": "Other suppliers",
     "unitCostLabel": "Unit purchase price (FCFA)",
@@ -686,7 +752,7 @@
     "errorProductRequired": "Choose a product.",
     "errorPriceInvalid": "Enter a valid price (0 or more).",
     "offerSavedToast": "Supplier price saved",
-    "addOffer": "+ Add a price",
+    "addOffer": "Add a price",
     "editOffer": "Price & history",
     "removeOffer": "Remove",
     "panelTitle": "Suppliers and purchase prices",

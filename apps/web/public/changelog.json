@@ -1,5 +1,40 @@
 [
   {
+    "version": "1.31.2",
+    "date": "2026-11-02",
+    "changes": [
+      "button icons aligned and buttons responsive"
+    ]
+  },
+  {
+    "version": "1.31.1",
+    "date": "2026-11-02",
+    "changes": [
+      "make About the last tile in Settings"
+    ]
+  },
+  {
+    "version": "1.31.0",
+    "date": "2026-11-02",
+    "changes": [
+      "emergency data export/import (JSON, portable SQL) in Settings"
+    ]
+  },
+  {
+    "version": "1.30.0",
+    "date": "2026-11-02",
+    "changes": [
+      "icons on every action button"
+    ]
+  },
+  {
+    "version": "1.29.0",
+    "date": "2026-11-02",
+    "changes": [
+      "rejecting a Mobile Money payment cancels the sale; verify from the POS and the receipt"
+    ]
+  },
+  {
     "version": "1.28.0",
     "date": "2026-11-02",
     "changes": [

@@ -209,6 +209,7 @@ export function mapShopStatusRow(row: ShopStatusRow): ShopStatus {
     is_open: row.is_open,
     updated_at: row.updated_at,
     updated_by: row.updated_by ?? undefined,
+    data_epoch: row.data_epoch,
     sync_seq: row.sync_seq,
   };
 }
@@ -434,6 +435,66 @@ async function pullChangedTables(watermarks: Watermarks | null): Promise<void> {
   }
 }
 
+// ---- "replace all" imports --------------------------------------------------
+//
+// A replace import (migration 00042) hard-deletes rows, which the cursor-based
+// pull can't see -- there's no row left to carry a newer sync_seq. Instead it
+// bumps shop_status.data_epoch; a device whose last-seen epoch differs wipes
+// its local copy of the business tables (and their cursors) so the next pull
+// reloads everything. Unsent local work (the outbox) and this device's own
+// settings are kept.
+
+const DATA_EPOCH_KEY = "pene_pos.dataEpoch";
+
+const RESETTABLE_TABLES = [
+  ["categories", db.categories],
+  ["products", db.products],
+  ["student_wallets", db.student_wallets],
+  ["sales", db.sales],
+  ["sale_items", db.sale_items],
+  ["suppliers", db.suppliers],
+  ["supplier_products", db.supplier_products],
+  ["stock_purchases", db.stock_purchases],
+  ["supplier_price_history", db.supplier_price_history],
+] as const;
+
+async function resetLocalBusinessData(): Promise<void> {
+  await db.transaction("rw", [...RESETTABLE_TABLES.map(([, table]) => table), db.sync_cursors], async () => {
+    for (const [name, table] of RESETTABLE_TABLES) {
+      await table.clear();
+      await db.sync_cursors.delete(name);
+    }
+  });
+}
+
+// True when the local copy was just wiped and needs a full reload.
+async function reconcileDataEpoch(): Promise<boolean> {
+  const epoch = (await db.shop_status.get(1))?.data_epoch;
+  if (epoch === undefined) return false;
+  let seen: string | null = null;
+  try {
+    seen = localStorage.getItem(DATA_EPOCH_KEY);
+  } catch {
+    return false;
+  }
+  const remember = () => {
+    try {
+      localStorage.setItem(DATA_EPOCH_KEY, String(epoch));
+    } catch {
+      // Best effort.
+    }
+  };
+  // First time this device sees an epoch: nothing to compare with yet.
+  if (seen === null) {
+    remember();
+    return false;
+  }
+  if (Number(seen) === epoch) return false;
+  await resetLocalBusinessData();
+  remember();
+  return true;
+}
+
 export interface PullResult {
   reachable: boolean;
 }
@@ -474,6 +535,8 @@ export function pullAll(knownWatermarks?: Watermarks): Promise<PullResult> {
         marks = result.ok ? result.watermarks : null;
       }
       await pullChangedTables(marks);
+      // A "replace all" import happened elsewhere: start over from scratch.
+      if (await reconcileDataEpoch()) await pullChangedTables(null);
       if (!cycleHadError) markSynced();
     } while (rerunRequested);
     return { reachable };

@@ -74,7 +74,11 @@
       "title": "Vente terminee",
       "printButton": "Imprimer",
       "shareButton": "Partager",
-      "closeButton": "Fermer"
+      "closeButton": "Fermer",
+      "momoPendingTitle": "Paiement Mobile Money a verifier.",
+      "momoPendingHint": "Verifiez que le SMS de confirmation est bien arrive sur le telephone de la boutique.",
+      "momoConfirmed": "Paiement Mobile Money verifie.",
+      "momoRejected": "Paiement rejete -- vente annulee."
     },
     "momoReminder": {
       "label_one": "{{count}} paiement MoMo a verifier",
@@ -123,7 +127,8 @@
       "confirm": "Confirmer SMS",
       "reject": "Rejeter",
       "confirmedToast": "Transaction MoMo confirmee ({{amount}})",
-      "rejectedToast": "Transaction MoMo rejetee, stock restaure"
+      "rejectedToast": "Paiement MoMo rejete -- vente annulee, stock restaure",
+      "rejectPinTitle": "Code PIN administrateur pour rejeter ce paiement et annuler la vente"
     },
     "wallets": {
       "searchPlaceholder": "Rechercher un etudiant (nom, badge, e-mail)...",
@@ -250,7 +255,7 @@
       "reprint": "Reimprimer",
       "reprintToast": "Impression du ticket lancee",
       "reprintError": "Echec de l'impression",
-      "share": "🔗 Partager",
+      "share": "Partager",
       "shareTitle": "Recu Cite Shop",
       "shareText": "Recu d'achat No. {{id}} - {{amount}}",
       "shareLinkCopiedToast": "Lien du recu copie pour WhatsApp/Telegram",
@@ -277,13 +282,15 @@
       "walletChip": "Portefeuille · {{name}}",
       "showItems": "Voir les articles",
       "hideItems": "Masquer les articles",
-      "sortBy": "Trier par"
+      "sortBy": "Trier par",
+      "momoToVerify": "MoMo a verifier",
+      "momoRejected": "MoMo rejete"
     },
     "products": {
       "title": "Produits",
       "loading": "Chargement des produits...",
       "empty": "Aucun produit pour le moment.",
-      "add": "+ Ajouter un produit",
+      "add": "Ajouter un produit",
       "addTitle": "Ajouter un produit",
       "editTitle": "Modifier le produit",
       "edit": "Modifier",
@@ -363,7 +370,7 @@
       "title": "Etudiants",
       "loading": "Chargement des etudiants...",
       "empty": "Aucun etudiant pour le moment.",
-      "add": "+ Ajouter un etudiant",
+      "add": "Ajouter un etudiant",
       "addTitle": "Ajouter un etudiant",
       "editTitle": "Modifier l'etudiant",
       "edit": "Modifier",
@@ -547,6 +554,65 @@
     "routeGuard": {
       "locked": "Cette section est verrouillee. Saisissez le code PIN administrateur pour continuer.",
       "unlock": "Deverrouiller"
+    },
+    "backup": {
+      "title": "Sauvegarde et migration des donnees",
+      "intro": "Pour les cas d'urgence : copie complete des donnees de la boutique (produits, stocks, etudiants et portefeuilles, ventes, fournisseurs, achats...) pour la conserver, la restaurer ou la charger dans un autre systeme de base de donnees. Les fichiers contiennent des donnees personnelles : gardez-les en lieu sur. Les comptes de connexion, mots de passe, PIN et images ne sont pas inclus.",
+      "offline": "Connexion requise pour exporter ou importer.",
+      "exportTitle": "Exporter",
+      "exportHint": "JSON : format de sauvegarde de l'application, ideal pour restaurer. SQL : standard portable (PostgreSQL, MySQL/MariaDB, SQLite) pour migrer vers un autre SGBD.",
+      "exportJson": "Exporter en JSON",
+      "exportSql": "Exporter en SQL",
+      "exportPinTitle": "Code PIN administrateur pour exporter les donnees",
+      "exportDone_one": "Export termine ({{count}} ligne)",
+      "exportDone_other": "Export termine ({{count}} lignes)",
+      "exportFailed": "L'export a echoue. Verifiez la connexion et reessayez.",
+      "importTitle": "Importer",
+      "importHint": "Fichier JSON ou SQL produit par cet export. L'import se fait d'un seul bloc : en cas d'erreur, rien n'est modifie.",
+      "chooseFile": "Choisir un fichier (.json ou .sql)",
+      "fileDate": "Export du {{date}}",
+      "fileDateUnknown": "Date d'export inconnue",
+      "totalRows_one": "{{count}} ligne au total",
+      "totalRows_other": "{{count}} lignes au total",
+      "modeLabel": "Mode d'import",
+      "modes": {
+        "merge": {
+          "title": "Fusionner (recommande)",
+          "description": "Ajoute les lignes du fichier et met a jour celles qui existent deja. Rien n'est supprime."
+        },
+        "replace": {
+          "title": "Remplacer tout",
+          "description": "Vide les donnees de la boutique puis les remplit avec le fichier. Tout ce qui n'est pas dans le fichier est perdu."
+        }
+      },
+      "replaceWarning": "Toutes les donnees actuelles (produits, ventes, etudiants, fournisseurs, achats...) seront supprimees et remplacees par le contenu du fichier. Exportez d'abord une sauvegarde de l'etat actuel. Tous les appareils rechargeront leurs donnees.",
+      "replaceConfirmLabel": "Tapez {{word}} pour confirmer",
+      "importMerge": "Importer (fusionner)",
+      "importReplace": "Remplacer toutes les donnees",
+      "importPinTitle": "Code PIN administrateur pour importer des donnees",
+      "importDone": "Import termine",
+      "importFailed": "Import annule, aucune donnee modifiee : {{reason}}",
+      "resultTitle": "Lignes importees",
+      "remappedCashiers_one": "{{count}} vente avait un caissier inconnu ici : elle vous a ete attribuee.",
+      "remappedCashiers_other": "{{count}} ventes avaient un caissier inconnu ici : elles vous ont ete attribuees.",
+      "fileErrors": {
+        "not-a-backup": "Ce fichier n'est pas une sauvegarde Pene POS.",
+        "bad-json": "Fichier JSON illisible.",
+        "bad-sql": "Fichier SQL illisible (seuls les fichiers produits par cet export sont pris en charge)."
+      },
+      "tables": {
+        "categories": "Categories",
+        "products": "Produits",
+        "student_wallets": "Etudiants / portefeuilles",
+        "profiles": "Profils",
+        "shop_status": "Statut boutique",
+        "suppliers": "Fournisseurs",
+        "supplier_products": "Prix fournisseurs",
+        "sales": "Ventes",
+        "sale_items": "Lignes de vente",
+        "stock_purchases": "Ravitaillements",
+        "supplier_price_history": "Historique des prix"
+      }
     }
   },
   "sidebar": {
@@ -620,7 +686,7 @@
       "suppliers": "Fournisseurs"
     },
     "supplierLabel": "Fournisseur",
-    "newSupplier": "+ Nouveau fournisseur",
+    "newSupplier": "Nouveau fournisseur",
     "knownSuppliers": "Fournisseurs de ce produit",
     "otherSuppliers": "Autres fournisseurs",
     "unitCostLabel": "Prix d'achat unitaire (FCFA)",
@@ -686,7 +752,7 @@
     "errorProductRequired": "Choisissez un produit.",
     "errorPriceInvalid": "Saisissez un prix valide (0 ou plus).",
     "offerSavedToast": "Prix du fournisseur enregistre",
-    "addOffer": "+ Ajouter un prix",
+    "addOffer": "Ajouter un prix",
     "editOffer": "Prix & historique",
     "removeOffer": "Retirer",
     "panelTitle": "Fournisseurs et prix d'achat",

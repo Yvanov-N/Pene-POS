@@ -3,7 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowDownRight, ArrowUpRight, Trash2, X } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Trash2, X, Save } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
@@ -251,6 +251,7 @@ export function OfferFormModal({ productId, supplierId, onClose }: OfferFormModa
           </div>
 
           <ButtonCustom variant="primary" isLoading={formik.isSubmitting} onClick={() => void formik.submitForm()}>
+            <Save aria-hidden />
             {t("suppliers.saveNewPrice")}
           </ButtonCustom>
         </form>

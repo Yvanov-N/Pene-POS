@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { X, RotateCw, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { FieldError } from "@/components/ui/field-error";
@@ -123,14 +123,16 @@ export function OtpVerifyModal({ email, title, onVerified, onClose }: OtpVerifyM
             disabled={formik.values.code.length !== OTP_LENGTH}
             onClick={() => void formik.submitForm()}
           >
+            <ShieldCheck aria-hidden />
             {t("admin.profile.otp.verify")}
           </ButtonCustom>
           <button
             type="button"
             disabled={cooldown > 0 || sending}
             onClick={() => void sendCode()}
-            className="text-xs text-muted hover:text-foreground disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 text-xs text-muted hover:text-foreground disabled:opacity-50"
           >
+            <RotateCw className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {cooldown > 0 ? t("admin.profile.otp.resendCooldown", { count: cooldown }) : t("admin.profile.otp.resend")}
           </button>
         </div>

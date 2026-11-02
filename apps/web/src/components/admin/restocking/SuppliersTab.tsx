@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, MapPin, Phone, Star, User } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, MapPin, Phone, Star, User, History, Pencil, Plus, Trash2, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { buildProductOffers, summarizeSuppliers, supplierPriceTimeline } from "@/lib/purchaseStats";
@@ -69,6 +69,7 @@ export function SuppliersTab() {
       title={t("suppliers.title")}
       header={
         <ButtonCustom variant="primary" size="sm" onClick={() => setEditing("new")}>
+          <Plus aria-hidden />
           {t("suppliers.add")}
         </ButtonCustom>
       }
@@ -155,9 +156,11 @@ export function SuppliersTab() {
                         </a>
                       )}
                       <button type="button" className={SMALL_BUTTON_CLASS} onClick={() => setOfferModal({ supplierId: supplier.id })}>
+                        <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
                         {t("suppliers.addOffer")}
                       </button>
                       <button type="button" className={SMALL_BUTTON_CLASS} onClick={() => setEditing(supplier)}>
+                        <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                         {t("suppliers.edit")}
                       </button>
                       <ButtonCustom
@@ -167,6 +170,7 @@ export function SuppliersTab() {
                         pinModalTitle={t("suppliers.deletePinTitle")}
                         onClick={() => void handleDelete(supplier)}
                       >
+                        <Trash2 aria-hidden />
                         {t("suppliers.delete")}
                       </ButtonCustom>
                     </div>
@@ -229,10 +233,12 @@ export function SuppliersTab() {
                                         className={SMALL_BUTTON_CLASS}
                                         onClick={() => setOfferModal({ supplierId: supplier.id, productId })}
                                       >
+                                        <History className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                         {t("suppliers.editOffer")}
                                       </button>
                                       {offer && (
                                         <button type="button" className={SMALL_BUTTON_CLASS} onClick={() => void handleDeleteOffer(offer)}>
+                                          <X className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                           {t("suppliers.removeOffer")}
                                         </button>
                                       )}

@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { VersionInfo } from "@/types/version";
+import { Clock, Download, FileText, RefreshCw } from "lucide-react";
 
 interface UpdateBannerProps {
   available: boolean;
@@ -34,7 +35,7 @@ export function UpdateBanner({
         aria-label={info ? t("update.toast.titleWithVersion", { version: info.version }) : t("update.toast.title")}
         className="update-pill animate-pulse"
       >
-        <span aria-hidden>↻</span>
+        <RefreshCw className="h-4 w-4" aria-hidden />
       </button>
     );
   }
@@ -50,26 +51,29 @@ export function UpdateBanner({
           <button
             type="button"
             onClick={onShowChangelog}
-            className="mt-1 text-xs text-muted underline hover:text-foreground"
+            className="inline-flex items-center gap-1.5 mt-1 text-xs text-muted underline hover:text-foreground"
           >
+            <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {t("update.toast.viewChangelog")}
           </button>
         )}
-        <div className="mt-3 flex justify-end gap-2">
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={onSnooze}
             disabled={applying}
-            className="rounded-lg px-3 py-1.5 text-sm text-muted hover:text-foreground disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted hover:text-foreground disabled:opacity-50"
           >
+            <Clock className="h-4 w-4 shrink-0" aria-hidden />
             {t("update.toast.later")}
           </button>
           <button
             type="button"
             onClick={onUpdate}
             disabled={applying}
-            className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground hover:opacity-90 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground hover:opacity-90 disabled:opacity-50"
           >
+            <Download className="h-4 w-4 shrink-0" aria-hidden />
             {t("update.toast.updateNow")}
           </button>
         </div>

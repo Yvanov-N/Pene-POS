@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { scannerService } from "@/services/hardware/scannerService";
 import { CardCustom } from "@/components/ui/card-custom";
+import { ScanBarcode, Unplug } from "lucide-react";
 
 // This card is only ever routed to on /admin/settings, which is mutually
 // exclusive with the POS route (react-router renders one route element at a
@@ -48,16 +49,18 @@ export function ScannerSettingsCard() {
               <button
                 type="button"
                 onClick={() => void disconnectDevice()}
-                className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
               >
+                <Unplug className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {t("admin.settings.disconnectScanner")}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => void connectDevice()}
-                className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
               >
+                <ScanBarcode className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {t("pos.barcode.pairScanner")}
               </button>
             ))}

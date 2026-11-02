@@ -3,7 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
-import { X } from "lucide-react";
+import { X, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { commitLocal, makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
@@ -166,6 +166,7 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
               isLoading={addFormik.isSubmitting}
               onClick={() => void addFormik.submitForm()}
             >
+              <Plus aria-hidden />
               {t("admin.categories.add")}
             </ButtonCustom>
           </div>
@@ -201,8 +202,9 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
                             type="button"
                             onClick={cancelEdit}
                             disabled={editFormik.isSubmitting}
-                            className="flex-1 rounded-lg border border-border py-1.5 text-xs font-medium text-foreground disabled:opacity-50"
+                            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-1.5 text-xs font-medium text-foreground disabled:opacity-50"
                           >
+                            <X className="h-3.5 w-3.5 shrink-0" aria-hidden />
                             {t("admin.categories.cancel")}
                           </button>
                           <ButtonCustom
@@ -212,6 +214,7 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
                             isLoading={editFormik.isSubmitting}
                             onClick={() => void editFormik.submitForm()}
                           >
+                            <Save aria-hidden />
                             {t("admin.categories.save")}
                           </ButtonCustom>
                         </div>
@@ -226,8 +229,9 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
                           <button
                             type="button"
                             onClick={() => startEdit(category)}
-                            className="rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent"
                           >
+                            <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                             {t("admin.categories.edit")}
                           </button>
                           <ButtonCustom
@@ -237,6 +241,7 @@ export function CategoryManagerModal({ onClose }: CategoryManagerModalProps) {
                             pinModalTitle={t("admin.categories.deletePinTitle")}
                             onClick={() => void handleDelete(category)}
                           >
+                            <Trash2 aria-hidden />
                             {t("admin.categories.delete")}
                           </ButtonCustom>
                         </div>

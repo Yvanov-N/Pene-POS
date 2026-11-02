@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Printer, Share2 } from "lucide-react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { X, Printer, Share2, CheckCircle2, XCircle, Smartphone } from "lucide-react";
+import { db } from "@/lib/db";
+import { MomoVerifyActions } from "@/components/admin/MomoVerifyActions";
 import { formatCurrency } from "@/lib/currency";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
@@ -34,6 +37,10 @@ export function ReceiptModal({ receipt, onClose, onPrint }: ReceiptModalProps) {
   const { prepareShareUrl } = useShareReceipt();
   const { showToast } = useToast();
   const [isSharing, setIsSharing] = useState(false);
+  // Live, so the verification block below reflects a confirm/reject made
+  // here or anywhere else (the POS modal, another till) immediately.
+  const liveSale = useLiveQuery(() => db.sales.get(sale.id), [sale.id]) ?? sale;
+  const isMomo = sale.payment_method === "momo_mtn" || sale.payment_method === "momo_orange";
 
   const locale = LOCALE_BY_LANGUAGE[i18n.language] ?? LOCALE_BY_LANGUAGE.fr;
   const timestamp = t("receiptPage.timestampFormat", {
@@ -124,16 +131,46 @@ export function ReceiptModal({ receipt, onClose, onPrint }: ReceiptModalProps) {
 
           <p className="mt-2 text-center text-xs text-muted">{t("receipt.cashier", { name: cashierName })}</p>
 
-          <div className="receipt-actions mt-4 flex gap-2">
-            <ButtonCustom variant="primary" className="flex-1" onClick={onPrint}>
-              <Printer className="h-4 w-4" aria-hidden />
+          {/* Mobile Money: check the shop phone's SMS right from the receipt.
+              receipt-actions = screen only, never printed. */}
+          {isMomo && (
+            <div className="receipt-actions mt-4 rounded-lg border border-border p-3">
+              {liveSale.momo_verification_status === "rejected" || liveSale.status === "refunded" ? (
+                <p className="flex items-center gap-2 text-sm font-medium text-destructive">
+                  <XCircle className="h-4 w-4 shrink-0" aria-hidden />
+                  {t("pos.receipt.momoRejected")}
+                </p>
+              ) : liveSale.momo_verification_status === "confirmed" ? (
+                <p className="flex items-center gap-2 text-sm font-medium text-success">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+                  {t("pos.receipt.momoConfirmed")}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <p className="flex items-start gap-2 text-sm text-foreground">
+                    <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+                    <span>
+                      <span className="font-medium">{t("pos.receipt.momoPendingTitle")}</span>{" "}
+                      <span className="text-muted">{t("pos.receipt.momoPendingHint")}</span>
+                    </span>
+                  </p>
+                  <MomoVerifyActions sale={liveSale} />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="receipt-actions mt-4 flex flex-wrap gap-2">
+            <ButtonCustom variant="primary" className="flex-1 basis-28" onClick={onPrint}>
+              <Printer aria-hidden />
               {t("pos.receipt.printButton")}
             </ButtonCustom>
-            <ButtonCustom variant="primary" className="flex-1" isLoading={isSharing} onClick={() => void handleShare()}>
-              <Share2 className="h-4 w-4" aria-hidden />
+            <ButtonCustom variant="primary" className="flex-1 basis-28" isLoading={isSharing} onClick={() => void handleShare()}>
+              <Share2 aria-hidden />
               {t("pos.receipt.shareButton")}
             </ButtonCustom>
-            <ButtonCustom variant="primary" className="flex-1" onClick={onClose}>
+            <ButtonCustom variant="primary" className="flex-1 basis-28" onClick={onClose}>
+              <X aria-hidden />
               {t("pos.receipt.closeButton")}
             </ButtonCustom>
           </div>

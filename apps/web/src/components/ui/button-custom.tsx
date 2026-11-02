@@ -36,11 +36,13 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   danger: "bg-destructive text-destructive-foreground hover:opacity-90",
 };
 
+// The icon size follows the button size, so callers pass a bare
+// <Icon aria-hidden /> and every button of a given size gets the same icon.
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "px-2.5 py-1.5 text-xs font-medium",
-  md: "px-4 py-2 text-sm font-semibold",
-  lg: "px-6 py-3 text-base font-semibold",
-  icon: "h-8 w-8 p-0 text-sm",
+  sm: "gap-1.5 px-2.5 py-1.5 text-xs font-medium [&_svg]:h-3.5 [&_svg]:w-3.5",
+  md: "gap-2 px-4 py-2 text-sm font-semibold [&_svg]:h-4 [&_svg]:w-4",
+  lg: "gap-2 px-6 py-3 text-base font-semibold [&_svg]:h-5 [&_svg]:w-5",
+  icon: "h-8 w-8 shrink-0 p-0 text-sm [&_svg]:h-4 [&_svg]:w-4",
 };
 
 function Spinner() {
@@ -86,7 +88,8 @@ export function ButtonCustom({
         onClick={handleClick}
         disabled={disabled || isLoading}
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-lg transition-colors disabled:opacity-40",
+          // text-center: a label that wraps on a narrow screen stays centered next to its icon.
+          "inline-flex items-center justify-center rounded-lg text-center transition-colors disabled:opacity-40 [&_svg]:shrink-0",
           VARIANT_CLASSES[variant],
           SIZE_CLASSES[size],
           className,

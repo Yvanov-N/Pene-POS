@@ -1,7 +1,7 @@
 {
   "name": "pene-pos",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.31.2",
   "description": "Cite Shop / Pene POS - offline-first Point of Sale PWA monorepo",
   "engines": {
     "node": ">=20"

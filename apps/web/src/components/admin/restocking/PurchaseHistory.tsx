@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Download } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { downloadCsv } from "@/lib/csv";
@@ -133,6 +133,7 @@ export function PurchaseHistory() {
       title={t("restocking.history.title")}
       header={
         <ButtonCustom variant="primary" size="sm" onClick={handleExport} disabled={!view || view.rows.length === 0}>
+          <Download aria-hidden />
           {t("restocking.history.export")}
         </ButtonCustom>
       }

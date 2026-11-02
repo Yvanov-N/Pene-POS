@@ -16,6 +16,7 @@ import { FieldError } from "@/components/ui/field-error";
 import type { Product } from "@/types/db";
 import { AmountInput } from "@/components/ui/amount-input";
 import { parseAmount } from "@/lib/money";
+import { ImagePlus, Save, ScanBarcode, X } from "lucide-react";
 
 interface FormState {
   name: string;
@@ -259,8 +260,9 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
                 <button
                   type="button"
                   onClick={() => void connectDevice()}
-                  className="shrink-0 rounded-lg border border-border bg-surface2 px-3 py-2 text-xs font-medium text-foreground hover:border-accent"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface2 px-3 py-2 text-xs font-medium text-foreground hover:border-accent"
                 >
+                  <ScanBarcode className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   {t("admin.products.scanBarcode")}
                 </button>
               )}
@@ -303,6 +305,7 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
                   isLoading={imageUploading}
                   onClick={() => imageInputRef.current?.click()}
                 >
+                  <ImagePlus aria-hidden />
                   {t("admin.products.imageImportButton")}
                 </ButtonCustom>
               </div>
@@ -343,8 +346,9 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
               type="button"
               onClick={onClose}
               disabled={formik.isSubmitting}
-              className="flex-1 rounded-lg border border-border py-2 text-sm font-medium text-foreground disabled:opacity-50"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground disabled:opacity-50"
             >
+              <X className="h-4 w-4 shrink-0" aria-hidden />
               {t("admin.products.formCancel")}
             </button>
             <ButtonCustom
@@ -353,6 +357,7 @@ export function ProductFormDrawer({ product, onClose }: ProductFormDrawerProps) 
               isLoading={formik.isSubmitting}
               onClick={() => void formik.submitForm()}
             >
+              <Save aria-hidden />
               {t("admin.products.formSave")}
             </ButtonCustom>
           </div>

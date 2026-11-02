@@ -3,7 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
-import { GraduationCap, Wallet, ShoppingCart, Receipt, X } from "lucide-react";
+import { GraduationCap, Wallet, ShoppingCart, Receipt, X, HandCoins, PlusCircle, Printer } from "lucide-react";
 import { db } from "@/lib/db";
 import { commitLocal, makeOutboxEntry } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
@@ -272,6 +272,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
                     isLoading={rechargeFormik.isSubmitting}
                     onClick={() => void rechargeFormik.submitForm()}
                   >
+                    <PlusCircle aria-hidden />
                     {t("admin.recharge.confirm")}
                   </ButtonCustom>
                 </div>
@@ -303,6 +304,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
                         void withdrawFormik.submitForm();
                       }}
                     >
+                      <HandCoins aria-hidden />
                       {t("admin.withdrawal.confirm")}
                     </ButtonCustom>
                   </div>
@@ -455,8 +457,9 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
                           type="button"
                           disabled={reprintingId === sale.id}
                           onClick={() => void handleReprint(sale)}
-                          className="mt-3 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
                         >
+                          <Printer className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           {t("admin.salesHistory.reprint")}
                         </button>
                       </div>

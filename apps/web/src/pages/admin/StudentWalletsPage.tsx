@@ -4,7 +4,7 @@ import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Archive, Pencil, X } from "lucide-react";
+import { Archive, Pencil, X, ArchiveRestore, ArrowLeft, Save, UserPlus } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
@@ -354,18 +354,21 @@ export function StudentWalletsPage() {
         header={
           showArchived ? (
             <ButtonCustom variant="primary" size="sm" onClick={() => setShowArchived(false)}>
+              <ArrowLeft aria-hidden />
               {t("admin.students.backToActive")}
             </ButtonCustom>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setShowArchived(true)}
-                className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent"
               >
+                <Archive className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {t("admin.students.showArchived")}
               </button>
               <ButtonCustom variant="primary" size="sm" onClick={openCreateForm}>
+                <UserPlus aria-hidden />
                 {t("admin.students.add")}
               </ButtonCustom>
             </div>
@@ -414,8 +417,9 @@ export function StudentWalletsPage() {
                         <button
                           type="button"
                           onClick={() => void handleRestore(student)}
-                          className="rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent"
+                          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent"
                         >
+                          <ArchiveRestore className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           {t("admin.students.restore")}
                         </button>
                       </td>
@@ -496,7 +500,7 @@ export function StudentWalletsPage() {
                             title={t("admin.students.archive")}
                             onClick={() => void handleArchive(student)}
                           >
-                            <Archive className="h-4 w-4" aria-hidden />
+                            <Archive aria-hidden />
                           </ButtonCustom>
                         </div>
                       </td>
@@ -613,8 +617,9 @@ export function StudentWalletsPage() {
                   type="button"
                   onClick={() => setFormOpen(false)}
                   disabled={formik.isSubmitting}
-                  className="flex-1 rounded-lg border border-border py-2 text-sm font-medium text-foreground disabled:opacity-50"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-border py-2 text-sm font-medium text-foreground disabled:opacity-50"
                 >
+                  <X className="h-4 w-4 shrink-0" aria-hidden />
                   {t("admin.students.formCancel")}
                 </button>
                 <ButtonCustom
@@ -623,6 +628,7 @@ export function StudentWalletsPage() {
                   isLoading={formik.isSubmitting}
                   onClick={() => void formik.submitForm()}
                 >
+                  <Save aria-hidden />
                   {t("admin.students.formSave")}
                 </ButtonCustom>
               </div>

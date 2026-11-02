@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { clampPage, PAGE_SIZE_OPTIONS } from "@/lib/pagination";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PaginationControlsProps {
   page: number;
@@ -12,7 +13,7 @@ interface PaginationControlsProps {
 }
 
 const BUTTON_CLASS =
-  "rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-40";
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-40";
 
 // Shared "‹ Page [x] of Y ›" widget -- ProductsPage, StudentWalletsPage, and
 // SalesHistoryPage all need the exact same one. The page number is editable
@@ -41,6 +42,7 @@ export function PaginationControls({ page, totalPages, onPageChange, pageSize, o
         onClick={() => onPageChange(page - 1)}
         className={BUTTON_CLASS}
       >
+        <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
         {t("admin.pagination.previous")}
       </button>
       {/* Wraps below the buttons on a phone (order-last), centered between them otherwise. */}
@@ -90,6 +92,7 @@ export function PaginationControls({ page, totalPages, onPageChange, pageSize, o
         className={BUTTON_CLASS}
       >
         {t("admin.pagination.next")}
+        <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
       </button>
     </div>
   );

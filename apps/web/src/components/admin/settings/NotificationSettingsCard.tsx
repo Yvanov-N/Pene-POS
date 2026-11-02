@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/useToast";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { Switch } from "@/components/ui/switch";
+import { BellRing } from "lucide-react";
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
@@ -154,6 +155,7 @@ export function NotificationSettingsCard() {
             onClick={() => void handleTestPush()}
             className="w-full"
           >
+            <BellRing aria-hidden />
             {t("admin.settings.pushTestButton")}
           </ButtonCustom>
           {pushStatus !== "enabled" && (

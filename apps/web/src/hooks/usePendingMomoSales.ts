@@ -16,7 +16,9 @@ export function usePendingMomoSales(): Sale[] | undefined {
             .filter(
               (sale) =>
                 (sale.payment_method === "momo_mtn" || sale.payment_method === "momo_orange") &&
-                sale.momo_verification_status === "pending",
+                sale.momo_verification_status === "pending" &&
+                // Already cancelled from the sales history: nothing left to verify.
+                sale.status !== "refunded",
             )
             .sort((a, b) => b.created_at.localeCompare(a.created_at)),
         ),

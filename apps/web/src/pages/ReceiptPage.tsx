@@ -276,7 +276,7 @@ export function ReceiptPage() {
                   if (saleId) void runFetch(saleId);
                 }}
               >
-                <RotateCw className="h-4 w-4" aria-hidden />
+                <RotateCw aria-hidden />
                 {t("receiptPage.retryButton")}
               </ButtonCustom>
             </div>
@@ -334,13 +334,13 @@ export function ReceiptPage() {
                   </p>
                 )}
 
-                <div className="receipt-actions mt-4 flex gap-2">
-                  <ButtonCustom variant="primary" className="flex-1" isLoading={isSharing} onClick={() => void handleShare()}>
-                    <Share2 className="h-4 w-4" aria-hidden />
+                <div className="receipt-actions mt-4 flex flex-wrap gap-2">
+                  <ButtonCustom variant="primary" className="flex-1 basis-28" isLoading={isSharing} onClick={() => void handleShare()}>
+                    <Share2 aria-hidden />
                     {t("receiptPage.share")}
                   </ButtonCustom>
-                  <ButtonCustom variant="primary" className="flex-1" onClick={() => window.print()}>
-                    <Printer className="h-4 w-4" aria-hidden />
+                  <ButtonCustom variant="primary" className="flex-1 basis-28" onClick={() => window.print()}>
+                    <Printer aria-hidden />
                     {t("receiptPage.print")}
                   </ButtonCustom>
                 </div>
