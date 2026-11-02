@@ -97,28 +97,29 @@ export function MoMoVerificationCard() {
         ) : (
           <ul className="flex flex-col gap-2">
             {pendingSales.map((sale) => (
-              <li
-                key={sale.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border p-3"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={sale.payment_method === "momo_mtn" ? "badge-amber" : "badge-orange"}>
+              // Stacked, not side by side: this card is only 4/12 wide next to
+              // the students table, too narrow for details + two buttons on one
+              // line (they used to overlap). Same layout at every width.
+              <li key={sale.id} className="flex flex-col gap-3 rounded-lg border border-border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className={`${sale.payment_method === "momo_mtn" ? "badge-amber" : "badge-orange"} whitespace-nowrap`}>
                       {sale.payment_method === "momo_mtn" ? "MTN MoMo" : "Orange Money"}
                     </span>
-                    <span className="text-sm font-medium text-foreground">
-                      {formatCurrency(sale.total_amount)}
-                    </span>
+                    <p className="mt-1 truncate text-xs text-muted">
+                      {new Date(sale.created_at).toLocaleTimeString()} ·{" "}
+                      {sale.device_label ?? cashierNames?.get(sale.cashier_id) ?? sale.cashier_id}
+                    </p>
                   </div>
-                  <p className="mt-1 text-xs text-muted">
-                    {new Date(sale.created_at).toLocaleTimeString()} ·{" "}
-                    {sale.device_label ?? cashierNames?.get(sale.cashier_id) ?? sale.cashier_id}
-                  </p>
+                  <span className="shrink-0 whitespace-nowrap text-base font-semibold text-foreground">
+                    {formatCurrency(sale.total_amount)}
+                  </span>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <ButtonCustom
                     variant="success"
                     size="sm"
+                    className="w-full"
                     disabled={busyId === sale.id}
                     onClick={() => void handleConfirm(sale)}
                   >
@@ -127,6 +128,7 @@ export function MoMoVerificationCard() {
                   <ButtonCustom
                     variant="danger"
                     size="sm"
+                    className="w-full"
                     disabled={busyId === sale.id}
                     onClick={() => void handleReject(sale)}
                   >

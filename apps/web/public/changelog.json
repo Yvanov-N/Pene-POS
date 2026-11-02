@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.24.1",
+    "date": "2026-11-02",
+    "changes": [
+      "stack Mobile Money verification rows so they never overlap"
+    ]
+  },
+  {
     "version": "1.24.0",
     "date": "2026-11-02",
     "changes": [
