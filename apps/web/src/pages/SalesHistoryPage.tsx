@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { mapSaleRow, writeBackIfNewer } from "@/services/sync/pull";
 import { usePaginatedQuery, type PageParams, type PageResult } from "@/hooks/usePaginatedQuery";
 import { PaginationControls } from "@/components/admin/PaginationControls";
+import { usePageSize } from "@/hooks/usePageSize";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { useShareReceipt } from "@/hooks/useShareReceipt";
@@ -24,7 +25,6 @@ import type { Database } from "@/types/supabase";
 import type { PaymentMethod, Profile, Sale } from "@/types/db";
 
 const SETTINGS_ID = "default";
-const PAGE_SIZE = 50;
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
 const STATUS_FILTERS = ["all", "completed", "refunded"] as const;
@@ -170,6 +170,7 @@ export function SalesHistoryPage() {
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("sales");
 
   // Any search/filter/date change while on page 3 could otherwise land on
   // an empty page -- every setter below also resets back to page 1.
@@ -235,7 +236,7 @@ export function SalesHistoryPage() {
   } = usePaginatedQuery({
     params: {
       page,
-      pageSize: PAGE_SIZE,
+      pageSize,
       searchTerm,
       sortKey: "created_at",
       sortDir: "desc",
@@ -411,8 +412,8 @@ export function SalesHistoryPage() {
     "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface2 text-foreground hover:border-accent";
 
   return (
-    <div className="mx-auto max-w-6xl p-4">
-      <CardCustom title={t("admin.salesHistory.title")}>
+    <div className="table-page">
+      <CardCustom className="table-card" title={t("admin.salesHistory.title")}>
         <div className="mb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
@@ -488,7 +489,7 @@ export function SalesHistoryPage() {
         ) : filteredSales.length === 0 ? (
           <p className="text-sm text-muted">{t("admin.salesHistory.empty")}</p>
         ) : (
-          <>
+          <div className="table-scroll">
             {/* Phones: one card per sale instead of an 860px table to scroll sideways. */}
             <ul className="flex flex-col gap-3 md:hidden">
               {filteredSales.map((sale) => {
@@ -532,7 +533,7 @@ export function SalesHistoryPage() {
               })}
             </ul>
 
-            <div className="hidden overflow-x-auto md:block">
+            <div className="hidden md:block">
               <table className="w-full min-w-[860px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -602,10 +603,16 @@ export function SalesHistoryPage() {
                 </tbody>
               </table>
             </div>
-          </>
+          </div>
         )}
         {filteredSales !== undefined && totalCount > 0 && (
-          <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
+          <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+            />
         )}
         {!isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>

@@ -13,7 +13,7 @@ export function RestockingPage() {
   const [tab, setTab] = useState<Tab>("restock");
 
   return (
-    <div className={`mx-auto p-4 ${tab === "restock" ? "max-w-2xl" : "max-w-5xl"}`}>
+    <div className="w-full p-4">
       <div className="mb-4 flex flex-wrap gap-2">
         {TABS.map((key) => (
           <button key={key} type="button" onClick={() => setTab(key)} className={PILL_CLASS(tab === key)}>

@@ -102,7 +102,7 @@ export function MoMoVerificationCard() {
   };
 
   return (
-    <CardCustom className="mx-auto max-w-2xl" title={t("admin.momo.title")}>
+    <CardCustom title={t("admin.momo.title")}>
         {pendingSales === undefined ? (
           <p className="text-sm text-muted">{t("admin.momo.loading")}</p>
         ) : pendingSales.length === 0 ? (

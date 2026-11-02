@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
+import { paginate } from "@/lib/pagination";
+import { usePageSize } from "@/hooks/usePageSize";
+import { PaginationControls } from "@/components/admin/PaginationControls";
 import type { ProductProfit } from "@/hooks/useDashboardAnalytics";
-
-const INITIAL_ROWS = 10;
 
 interface ProfitabilityTableProps {
   data: ProductProfit[];
@@ -13,13 +14,15 @@ interface ProfitabilityTableProps {
 // product actually earned, not just what it sold.
 export function ProfitabilityTable({ data }: ProfitabilityTableProps) {
   const { t } = useTranslation();
-  const [showAll, setShowAll] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("profitability");
 
   if (data.length === 0) {
     return <p className="py-8 text-center text-sm text-muted">{t("admin.dashboard.noData")}</p>;
   }
 
-  const rows = showAll ? data : data.slice(0, INITIAL_ROWS);
+  // Clamped: a narrower date range can leave fewer pages than before.
+  const { rows, totalPages } = paginate(data, page, pageSize);
   const maxRevenue = Math.max(...data.map((row) => row.revenue), 1);
 
   return (
@@ -74,17 +77,13 @@ export function ProfitabilityTable({ data }: ProfitabilityTableProps) {
           </tbody>
         </table>
       </div>
-      {data.length > INITIAL_ROWS && (
-        <div className="mt-3 flex justify-center">
-          <button
-            type="button"
-            onClick={() => setShowAll((v) => !v)}
-            className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent"
-          >
-            {showAll ? t("admin.dashboard.profit.showLess") : t("admin.dashboard.profit.showAll", { count: data.length })}
-          </button>
-        </div>
-      )}
+      <PaginationControls
+        page={Math.min(page, totalPages)}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+      />
     </div>
   );
 }

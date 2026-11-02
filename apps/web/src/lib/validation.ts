@@ -1,4 +1,5 @@
 import * as Yup from "yup";
+import { decimalPlaces, parseAmount } from "@/lib/money";
 
 export const PIN_LENGTH = 4;
 export const PIN_PATTERN = /^\d{4}$/;
@@ -36,21 +37,33 @@ interface NumberSchemaOptions {
   integer?: boolean; // whole numbers only (stock, restocking quantity)
   min?: number; // inclusive lower bound (price/stock >= 0)
   moreThan?: number; // exclusive lower bound (recharge/withdraw > 0)
+  decimals?: number; // max decimal places (2 for money amounts)
 }
 
 // A required, finite number typed into a text/number input. Formik keeps the
 // field's own value as a string; Yup casts it for validation only -- onSubmit
-// still does its own Number(values.x) when building the record to persist,
-// exactly as before. One message is reused for every failing case, matching
-// each field's single existing error message (no form in this app
-// distinguishes "required" from "not a number" from "too small").
+// does its own parseAmount(values.x) when building the record to persist.
+// The transform accepts a French decimal comma ("12,5") and spaced thousands
+// ("1 250"), same rules as parseAmount. One message is reused for every
+// failing case, matching each field's single existing error message (no form
+// in this app distinguishes "required" from "not a number" from "too small").
 export function numberSchema(message: string, options: NumberSchemaOptions = {}) {
-  let schema = Yup.number().typeError(message).required(message);
+  let schema = Yup.number()
+    .transform((value, original) => (typeof original === "string" ? parseAmount(original) : value))
+    .typeError(message)
+    .required(message);
   if (options.integer) schema = schema.integer(message);
   if (options.min !== undefined) schema = schema.min(options.min, message);
   if (options.moreThan !== undefined) schema = schema.moreThan(options.moreThan, message);
+  if (options.decimals !== undefined) {
+    const max = options.decimals;
+    schema = schema.test("decimals", message, (value) => value === undefined || decimalPlaces(value) <= max);
+  }
   return schema;
 }
+
+// Money fields: decimals allowed, at most 2.
+export const MONEY_DECIMALS = 2;
 
 // Shared shape of the "is this value already used by a different row" check
 // every async uniqueness .test() follows (barcode, category name, badge

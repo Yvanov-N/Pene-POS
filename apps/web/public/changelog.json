@@ -1,5 +1,33 @@
 [
   {
+    "version": "1.23.0",
+    "date": "2026-11-02",
+    "changes": [
+      "full-height tables with internal scroll and always-visible pagination"
+    ]
+  },
+  {
+    "version": "1.22.0",
+    "date": "2026-11-02",
+    "changes": [
+      "hide the barcode field unless a hardware scanner is paired"
+    ]
+  },
+  {
+    "version": "1.21.0",
+    "date": "2026-11-02",
+    "changes": [
+      "full-width admin layouts, settings in two columns, scanner bar only when paired"
+    ]
+  },
+  {
+    "version": "1.20.0",
+    "date": "2026-11-02",
+    "changes": [
+      "rows-per-page on every table, decimal amounts everywhere, robust product images"
+    ]
+  },
+  {
     "version": "1.19.0",
     "date": "2026-11-02",
     "changes": [

@@ -219,9 +219,7 @@
         "columnProfit": "Benefice",
         "columnMargin": "Marge",
         "uncostedUnits_one": "{{count}} unite vendue sans prix d'achat",
-        "uncostedUnits_other": "{{count}} unites vendues sans prix d'achat",
-        "showAll": "Voir les {{count}} produits",
-        "showLess": "Reduire"
+        "uncostedUnits_other": "{{count}} unites vendues sans prix d'achat"
       }
     },
     "pagination": {
@@ -230,7 +228,8 @@
       "offlineNotice": "Hors ligne -- affichage des donnees enregistrees localement.",
       "pageLabel": "Page",
       "ofTotal": "sur {{totalPages}}",
-      "goTo": "Aller a la page"
+      "goTo": "Aller a la page",
+      "rowsPerPage": "Lignes par page"
     },
     "salesHistory": {
       "unknownStudent": "Etudiant archive",
@@ -594,7 +593,7 @@
   },
   "restocking": {
     "title": "Reapprovisionnement rapide",
-    "searchPlaceholder": "Rechercher un produit par nom...",
+    "searchPlaceholder": "Rechercher un produit par nom ou code-barres...",
     "noMatches": "Aucun produit trouve.",
     "noProductSelected": "Scannez un code-barres ou recherchez un produit pour commencer.",
     "currentStock": "Stock actuel : {{count}}",
@@ -629,7 +628,6 @@
       "from": "Du",
       "to": "Au",
       "empty": "Aucun ravitaillement enregistre.",
-      "showMore": "Afficher plus",
       "columnDate": "Date",
       "columnProduct": "Produit",
       "columnSupplier": "Fournisseur",
@@ -645,7 +643,8 @@
       "summaryRange": "Prix paye de {{min}} a {{max}}",
       "deletedProduct": "Produit supprime",
       "deletedSupplier": "Fournisseur supprime"
-    }
+    },
+    "panelPlaceholder": "Selectionnez un produit pour comparer ses fournisseurs et l'evolution de ses prix d'achat."
   },
   "suppliers": {
     "title": "Fournisseurs",

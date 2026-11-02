@@ -219,9 +219,7 @@
         "columnProfit": "Profit",
         "columnMargin": "Margin",
         "uncostedUnits_one": "{{count}} unit sold without a purchase price",
-        "uncostedUnits_other": "{{count}} units sold without a purchase price",
-        "showAll": "Show all {{count}} products",
-        "showLess": "Show less"
+        "uncostedUnits_other": "{{count}} units sold without a purchase price"
       }
     },
     "pagination": {
@@ -230,7 +228,8 @@
       "offlineNotice": "Offline -- showing locally saved data.",
       "pageLabel": "Page",
       "ofTotal": "of {{totalPages}}",
-      "goTo": "Go to page"
+      "goTo": "Go to page",
+      "rowsPerPage": "Rows per page"
     },
     "salesHistory": {
       "unknownStudent": "Archived student",
@@ -594,7 +593,7 @@
   },
   "restocking": {
     "title": "Fast restocking",
-    "searchPlaceholder": "Search for a product by name...",
+    "searchPlaceholder": "Search a product by name or barcode...",
     "noMatches": "No matching products.",
     "noProductSelected": "Scan a barcode or search for a product to get started.",
     "currentStock": "Current stock: {{count}}",
@@ -629,7 +628,6 @@
       "from": "From",
       "to": "To",
       "empty": "No restock recorded yet.",
-      "showMore": "Show more",
       "columnDate": "Date",
       "columnProduct": "Product",
       "columnSupplier": "Supplier",
@@ -645,7 +643,8 @@
       "summaryRange": "Paid from {{min}} to {{max}}",
       "deletedProduct": "Deleted product",
       "deletedSupplier": "Deleted supplier"
-    }
+    },
+    "panelPlaceholder": "Select a product to compare its suppliers and purchase price trend."
   },
   "suppliers": {
     "title": "Suppliers",

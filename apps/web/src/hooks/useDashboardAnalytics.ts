@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getRangeForFilter, type CustomRange, type TimeRangeFilter } from "@/lib/dateHelpers";
 import { isRevenueRelevant, buildProductTotals, emptyProductTotals, type ProductTotals } from "@/lib/salesAggregation";
 import type { OutboxOperation, PaymentMethod } from "@/types/db";
+import { roundMoney } from "@/lib/money";
 
 export type { TimeRangeFilter, CustomRange };
 
@@ -158,7 +159,7 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
       hourlyBuckets.set(hour, bucket);
     }
 
-    grossRevenue = Math.round(grossRevenue);
+    grossRevenue = roundMoney(grossRevenue);
     const totalTransactions = relevantSales.length;
 
     const revenueChangePct =
@@ -172,14 +173,14 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
       const bucket = hourlyBuckets.get(hour);
       return {
         hour: `${String(hour).padStart(2, "0")}h`,
-        revenue: Math.round(bucket?.revenue ?? 0),
+        revenue: roundMoney(bucket?.revenue ?? 0),
         orders: bucket?.orders ?? 0,
       };
     });
 
     const paymentSplit: PaymentSplitEntry[] = PAYMENT_METHODS.map((method) => ({
       method,
-      total: Math.round(paymentTotals[method]),
+      total: roundMoney(paymentTotals[method]),
       percentage: grossRevenue === 0 ? 0 : Math.round((paymentTotals[method] / grossRevenue) * 1000) / 10,
       fill: PAYMENT_COLORS[method],
     }));
@@ -203,7 +204,7 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
       productId: entry.productId,
       name: productNames.get(entry.productId) ?? "Produit",
       quantitySold: entry.quantitySold,
-      revenue: Math.round(entry.revenue),
+      revenue: roundMoney(entry.revenue),
     }));
 
     const overall = emptyProductTotals();
@@ -219,9 +220,9 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
         productId: entry.productId,
         name: productNames.get(entry.productId) ?? "Produit",
         quantitySold: entry.quantitySold,
-        revenue: Math.round(entry.revenue),
-        cost: Math.round(entry.cost),
-        profit: Math.round(entry.profit),
+        revenue: roundMoney(entry.revenue),
+        cost: roundMoney(entry.cost),
+        profit: roundMoney(entry.profit),
         marginPct: marginOf(entry),
         uncostedQuantity: entry.uncostedQuantity,
       }))
@@ -229,15 +230,15 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
 
     return {
       grossRevenue,
-      costOfGoods: Math.round(overall.cost),
-      grossProfit: Math.round(overall.profit),
+      costOfGoods: roundMoney(overall.cost),
+      grossProfit: roundMoney(overall.profit),
       marginPct: marginOf(overall),
       profitChangePct: changePct(overall.profit, previousProfit),
-      uncostedRevenue: Math.round(overall.revenue - overall.costedRevenue),
+      uncostedRevenue: roundMoney(overall.revenue - overall.costedRevenue),
       productProfitability,
       revenueChangePct,
       totalTransactions,
-      totalWalletRecharges: Math.round(totalWalletRecharges),
+      totalWalletRecharges: roundMoney(totalWalletRecharges),
       hourlyRevenue,
       paymentSplit,
       topProducts,

@@ -6,11 +6,13 @@ import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { downloadCsv } from "@/lib/csv";
 import { priceChangeByPurchase, summarizePurchases } from "@/lib/purchaseStats";
+import { paginate } from "@/lib/pagination";
+import { usePageSize } from "@/hooks/usePageSize";
+import { PaginationControls } from "@/components/admin/PaginationControls";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
-import { INPUT_CLASS, SMALL_BUTTON_CLASS } from "./styles";
+import { INPUT_CLASS } from "./styles";
 
-const PAGE_SIZE = 50;
 const ALL = "all";
 
 // Every restock (stock_purchases), newest first, with the unit cost change vs
@@ -21,7 +23,13 @@ export function PurchaseHistory() {
   const [supplierFilter, setSupplierFilter] = useState(ALL);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("purchases");
+  // Any filter change could otherwise leave us on a page that no longer exists.
+  const withPageReset = <T,>(setter: (value: T) => void) => (value: T) => {
+    setter(value);
+    setPage(1);
+  };
 
   const data = useLiveQuery(async () => {
     const [purchases, products, suppliers] = await Promise.all([
@@ -50,6 +58,8 @@ export function PurchaseHistory() {
     );
     return { rows, changes, productNames, supplierNames, summary: summarizePurchases(rows) };
   }, [data, productFilter, supplierFilter, from, to]);
+
+  const pageView = view ? paginate(view.rows, page, pageSize) : null;
 
   const productName = (id: string) => view?.productNames.get(id) ?? t("restocking.history.deletedProduct");
   const supplierName = (id: string) => view?.supplierNames.get(id) ?? t("restocking.history.deletedSupplier");
@@ -91,7 +101,7 @@ export function PurchaseHistory() {
       }
     >
       <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <select value={productFilter} onChange={(e) => setProductFilter(e.target.value)} className={INPUT_CLASS}>
+        <select value={productFilter} onChange={(e) => withPageReset(setProductFilter)(e.target.value)} className={INPUT_CLASS}>
           <option value={ALL}>{t("restocking.history.allProducts")}</option>
           {data?.products.map((p) => (
             <option key={p.id} value={p.id}>
@@ -99,7 +109,7 @@ export function PurchaseHistory() {
             </option>
           ))}
         </select>
-        <select value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className={INPUT_CLASS}>
+        <select value={supplierFilter} onChange={(e) => withPageReset(setSupplierFilter)(e.target.value)} className={INPUT_CLASS}>
           <option value={ALL}>{t("restocking.history.allSuppliers")}</option>
           {data?.suppliers.map((s) => (
             <option key={s.id} value={s.id}>
@@ -107,8 +117,8 @@ export function PurchaseHistory() {
             </option>
           ))}
         </select>
-        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={INPUT_CLASS} aria-label={t("restocking.history.from")} />
-        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={INPUT_CLASS} aria-label={t("restocking.history.to")} />
+        <input type="date" value={from} onChange={(e) => withPageReset(setFrom)(e.target.value)} className={INPUT_CLASS} aria-label={t("restocking.history.from")} />
+        <input type="date" value={to} onChange={(e) => withPageReset(setTo)(e.target.value)} className={INPUT_CLASS} aria-label={t("restocking.history.to")} />
       </div>
 
       {view && view.rows.length > 0 && (
@@ -152,7 +162,7 @@ export function PurchaseHistory() {
                 </tr>
               </thead>
               <tbody>
-                {view.rows.slice(0, visible).map((p) => {
+                {pageView!.rows.map((p) => {
                   const change = view.changes.get(p.id);
                   return (
                     <tr key={p.id} className="border-b border-border">
@@ -179,13 +189,13 @@ export function PurchaseHistory() {
               </tbody>
             </table>
           </div>
-          {view.rows.length > visible && (
-            <div className="mt-3 flex justify-center">
-              <button type="button" className={SMALL_BUTTON_CLASS} onClick={() => setVisible((v) => v + PAGE_SIZE)}>
-                {t("restocking.history.showMore")}
-              </button>
-            </div>
-          )}
+          <PaginationControls
+            page={Math.min(page, pageView!.totalPages)}
+            totalPages={pageView!.totalPages}
+            onPageChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
+          />
         </>
       )}
     </CardCustom>

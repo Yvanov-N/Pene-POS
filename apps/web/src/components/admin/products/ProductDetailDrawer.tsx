@@ -6,14 +6,17 @@ import { ArrowDownRight, ArrowUpRight, ChevronRight, Package, Receipt, TrendingU
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/currency";
 import { STATUS_BADGE_CLASS } from "@/lib/paymentMethodStyles";
+import { paginate } from "@/lib/pagination";
+import { usePageSize } from "@/hooks/usePageSize";
+import { PaginationControls } from "@/components/admin/PaginationControls";
 import { isRevenueRelevant, totalsByProduct } from "@/lib/salesAggregation";
 import { priceChangeByPurchase, summarizePurchases } from "@/lib/purchaseStats";
 import { StatCard } from "@/components/admin/StatCard";
 import { PaymentChip } from "@/components/ui/payment-chip";
 import { ProductSupplierPanel } from "@/components/admin/restocking/ProductSupplierPanel";
 import type { Product } from "@/types/db";
+import { ProductThumb } from "@/components/ui/product-thumb";
 
-const PAGE_SIZE = 50;
 const TABS = ["summary", "sales", "restocks"] as const;
 type Tab = (typeof TABS)[number];
 
@@ -35,7 +38,8 @@ export function ProductDetailDrawer({ product: initialProduct, onClose }: Produc
   const product = useLiveQuery(() => db.products.get(initialProduct.id), [initialProduct.id]) ?? initialProduct;
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("summary");
-  const [visibleSales, setVisibleSales] = useState(PAGE_SIZE);
+  const [salesPage, setSalesPage] = useState(1);
+  const [salesPageSize, setSalesPageSize] = usePageSize("productSales");
 
   const data = useLiveQuery(async () => {
     const [items, purchases, suppliers, students] = await Promise.all([
@@ -84,13 +88,7 @@ export function ProductDetailDrawer({ product: initialProduct, onClose }: Produc
       <div className="relative flex h-full w-full max-w-2xl flex-col overflow-y-auto bg-surface p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            {product.image_url ? (
-              <img src={product.image_url} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
-            ) : (
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-surface2 text-2xl" aria-hidden>
-                {product.emoji || "📦"}
-              </span>
-            )}
+            <ProductThumb product={product} size="md" />
             <div className="min-w-0">
               <h2 className="truncate text-lg font-semibold text-foreground">{product.name}</h2>
               <p className="text-xs text-muted">
@@ -180,7 +178,7 @@ export function ProductDetailDrawer({ product: initialProduct, onClose }: Produc
           ) : (
             <div className="flex flex-col gap-2">
               <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
-                {view.lines.slice(0, visibleSales).map(({ item, sale }) => (
+                {paginate(view.lines, salesPage, salesPageSize).rows.map(({ item, sale }) => (
                   <li key={item.id}>
                     <button
                       type="button"
@@ -209,15 +207,13 @@ export function ProductDetailDrawer({ product: initialProduct, onClose }: Produc
                   </li>
                 ))}
               </ul>
-              {view.lines.length > visibleSales && (
-                <button
-                  type="button"
-                  onClick={() => setVisibleSales((v) => v + PAGE_SIZE)}
-                  className="self-center rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent"
-                >
-                  {t("restocking.history.showMore")}
-                </button>
-              )}
+              <PaginationControls
+                page={salesPage}
+                totalPages={paginate(view.lines, salesPage, salesPageSize).totalPages}
+                onPageChange={setSalesPage}
+                pageSize={salesPageSize}
+                onPageSizeChange={setSalesPageSize}
+              />
             </div>
           )
         ) : (

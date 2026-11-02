@@ -3,7 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
-import { X } from "lucide-react";
+import { Archive, Pencil, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
@@ -15,17 +15,19 @@ import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency } from "@/lib/currency";
 import { isRevenueRelevant } from "@/lib/salesAggregation";
-import { notTakenByOther, numberSchema } from "@/lib/validation";
+import { MONEY_DECIMALS, notTakenByOther, numberSchema } from "@/lib/validation";
 import { MoMoVerificationCard } from "@/components/admin/MoMoVerificationCard";
 import { PaginationControls } from "@/components/admin/PaginationControls";
+import { usePageSize } from "@/hooks/usePageSize";
 import { StudentProfileDrawer } from "@/components/admin/wallets/StudentProfileDrawer";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { FieldError } from "@/components/ui/field-error";
 import { Switch } from "@/components/ui/switch";
 import type { StudentWallet } from "@/types/db";
+import { AmountInput } from "@/components/ui/amount-input";
+import { parseAmount } from "@/lib/money";
 
-const PAGE_SIZE = 25;
 type WalletFilters_ = Record<string, never>;
 
 // Local fallback (offline, or the server attempt timed out/failed) -- same
@@ -101,6 +103,7 @@ export function StudentWalletsPage() {
 
   const [searchTerm, setSearchTermState] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePageSize("students");
   const setSearchTerm = (value: string) => {
     setSearchTermState(value);
     setPage(1); // a changed search term while on page 3 could otherwise land on an empty page
@@ -144,14 +147,14 @@ export function StudentWalletsPage() {
           return notTakenByOther(existing, editingId ?? undefined);
         }),
       // No min/moreThan -- debt (a negative balance) is a valid state here.
-      balance: numberSchema(t("admin.students.errorBalanceInvalid")),
+      balance: numberSchema(t("admin.students.errorBalanceInvalid"), { decimals: MONEY_DECIMALS }),
       email: Yup.string(),
       phone: Yup.string(),
     }),
     onSubmit: async (values) => {
       const studentName = values.student_name.trim();
       const badgeCode = values.badge_code.trim();
-      const balance = Number(values.balance);
+      const balance = parseAmount(values.balance);
 
       // Preserve the existing email_opt_in preference on edit -- this form
       // has no field for it (the directory table's own Switch column owns
@@ -182,7 +185,7 @@ export function StudentWalletsPage() {
   });
 
   const { rows: visibleStudents, totalCount, totalPages } = usePaginatedQuery({
-    params: { page, pageSize: PAGE_SIZE, searchTerm, sortKey: "student_name", sortDir: "asc", filters: {} },
+    params: { page, pageSize, searchTerm, sortKey: "student_name", sortDir: "asc", filters: {} },
     queryLocal: queryLocalWallets,
     fetchServer: fetchServerWallets,
     writeBack: writeBackWallets,
@@ -270,8 +273,11 @@ export function StudentWalletsPage() {
   };
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
+    // Phones/tablets: the table card is one screen tall and the MoMo card
+    // follows below it. xl+: table 8/12 at full height, MoMo 4/12 beside it.
+    <div className="flex h-full w-full flex-col gap-4 p-4 xl:grid xl:grid-cols-12 xl:grid-rows-[minmax(0,1fr)]">
       <CardCustom
+        className="flex h-full min-h-0 min-w-0 shrink-0 flex-col xl:col-span-8"
         title={showArchived ? t("admin.students.archivedTitle") : t("admin.students.title")}
         header={
           showArchived ? (
@@ -308,7 +314,7 @@ export function StudentWalletsPage() {
           ) : archivedStudents.length === 0 ? (
             <p className="text-sm text-muted">{t("admin.students.archivedEmpty")}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="table-scroll">
               <table className="w-full min-w-[520px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -328,7 +334,7 @@ export function StudentWalletsPage() {
                       <td className="py-2 pr-3 font-medium text-foreground">{student.student_name}</td>
                       <td className="py-2 pr-3 text-muted">{student.badge_code}</td>
                       <td
-                        className={`py-2 pr-3 font-medium ${student.balance > 0 ? "text-success" : student.balance < 0 ? "text-destructive" : "text-foreground"}`}
+                        className={`whitespace-nowrap py-2 pr-3 font-medium ${student.balance > 0 ? "text-success" : student.balance < 0 ? "text-destructive" : "text-foreground"}`}
                       >
                         {formatCurrency(student.balance)}
                       </td>
@@ -352,14 +358,16 @@ export function StudentWalletsPage() {
         ) : visibleStudents.length === 0 ? (
           <p className="text-sm text-muted">{t("admin.students.empty")}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="table-scroll">
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
                   <th className="py-2 pr-3">{t("admin.students.fieldName")}</th>
                   <th className="py-2 pr-3">{t("admin.students.fieldBadge")}</th>
-                  <th className="py-2 pr-3">{t("admin.students.fieldEmail")}</th>
-                  <th className="py-2 pr-3">{t("admin.students.fieldPhone")}</th>
+                  {/* E-mail/phone only on very wide screens -- the table shares the
+                      row with the MoMo card from xl up; both are in the student drawer. */}
+                  <th className="hidden py-2 pr-3 2xl:table-cell">{t("admin.students.fieldEmail")}</th>
+                  <th className="hidden py-2 pr-3 2xl:table-cell">{t("admin.students.fieldPhone")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnEmailOptIn")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnBalance")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnTotalSpend")}</th>
@@ -376,10 +384,10 @@ export function StudentWalletsPage() {
                       onClick={() => setSelectedStudent(student)}
                       className="cursor-pointer border-b border-border last:border-0 hover:bg-surface2"
                     >
-                      <td className="py-2 pr-3 font-medium text-foreground">{student.student_name}</td>
-                      <td className="py-2 pr-3 text-muted">{student.badge_code}</td>
-                      <td className="py-2 pr-3 text-muted">{student.email || "—"}</td>
-                      <td className="py-2 pr-3 text-muted">{student.phone || "—"}</td>
+                      <td className="whitespace-nowrap py-2 pr-3 font-medium text-foreground">{student.student_name}</td>
+                      <td className="whitespace-nowrap py-2 pr-3 text-muted">{student.badge_code}</td>
+                      <td className="hidden py-2 pr-3 text-muted 2xl:table-cell">{student.email || "—"}</td>
+                      <td className="hidden py-2 pr-3 text-muted 2xl:table-cell">{student.phone || "—"}</td>
                       <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
                         <Switch
                           checked={student.email_opt_in}
@@ -392,25 +400,31 @@ export function StudentWalletsPage() {
                       >
                         {formatCurrency(student.balance)}
                       </td>
-                      <td className="py-2 pr-3 text-foreground">{formatCurrency(stats?.totalSpend ?? 0)}</td>
+                      <td className="whitespace-nowrap py-2 pr-3 text-foreground">{formatCurrency(stats?.totalSpend ?? 0)}</td>
                       <td className="py-2 pr-3 text-foreground">{stats?.orderCount ?? 0}</td>
                       <td className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        {/* Icon buttons: the table shares its row with the MoMo
+                            card, so the labelled ones no longer fit. */}
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => openEditForm(student)}
-                            className="rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent"
+                            aria-label={t("admin.students.edit")}
+                            title={t("admin.students.edit")}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface2 text-foreground hover:border-accent"
                           >
-                            {t("admin.students.edit")}
+                            <Pencil className="h-4 w-4" aria-hidden />
                           </button>
                           <ButtonCustom
                             variant="danger"
-                            size="sm"
+                            size="icon"
                             requiresAdminPin
                             pinModalTitle={t("admin.students.archivePinTitle")}
+                            aria-label={t("admin.students.archive")}
+                            title={t("admin.students.archive")}
                             onClick={() => void handleArchive(student)}
                           >
-                            {t("admin.students.archive")}
+                            <Archive className="h-4 w-4" aria-hidden />
                           </ButtonCustom>
                         </div>
                       </td>
@@ -422,12 +436,20 @@ export function StudentWalletsPage() {
           </div>
         )}
         {!showArchived && visibleStudents !== undefined && totalCount > 0 && (
-          <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
+          <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+            />
         )}
         {!showArchived && !isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>
 
-      <MoMoVerificationCard />
+      <div className="min-w-0 xl:col-span-4 xl:self-start">
+        <MoMoVerificationCard />
+      </div>
 
       {selectedStudent && (
         <StudentProfileDrawer student={selectedStudent} onClose={() => setSelectedStudent(null)} />
@@ -481,9 +503,7 @@ export function StudentWalletsPage() {
                 </label>
                 <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
                   <span className="text-muted">{t("admin.students.fieldBalance")}</span>
-                  <input
-                    type="number"
-                    step="1"
+                  <AmountInput
                     name="balance"
                     value={formik.values.balance}
                     onChange={formik.handleChange}

@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { db } from "@/lib/db";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { useToast } from "@/hooks/useToast";
-import { scannerService } from "@/services/hardware/scannerService";
 import type { Product } from "@/types/db";
 
 interface BarcodeInputProps {
@@ -59,17 +58,16 @@ export const BarcodeInput = forwardRef<BarcodeInputHandle, BarcodeInputProps>(fu
     }
   };
 
-  const { isConnected, connectionType, connectDevice } = useBarcodeScanner({
+  const { isConnected, connectionType } = useBarcodeScanner({
     onScan: lookupAndSelect,
     ignoreFocusedElementRef: inputRef,
   });
 
   useEffect(() => {
     inputRef.current?.focus();
-    return () => clearTimeout(notFoundTimeoutRef.current);
-  }, []);
+  }, [isConnected]);
 
-  const canPair = scannerService.isHidSupported() || scannerService.isSerialSupported();
+  useEffect(() => () => clearTimeout(notFoundTimeoutRef.current), []);
 
   const statusLabel =
     connectionType === "hid"
@@ -77,6 +75,15 @@ export const BarcodeInput = forwardRef<BarcodeInputHandle, BarcodeInputProps>(fu
       : connectionType === "serial"
         ? t("pos.barcode.connectedSerial")
         : t("pos.barcode.keyboardMode");
+
+  // Nothing to show without a paired hardware scanner: keyboard-emulation
+  // scanners are still picked up in the background by useBarcodeScanner
+  // (fast keystrokes + Enter, wherever focus is), and a barcode can be typed
+  // by hand in the search field next to this component. The hook above stays
+  // mounted either way -- only the markup goes away.
+  if (!isConnected) {
+    return notFound ? <span className="text-sm text-destructive">{t("pos.barcode.notFound")}</span> : null;
+  }
 
   return (
     <div className="barcode-area flex flex-col gap-1">
@@ -97,21 +104,10 @@ export const BarcodeInput = forwardRef<BarcodeInputHandle, BarcodeInputProps>(fu
         }}
       />
 
-      <div className="flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted" title={statusLabel}>
-          <span className={`h-2 w-2 rounded-full ${isConnected ? "bg-success" : "bg-muted"}`} aria-hidden />
-          {statusLabel}
-        </span>
-        {canPair && (
-          <button
-            type="button"
-            onClick={() => void connectDevice()}
-            className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
-          >
-            {t("pos.barcode.pairScanner")}
-          </button>
-        )}
-      </div>
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted" title={statusLabel}>
+        <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
+        {statusLabel}
+      </span>
 
       {notFound && <span className="text-sm text-destructive">{t("pos.barcode.notFound")}</span>}
     </div>
