@@ -57,7 +57,7 @@ export function UpdateBanner({
             {t("update.toast.viewChangelog")}
           </button>
         )}
-        <div className="mt-3 flex justify-end gap-2">
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={onSnooze}

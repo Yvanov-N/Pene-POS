@@ -6,6 +6,7 @@ import { ScannerSettingsCard } from "@/components/admin/settings/ScannerSettings
 import { NotificationSettingsCard } from "@/components/admin/settings/NotificationSettingsCard";
 import { ShopStatusCard } from "@/components/admin/settings/ShopStatusCard";
 import { AboutSettingsCard } from "@/components/admin/settings/AboutSettingsCard";
+import { DataBackupCard } from "@/components/admin/settings/DataBackupCard";
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -27,6 +28,8 @@ export function SettingsPage() {
         <NotificationSettingsCard />
         <AboutSettingsCard />
       </div>
+      {/* Emergency tool, kept apart at the very bottom, full width. */}
+      <DataBackupCard />
     </div>
   );
 }

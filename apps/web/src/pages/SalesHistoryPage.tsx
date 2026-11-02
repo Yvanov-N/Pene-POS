@@ -188,7 +188,7 @@ const VOID_ERROR_KEY = {
 } as const satisfies Record<VoidSaleFailureReason, string>;
 
 const NEUTRAL_BUTTON_CLASS =
-  "inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50";
 
 const PILL_CLASS = (active: boolean) =>
   `rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
@@ -416,7 +416,7 @@ export function SalesHistoryPage() {
     return (
       <>
         <button type="button" disabled={isBusy} onClick={() => void handleReprint(sale)} className={NEUTRAL_BUTTON_CLASS}>
-          <Printer className="h-4 w-4 shrink-0" aria-hidden />
+          <Printer className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {t("admin.salesHistory.reprint")}
         </button>
         <button type="button" disabled={isBusy} onClick={() => void handleShare(sale)} className={NEUTRAL_BUTTON_CLASS}>
@@ -432,7 +432,7 @@ export function SalesHistoryPage() {
             pinModalTitle={t("admin.salesHistory.voidPinTitle")}
             onClick={(profile) => void handleVoid(sale, profile)}
           >
-            <Undo2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <Undo2 aria-hidden />
             {t("admin.salesHistory.void")}
           </ButtonCustom>
         )}

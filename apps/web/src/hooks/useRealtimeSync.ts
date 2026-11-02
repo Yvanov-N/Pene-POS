@@ -35,7 +35,9 @@ export function useRealtimeSync(enabled: boolean): boolean {
     const handleChange = (payload: RealtimeChange) => {
       applyRealtimeChange(payload)
         .then((applied) => {
-          if (!applied) schedulePull();
+          // shop_status also carries the data epoch: a pull checks it and
+          // rebuilds the local copy after a "replace all" import.
+          if (!applied || payload.table === "shop_status") schedulePull();
         })
         .catch((error) => {
           console.warn("[realtime] could not apply change, pulling instead", error);

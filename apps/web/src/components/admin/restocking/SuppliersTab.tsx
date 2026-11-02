@@ -69,7 +69,7 @@ export function SuppliersTab() {
       title={t("suppliers.title")}
       header={
         <ButtonCustom variant="primary" size="sm" onClick={() => setEditing("new")}>
-          <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <Plus aria-hidden />
           {t("suppliers.add")}
         </ButtonCustom>
       }
@@ -170,7 +170,7 @@ export function SuppliersTab() {
                         pinModalTitle={t("suppliers.deletePinTitle")}
                         onClick={() => void handleDelete(supplier)}
                       >
-                        <Trash2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        <Trash2 aria-hidden />
                         {t("suppliers.delete")}
                       </ButtonCustom>
                     </div>

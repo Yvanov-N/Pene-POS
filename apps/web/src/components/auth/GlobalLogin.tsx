@@ -179,7 +179,7 @@ export function GlobalLogin() {
                 <button
                   type="submit"
                   disabled={formik.isSubmitting}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
                 >
                   <LogIn className="h-4 w-4 shrink-0" aria-hidden />
                   {t("auth.submit")}
@@ -256,7 +256,7 @@ export function GlobalLogin() {
                   <button
                     type="submit"
                     disabled={formik.isSubmitting}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
                   >
                     <Send className="h-4 w-4 shrink-0" aria-hidden />
                     {t("auth.sendResetLink")}

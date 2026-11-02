@@ -160,17 +160,17 @@ export function ReceiptModal({ receipt, onClose, onPrint }: ReceiptModalProps) {
             </div>
           )}
 
-          <div className="receipt-actions mt-4 flex gap-2">
-            <ButtonCustom variant="primary" className="flex-1" onClick={onPrint}>
-              <Printer className="h-4 w-4" aria-hidden />
+          <div className="receipt-actions mt-4 flex flex-wrap gap-2">
+            <ButtonCustom variant="primary" className="flex-1 basis-28" onClick={onPrint}>
+              <Printer aria-hidden />
               {t("pos.receipt.printButton")}
             </ButtonCustom>
-            <ButtonCustom variant="primary" className="flex-1" isLoading={isSharing} onClick={() => void handleShare()}>
-              <Share2 className="h-4 w-4" aria-hidden />
+            <ButtonCustom variant="primary" className="flex-1 basis-28" isLoading={isSharing} onClick={() => void handleShare()}>
+              <Share2 aria-hidden />
               {t("pos.receipt.shareButton")}
             </ButtonCustom>
-            <ButtonCustom variant="primary" className="flex-1" onClick={onClose}>
-              <X className="h-4 w-4 shrink-0" aria-hidden />
+            <ButtonCustom variant="primary" className="flex-1 basis-28" onClick={onClose}>
+              <X aria-hidden />
               {t("pos.receipt.closeButton")}
             </ButtonCustom>
           </div>

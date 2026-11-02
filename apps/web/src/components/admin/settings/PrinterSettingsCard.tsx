@@ -110,7 +110,7 @@ export function PrinterSettingsCard() {
             <button
               type="button"
               onClick={() => void handleDisconnectBluetooth()}
-              className="w-full rounded-lg border border-border bg-surface2 py-2 text-sm font-medium text-foreground hover:border-accent"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface2 py-2 text-sm font-medium text-foreground hover:border-accent"
             >
               <BluetoothOff className="h-4 w-4 shrink-0" aria-hidden />
               {t("admin.settings.disconnectBluetooth")}
@@ -120,7 +120,7 @@ export function PrinterSettingsCard() {
               type="button"
               disabled={bluetoothStatus === "connecting"}
               onClick={() => void handlePairBluetooth()}
-              className="w-full rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
               <Bluetooth className="h-4 w-4 shrink-0" aria-hidden />
               {t("admin.settings.pairBluetooth")}

@@ -554,6 +554,65 @@
     "routeGuard": {
       "locked": "Cette section est verrouillee. Saisissez le code PIN administrateur pour continuer.",
       "unlock": "Deverrouiller"
+    },
+    "backup": {
+      "title": "Sauvegarde et migration des donnees",
+      "intro": "Pour les cas d'urgence : copie complete des donnees de la boutique (produits, stocks, etudiants et portefeuilles, ventes, fournisseurs, achats...) pour la conserver, la restaurer ou la charger dans un autre systeme de base de donnees. Les fichiers contiennent des donnees personnelles : gardez-les en lieu sur. Les comptes de connexion, mots de passe, PIN et images ne sont pas inclus.",
+      "offline": "Connexion requise pour exporter ou importer.",
+      "exportTitle": "Exporter",
+      "exportHint": "JSON : format de sauvegarde de l'application, ideal pour restaurer. SQL : standard portable (PostgreSQL, MySQL/MariaDB, SQLite) pour migrer vers un autre SGBD.",
+      "exportJson": "Exporter en JSON",
+      "exportSql": "Exporter en SQL",
+      "exportPinTitle": "Code PIN administrateur pour exporter les donnees",
+      "exportDone_one": "Export termine ({{count}} ligne)",
+      "exportDone_other": "Export termine ({{count}} lignes)",
+      "exportFailed": "L'export a echoue. Verifiez la connexion et reessayez.",
+      "importTitle": "Importer",
+      "importHint": "Fichier JSON ou SQL produit par cet export. L'import se fait d'un seul bloc : en cas d'erreur, rien n'est modifie.",
+      "chooseFile": "Choisir un fichier (.json ou .sql)",
+      "fileDate": "Export du {{date}}",
+      "fileDateUnknown": "Date d'export inconnue",
+      "totalRows_one": "{{count}} ligne au total",
+      "totalRows_other": "{{count}} lignes au total",
+      "modeLabel": "Mode d'import",
+      "modes": {
+        "merge": {
+          "title": "Fusionner (recommande)",
+          "description": "Ajoute les lignes du fichier et met a jour celles qui existent deja. Rien n'est supprime."
+        },
+        "replace": {
+          "title": "Remplacer tout",
+          "description": "Vide les donnees de la boutique puis les remplit avec le fichier. Tout ce qui n'est pas dans le fichier est perdu."
+        }
+      },
+      "replaceWarning": "Toutes les donnees actuelles (produits, ventes, etudiants, fournisseurs, achats...) seront supprimees et remplacees par le contenu du fichier. Exportez d'abord une sauvegarde de l'etat actuel. Tous les appareils rechargeront leurs donnees.",
+      "replaceConfirmLabel": "Tapez {{word}} pour confirmer",
+      "importMerge": "Importer (fusionner)",
+      "importReplace": "Remplacer toutes les donnees",
+      "importPinTitle": "Code PIN administrateur pour importer des donnees",
+      "importDone": "Import termine",
+      "importFailed": "Import annule, aucune donnee modifiee : {{reason}}",
+      "resultTitle": "Lignes importees",
+      "remappedCashiers_one": "{{count}} vente avait un caissier inconnu ici : elle vous a ete attribuee.",
+      "remappedCashiers_other": "{{count}} ventes avaient un caissier inconnu ici : elles vous ont ete attribuees.",
+      "fileErrors": {
+        "not-a-backup": "Ce fichier n'est pas une sauvegarde Pene POS.",
+        "bad-json": "Fichier JSON illisible.",
+        "bad-sql": "Fichier SQL illisible (seuls les fichiers produits par cet export sont pris en charge)."
+      },
+      "tables": {
+        "categories": "Categories",
+        "products": "Produits",
+        "student_wallets": "Etudiants / portefeuilles",
+        "profiles": "Profils",
+        "shop_status": "Statut boutique",
+        "suppliers": "Fournisseurs",
+        "supplier_products": "Prix fournisseurs",
+        "sales": "Ventes",
+        "sale_items": "Lignes de vente",
+        "stock_purchases": "Ravitaillements",
+        "supplier_price_history": "Historique des prix"
+      }
     }
   },
   "sidebar": {

@@ -323,9 +323,9 @@ export function ProfileSettingsCard() {
           <button
             type="button"
             onClick={() => setAvatarModalOpen(true)}
-            className="shrink-0 rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent"
           >
-            <Camera className="h-4 w-4 shrink-0" aria-hidden />
+            <Camera className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {t("admin.profile.avatarChange")}
           </button>
         </div>
@@ -357,7 +357,7 @@ export function ProfileSettingsCard() {
         </div>
 
         <ButtonCustom variant="primary" isLoading={nameFormik.isSubmitting} onClick={() => void nameFormik.submitForm()}>
-          <Save className="h-4 w-4 shrink-0" aria-hidden />
+          <Save aria-hidden />
           {t("admin.profile.save")}
         </ButtonCustom>
 
@@ -397,7 +397,7 @@ export function ProfileSettingsCard() {
                 void emailFormik.submitForm();
               }}
             >
-              <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <Mail aria-hidden />
               {t("admin.profile.updateEmail")}
             </ButtonCustom>
           </div>
@@ -444,7 +444,7 @@ export function ProfileSettingsCard() {
                 void passwordFormik.submitForm();
               }}
             >
-              <KeyRound className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <KeyRound aria-hidden />
               {t("admin.profile.updatePassword")}
             </ButtonCustom>
           </div>
@@ -492,7 +492,7 @@ export function ProfileSettingsCard() {
                 void pinFormik.submitForm();
               }}
             >
-              <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <Lock aria-hidden />
               {t("admin.profile.updatePin")}
             </ButtonCustom>
           </div>
@@ -512,9 +512,9 @@ export function ProfileSettingsCard() {
                   type="button"
                   disabled={linkingProvider === provider || isLinked(provider)}
                   onClick={() => void handleLink(provider)}
-                  className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface2 px-3 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
                 >
-                  <Link2 className="h-4 w-4 shrink-0" aria-hidden />
+                  <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   {isLinked(provider) ? t("admin.profile.oauthLinked") : t(`admin.profile.oauthLink.${provider}`)}
                 </button>
               </div>

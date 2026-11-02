@@ -155,7 +155,7 @@ export function NotificationSettingsCard() {
             onClick={() => void handleTestPush()}
             className="w-full"
           >
-            <BellRing className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <BellRing aria-hidden />
             {t("admin.settings.pushTestButton")}
           </ButtonCustom>
           {pushStatus !== "enabled" && (

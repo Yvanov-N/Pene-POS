@@ -36,9 +36,9 @@ export function PendingSyncBanner() {
         <button
           type="button"
           onClick={() => void requestNotificationPermission().then(setPermission)}
-          className="shrink-0 rounded-lg border border-border bg-surface px-2 py-1 font-medium hover:border-accent"
+          className="flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 font-medium hover:border-accent"
         >
-          <Bell className="h-4 w-4 shrink-0" aria-hidden />
+          <Bell className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {t("sync.notifyMe")}
         </button>
       )}

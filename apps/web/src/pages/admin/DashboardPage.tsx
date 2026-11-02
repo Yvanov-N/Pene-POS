@@ -150,7 +150,7 @@ export function DashboardPage() {
           )}
         </div>
         <ButtonCustom variant="primary" size="sm" onClick={handleExportCsv}>
-          <Download className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <Download aria-hidden />
           {t("admin.dashboard.exportButton")}
         </ButtonCustom>
       </div>

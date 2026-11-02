@@ -158,7 +158,7 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
             onChange={(e) => void handleFileSelected(e)}
           />
           <ButtonCustom variant="primary" isLoading={uploading} onClick={() => fileInputRef.current?.click()}>
-            <Upload className="h-4 w-4 shrink-0" aria-hidden />
+            <Upload aria-hidden />
             {t("admin.profile.avatarImportButton")}
           </ButtonCustom>
 
@@ -194,7 +194,7 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
                 void formik.submitForm();
               }}
             >
-              <Trash2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <Trash2 aria-hidden />
               {t("admin.profile.avatarDelete")}
             </ButtonCustom>
             <ButtonCustom
@@ -206,7 +206,7 @@ export function AvatarEditModal({ profile, onClose }: AvatarEditModalProps) {
                 void formik.submitForm();
               }}
             >
-              <Save className="h-4 w-4 shrink-0" aria-hidden />
+              <Save aria-hidden />
               {t("admin.profile.avatarSave")}
             </ButtonCustom>
           </div>

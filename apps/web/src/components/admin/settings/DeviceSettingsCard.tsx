@@ -86,7 +86,7 @@ export function DeviceSettingsCard() {
           isLoading={formik.isSubmitting}
           onClick={() => void formik.submitForm()}
         >
-          <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <Save aria-hidden />
           {t("admin.settings.deviceSaveButton")}
         </ButtonCustom>
       </div>

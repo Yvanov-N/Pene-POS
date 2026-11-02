@@ -50,7 +50,7 @@ interface ProductFilters_ {
 
 
 const NEUTRAL_BUTTON_CLASS =
-  "inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent";
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent";
 
 // Same thresholds as ProductGrid.tsx (POS grid) / OperationalWidgets.tsx
 // (admin dashboard) -- one low-stock/expiry definition used consistently
@@ -234,13 +234,13 @@ export function ProductsPage() {
         className="table-card"
         title={t("admin.products.title")}
         header={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <ButtonCustom variant="primary" size="sm" onClick={() => setCategoryManagerOpen(true)}>
-              <Tags className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <Tags aria-hidden />
               {t("admin.categories.manageButton")}
             </ButtonCustom>
             <ButtonCustom variant="primary" size="sm" onClick={openCreateDrawer}>
-              <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <Plus aria-hidden />
               {t("admin.products.add")}
             </ButtonCustom>
           </div>
@@ -363,7 +363,7 @@ export function ProductsPage() {
                               pinModalTitle={t("admin.products.deletePinTitle")}
                               onClick={() => void handleDelete(product)}
                             >
-                              <Trash2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                              <Trash2 aria-hidden />
                               {t("admin.products.delete")}
                             </ButtonCustom>
                           </div>

@@ -251,7 +251,7 @@ export function OfferFormModal({ productId, supplierId, onClose }: OfferFormModa
           </div>
 
           <ButtonCustom variant="primary" isLoading={formik.isSubmitting} onClick={() => void formik.submitForm()}>
-            <Save className="h-4 w-4 shrink-0" aria-hidden />
+            <Save aria-hidden />
             {t("suppliers.saveNewPrice")}
           </ButtonCustom>
         </form>

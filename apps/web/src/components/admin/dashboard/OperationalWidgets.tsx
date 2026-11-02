@@ -42,7 +42,7 @@ export function StockAlertWidget() {
       title={t("admin.dashboard.lowStockTitle")}
       header={
         <ButtonCustom variant="primary" size="sm" onClick={() => navigate("/admin/restocking")}>
-          <PackagePlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <PackagePlus aria-hidden />
           {t("admin.dashboard.goToRestocking")}
         </ButtonCustom>
       }
@@ -147,7 +147,7 @@ export function SyncConflictStatusBar() {
               {t("admin.dashboard.conflictBanner", { count: conflictCount })}
             </p>
             <ButtonCustom variant="danger" size="sm" onClick={() => setConflictsOpen(true)}>
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <AlertTriangle aria-hidden />
               {t("admin.dashboard.viewConflicts")}
             </ButtonCustom>
           </div>

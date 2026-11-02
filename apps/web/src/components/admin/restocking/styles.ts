@@ -9,4 +9,4 @@ export const PILL_CLASS = (active: boolean) =>
   }`;
 
 export const SMALL_BUTTON_CLASS =
-  "inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50";
+  "inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50";

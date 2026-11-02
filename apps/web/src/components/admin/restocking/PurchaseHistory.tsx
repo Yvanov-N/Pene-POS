@@ -133,7 +133,7 @@ export function PurchaseHistory() {
       title={t("restocking.history.title")}
       header={
         <ButtonCustom variant="primary" size="sm" onClick={handleExport} disabled={!view || view.rows.length === 0}>
-          <Download className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <Download aria-hidden />
           {t("restocking.history.export")}
         </ButtonCustom>
       }

@@ -155,11 +155,11 @@ export function PosCart() {
         {/* Instant, no PIN -- same frictionless requirement as removing a
             single item above. */}
         <ButtonCustom variant="danger" disabled={isEmpty} onClick={() => cart.clearCart()}>
-          <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+          <Trash2 aria-hidden />
           {t("pos.cart.clear")}
         </ButtonCustom>
         <ButtonCustom variant="success" disabled={!canCheckout} onClick={requestCheckout}>
-          <CreditCard className="h-4 w-4 shrink-0" aria-hidden />
+          <CreditCard aria-hidden />
           {t("pos.cart.checkout")}
         </ButtonCustom>
       </div>

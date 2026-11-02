@@ -272,7 +272,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
                     isLoading={rechargeFormik.isSubmitting}
                     onClick={() => void rechargeFormik.submitForm()}
                   >
-                    <PlusCircle className="h-4 w-4 shrink-0" aria-hidden />
+                    <PlusCircle aria-hidden />
                     {t("admin.recharge.confirm")}
                   </ButtonCustom>
                 </div>
@@ -304,7 +304,7 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
                         void withdrawFormik.submitForm();
                       }}
                     >
-                      <HandCoins className="h-4 w-4 shrink-0" aria-hidden />
+                      <HandCoins aria-hidden />
                       {t("admin.withdrawal.confirm")}
                     </ButtonCustom>
                   </div>
@@ -457,9 +457,9 @@ export function StudentProfileDrawer({ student, onClose, isArchived = false }: S
                           type="button"
                           disabled={reprintingId === sale.id}
                           onClick={() => void handleReprint(sale)}
-                          className="mt-3 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent disabled:opacity-50"
                         >
-                          <Printer className="h-4 w-4 shrink-0" aria-hidden />
+                          <Printer className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           {t("admin.salesHistory.reprint")}
                         </button>
                       </div>

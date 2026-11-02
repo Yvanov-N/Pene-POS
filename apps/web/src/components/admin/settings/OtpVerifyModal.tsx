@@ -123,16 +123,16 @@ export function OtpVerifyModal({ email, title, onVerified, onClose }: OtpVerifyM
             disabled={formik.values.code.length !== OTP_LENGTH}
             onClick={() => void formik.submitForm()}
           >
-            <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden />
+            <ShieldCheck aria-hidden />
             {t("admin.profile.otp.verify")}
           </ButtonCustom>
           <button
             type="button"
             disabled={cooldown > 0 || sending}
             onClick={() => void sendCode()}
-            className="text-xs text-muted hover:text-foreground disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 text-xs text-muted hover:text-foreground disabled:opacity-50"
           >
-            <RotateCw className="h-4 w-4 shrink-0" aria-hidden />
+            <RotateCw className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {cooldown > 0 ? t("admin.profile.otp.resendCooldown", { count: cooldown }) : t("admin.profile.otp.resend")}
           </button>
         </div>

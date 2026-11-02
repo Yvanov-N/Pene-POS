@@ -400,7 +400,7 @@ export function RestockForm() {
                 isLoading={formik.isSubmitting}
                 onClick={() => void formik.submitForm()}
               >
-                <PackageCheck className="h-4 w-4 shrink-0" aria-hidden />
+                <PackageCheck aria-hidden />
                 {t("restocking.validate")}
               </ButtonCustom>
             </div>

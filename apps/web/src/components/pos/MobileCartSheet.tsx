@@ -205,7 +205,7 @@ export function MobileCartSheet() {
             disabled={!canCheckout}
             onClick={requestCheckout}
           >
-            <CreditCard className="h-4 w-4 shrink-0" aria-hidden />
+            <CreditCard aria-hidden />
             {t("pos.cart.checkout")}
           </ButtonCustom>
         </div>

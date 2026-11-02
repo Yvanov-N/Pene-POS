@@ -49,18 +49,18 @@ export function ScannerSettingsCard() {
               <button
                 type="button"
                 onClick={() => void disconnectDevice()}
-                className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
               >
-                <Unplug className="h-4 w-4 shrink-0" aria-hidden />
+                <Unplug className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {t("admin.settings.disconnectScanner")}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => void connectDevice()}
-                className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
               >
-                <ScanBarcode className="h-4 w-4 shrink-0" aria-hidden />
+                <ScanBarcode className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {t("pos.barcode.pairScanner")}
               </button>
             ))}

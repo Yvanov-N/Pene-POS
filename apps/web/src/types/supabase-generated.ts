@@ -335,6 +335,7 @@ export type Database = {
       }
       shop_status: {
         Row: {
+          data_epoch: number
           id: number
           is_open: boolean
           sync_seq: number
@@ -342,6 +343,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          data_epoch?: number
           id?: number
           is_open?: boolean
           sync_seq?: number
@@ -349,6 +351,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          data_epoch?: number
           id?: number
           is_open?: boolean
           sync_seq?: number
@@ -787,6 +790,11 @@ export type Database = {
               isSetofReturn: false
             }
           }
+      admin_export_data: { Args: never; Returns: Json }
+      admin_import_data: {
+        Args: { p_mode?: string; p_payload: Json }
+        Returns: Json
+      }
       complete_sale:
         | {
             Args: { p_items: Json; p_operation_id: string; p_sale: Json }

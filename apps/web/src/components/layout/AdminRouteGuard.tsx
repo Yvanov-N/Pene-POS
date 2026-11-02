@@ -29,7 +29,7 @@ export function AdminRouteGuard({ children }: AdminRouteGuardProps) {
       <Lock className="h-10 w-10 text-muted" aria-hidden />
       <p className="text-sm text-muted">{t("admin.routeGuard.locked")}</p>
       <ButtonCustom variant="primary" onClick={() => setPinPending(true)}>
-        <LockOpen className="h-4 w-4 shrink-0" aria-hidden />
+        <LockOpen aria-hidden />
         {t("admin.routeGuard.unlock")}
       </ButtonCustom>
 

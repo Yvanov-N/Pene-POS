@@ -554,6 +554,65 @@
     "routeGuard": {
       "locked": "This section is locked. Enter the admin PIN to continue.",
       "unlock": "Unlock"
+    },
+    "backup": {
+      "title": "Data backup and migration",
+      "intro": "For emergencies: a full copy of the shop's data (products, stock, students and wallets, sales, suppliers, purchases...) to keep, restore, or load into another database system. The files contain personal data: keep them somewhere safe. Login accounts, passwords, PINs and images are not included.",
+      "offline": "A connection is required to export or import.",
+      "exportTitle": "Export",
+      "exportHint": "JSON: the app's own backup format, best for restoring. SQL: portable standard SQL (PostgreSQL, MySQL/MariaDB, SQLite) to migrate to another DBMS.",
+      "exportJson": "Export as JSON",
+      "exportSql": "Export as SQL",
+      "exportPinTitle": "Admin PIN to export the data",
+      "exportDone_one": "Export done ({{count}} row)",
+      "exportDone_other": "Export done ({{count}} rows)",
+      "exportFailed": "Export failed. Check the connection and try again.",
+      "importTitle": "Import",
+      "importHint": "A JSON or SQL file produced by this export. The import is all-or-nothing: on any error, nothing is changed.",
+      "chooseFile": "Choose a file (.json or .sql)",
+      "fileDate": "Exported on {{date}}",
+      "fileDateUnknown": "Unknown export date",
+      "totalRows_one": "{{count}} row in total",
+      "totalRows_other": "{{count}} rows in total",
+      "modeLabel": "Import mode",
+      "modes": {
+        "merge": {
+          "title": "Merge (recommended)",
+          "description": "Adds the file's rows and updates those that already exist. Nothing is deleted."
+        },
+        "replace": {
+          "title": "Replace everything",
+          "description": "Empties the shop's data, then fills it from the file. Anything not in the file is lost."
+        }
+      },
+      "replaceWarning": "All current data (products, sales, students, suppliers, purchases...) will be deleted and replaced by the file's content. Export a backup of the current state first. Every device will reload its data.",
+      "replaceConfirmLabel": "Type {{word}} to confirm",
+      "importMerge": "Import (merge)",
+      "importReplace": "Replace all data",
+      "importPinTitle": "Admin PIN to import data",
+      "importDone": "Import done",
+      "importFailed": "Import cancelled, nothing was changed: {{reason}}",
+      "resultTitle": "Imported rows",
+      "remappedCashiers_one": "{{count}} sale had a cashier unknown here: it was attributed to you.",
+      "remappedCashiers_other": "{{count}} sales had a cashier unknown here: they were attributed to you.",
+      "fileErrors": {
+        "not-a-backup": "This file is not a Pene POS backup.",
+        "bad-json": "Unreadable JSON file.",
+        "bad-sql": "Unreadable SQL file (only files produced by this export are supported)."
+      },
+      "tables": {
+        "categories": "Categories",
+        "products": "Products",
+        "student_wallets": "Students / wallets",
+        "profiles": "Profiles",
+        "shop_status": "Shop status",
+        "suppliers": "Suppliers",
+        "supplier_products": "Supplier prices",
+        "sales": "Sales",
+        "sale_items": "Sale lines",
+        "stock_purchases": "Restocks",
+        "supplier_price_history": "Price history"
+      }
     }
   },
   "sidebar": {
