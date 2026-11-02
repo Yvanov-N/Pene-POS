@@ -1,10 +1,17 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { isStoragePersistent } from "@/lib/persistentStorage";
 import { useAppVersion } from "@/hooks/useAppVersion";
 import { CardCustom } from "@/components/ui/card-custom";
 
 export function AboutSettingsCard() {
   const { t, i18n } = useTranslation();
   const { info, loading } = useAppVersion();
+  const [persistent, setPersistent] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void isStoragePersistent().then(setPersistent);
+  }, []);
 
   const formattedDate = info?.buildDate
     ? new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }).format(
@@ -29,6 +36,14 @@ export function AboutSettingsCard() {
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted">{t("admin.settings.aboutBuildLabel")}</span>
             <span className="font-mono text-xs text-foreground">{info.buildId}</span>
+          </div>
+        )}
+        {persistent !== null && (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-muted">{t("admin.settings.aboutStorageLabel")}</span>
+            <span className={`text-xs font-medium ${persistent ? "text-success" : "text-warning"}`}>
+              {persistent ? t("admin.settings.aboutStorageProtected") : t("admin.settings.aboutStorageNotProtected")}
+            </span>
           </div>
         )}
         {formattedDate && (

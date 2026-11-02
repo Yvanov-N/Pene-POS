@@ -52,7 +52,7 @@ export function useShareReceipt() {
         // not this field. confirmSaleSynced itself resolves instantly, with
         // no network call, when the matching outbox entry is already
         // "synced" -- this isn't a network round trip for the common case.
-        // navigator.onLine, not the periodic health-check snapshot -- see
+        // navigator.onLine, not useNetworkStatus's isOnline snapshot -- see
         // push.ts's pushOutbox for why that ping can be stale/wrong even
         // when confirmSaleSynced's own network call would succeed fine.
         if (!navigator.onLine) {

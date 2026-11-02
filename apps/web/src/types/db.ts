@@ -115,6 +115,17 @@ export interface StockPurchase {
   sync_seq?: number;
 }
 
+// Access token only, mirrored for the service worker's background sync
+// (src/sw.ts) -- it can't read the page's localStorage session. No refresh
+// token on purpose: the worker must never rotate the session behind the
+// app's back; with an expired token it simply leaves the outbox for the app.
+export interface AuthSessionMirror {
+  id: "current";
+  access_token: string;
+  expires_at: number; // epoch seconds
+  user_id: string;
+}
+
 export interface CartItem {
   id: string;
   product_id: string;

@@ -859,6 +859,7 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_watermarks: { Args: never; Returns: Json }
       update_own_pin_code: { Args: { new_pin: string }; Returns: undefined }
       void_sale: {
         Args: { p_admin_id: string; p_operation_id: string; p_sale_id: string }

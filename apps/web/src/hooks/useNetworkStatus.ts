@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePageVisible } from "./usePageVisible";
 
-const PING_INTERVAL_MS = 20000;
+const PROBE_INTERVAL_MS = 30000;
 const PING_TIMEOUT_MS = 4000;
 
 const HEALTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/health`;
@@ -29,22 +30,26 @@ async function pingBackend(): Promise<boolean> {
 interface NetworkStatus {
   isOnline: boolean;
   checkNow: () => Promise<boolean>;
+  // The sync cycle's own requests are the connectivity signal while online:
+  // it reports whether they got through, so there's no separate ping then.
+  reportReachable: (reachable: boolean) => void;
 }
 
 // Deliberately single-purpose: connectivity only. Sync orchestration
 // (isSyncing/lastSyncedAt/triggerManualSync) lives in useSyncEngine, which
 // composes this hook rather than folding those concerns in here.
+//
+// No fixed-interval ping any more: while online, every sync cycle already
+// talks to Supabase (sync_watermarks) and reports the outcome through
+// reportReachable. Only while offline -- network up but backend
+// unreachable -- does this probe, every 30s and only while the page is
+// visible, to notice the recovery.
 export function useNetworkStatus(): NetworkStatus {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  // A shared in-flight promise, not a boolean guard -- a boolean guard would
-  // make a concurrent caller bail out with whatever `isOnline` happened to
-  // read as before the real ping resolved (stale, possibly wrong: e.g. still
-  // `true` from before a connection just dropped). With ~15+ call sites now
-  // able to trigger a check around the same moment (the 20s interval, an
-  // online/offline browser event, and every runSync() call in
-  // useSyncEngine.tsx), concurrent calls are common, not an edge case -- so
-  // every caller awaits the one real ping already in flight instead of
-  // getting a shortcut answer.
+  const visible = usePageVisible();
+  // A shared in-flight promise, not a boolean guard -- concurrent callers
+  // (the probe interval, an online event, a manual "Sync now") all await
+  // the one real ping in flight instead of getting a stale shortcut answer.
   const inFlightRef = useRef<Promise<boolean> | null>(null);
 
   const checkNow = useCallback(async () => {
@@ -58,26 +63,31 @@ export function useNetworkStatus(): NetworkStatus {
     return promise;
   }, []);
 
+  const reportReachable = useCallback((reachable: boolean) => setIsOnline(reachable), []);
+
   useEffect(() => {
     // navigator.onLine going true just means "connected to a router" --
     // confirm with a real ping to avoid a Wi-Fi-but-no-internet false
     // positive. Going false is reliable enough to trust immediately.
     const handleOnline = () => void checkNow();
     const handleOffline = () => setIsOnline(false);
-
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-
     void checkNow();
-    const interval = window.setInterval(() => void checkNow(), PING_INTERVAL_MS);
-
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
-      window.clearInterval(interval);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [checkNow]);
 
-  return { isOnline, checkNow };
+  // Recovery probe: only while offline, visible, and with a network to try.
+  useEffect(() => {
+    if (isOnline || !visible) return;
+    const interval = window.setInterval(() => {
+      if (navigator.onLine) void checkNow();
+    }, PROBE_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [isOnline, visible, checkNow]);
+
+  return { isOnline, checkNow, reportReachable };
 }

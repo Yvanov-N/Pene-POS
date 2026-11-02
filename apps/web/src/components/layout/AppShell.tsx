@@ -8,6 +8,8 @@ import { seedLocalProducts } from "@/lib/seedLocalProducts";
 import { seedLocalProfiles } from "@/lib/seedLocalProfiles";
 import { seedLocalCategories } from "@/lib/seedLocalCategories";
 import { SidebarNav } from "./SidebarNav";
+import { PendingSyncBanner } from "./PendingSyncBanner";
+import { requestPersistentStorage } from "@/lib/persistentStorage";
 import { AdminRouteGuard } from "./AdminRouteGuard";
 import { PosLayout } from "@/components/pos/PosLayout";
 import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
@@ -36,6 +38,8 @@ export function AppShell() {
       void seedLocalProducts();
       void seedLocalProfiles();
     }
+    // Protect the local outbox (unsent sales) from browser storage eviction.
+    void requestPersistentStorage();
   }, []);
 
   return (
@@ -50,54 +54,57 @@ export function AppShell() {
                 isDesktop breakpoint exactly. */}
             <div className="flex h-screen w-full flex-col bg-background text-foreground md:flex-row">
               <SidebarNav />
-              <main className="min-w-0 flex-1 overflow-y-auto">
-                <Routes>
-                  <Route path="/" element={<PosLayout />} />
-                  <Route path="/pos" element={<Navigate to="/" replace />} />
-                  <Route path="/history" element={<SalesHistoryPage />} />
-                  <Route
-                    path="/admin/dashboard"
-                    element={
-                      <AdminRouteGuard>
-                        <DashboardPage />
-                      </AdminRouteGuard>
-                    }
-                  />
-                  <Route
-                    path="/admin/wallets"
-                    element={
-                      <AdminRouteGuard>
-                        <StudentWalletsPage />
-                      </AdminRouteGuard>
-                    }
-                  />
-                  <Route
-                    path="/admin/products"
-                    element={
-                      <AdminRouteGuard>
-                        <ProductsPage />
-                      </AdminRouteGuard>
-                    }
-                  />
-                  <Route
-                    path="/admin/restocking"
-                    element={
-                      <AdminRouteGuard>
-                        <RestockingPage />
-                      </AdminRouteGuard>
-                    }
-                  />
-                  <Route
-                    path="/admin/settings"
-                    element={
-                      <AdminRouteGuard>
-                        <SettingsPage />
-                      </AdminRouteGuard>
-                    }
-                  />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </main>
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                <PendingSyncBanner />
+                <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+                  <Routes>
+                    <Route path="/" element={<PosLayout />} />
+                    <Route path="/pos" element={<Navigate to="/" replace />} />
+                    <Route path="/history" element={<SalesHistoryPage />} />
+                    <Route
+                      path="/admin/dashboard"
+                      element={
+                        <AdminRouteGuard>
+                          <DashboardPage />
+                        </AdminRouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/admin/wallets"
+                      element={
+                        <AdminRouteGuard>
+                          <StudentWalletsPage />
+                        </AdminRouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/admin/products"
+                      element={
+                        <AdminRouteGuard>
+                          <ProductsPage />
+                        </AdminRouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/admin/restocking"
+                      element={
+                        <AdminRouteGuard>
+                          <RestockingPage />
+                        </AdminRouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/admin/settings"
+                      element={
+                        <AdminRouteGuard>
+                          <SettingsPage />
+                        </AdminRouteGuard>
+                      }
+                    />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </main>
+              </div>
             </div>
           </CartProvider>
         </ShopStatusProvider>

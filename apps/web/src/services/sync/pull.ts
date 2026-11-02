@@ -16,6 +16,8 @@ import {
   type SupplierProduct,
 } from "@/types/db";
 import type { Database } from "@/types/supabase";
+import { markSynced } from "@/lib/syncFreshness";
+import { purchaseLineTotal } from "@/lib/money";
 
 // ============================================================================
 // Incremental, cursor-based pulls -- replaces the old pullFromSupabase()'s
@@ -37,6 +39,10 @@ import type { Database } from "@/types/supabase";
 // ============================================================================
 
 const PULL_BATCH_SIZE = 500;
+
+// Set by any table pull that errors during the current pullAll() pass -- a
+// partial pass must not be recorded as a fresh sync (lib/syncFreshness.ts).
+let cycleHadError = false;
 
 async function getCursor(tableName: string): Promise<number> {
   const row = await db.sync_cursors.get(tableName);
@@ -91,7 +97,7 @@ export function mapProductRow(row: ProductRow): Product {
   };
 }
 
-function mapCategoryRow(row: CategoryRow): Category {
+export function mapCategoryRow(row: CategoryRow): Category {
   return { id: row.id, name: row.name, updated_at: row.updated_at, sync_seq: row.sync_seq };
 }
 
@@ -129,7 +135,7 @@ export function mapSaleRow(row: SaleRow): Sale {
   };
 }
 
-function mapSaleItemRow(row: SaleItemRow): SaleItem {
+export function mapSaleItemRow(row: SaleItemRow): SaleItem {
   return {
     id: row.id,
     sale_id: row.sale_id,
@@ -188,7 +194,7 @@ export function mapStockPurchaseRow(row: StockPurchaseRow): StockPurchase {
     quantity: row.quantity,
     unit_cost: row.unit_cost,
     // Generated column -- never null in practice, typed nullable by gen types.
-    total_cost: row.total_cost ?? row.quantity * row.unit_cost,
+    total_cost: row.total_cost ?? purchaseLineTotal(row.quantity, row.unit_cost),
     expiry_date: row.expiry_date ?? undefined,
     created_by: row.created_by ?? undefined,
     created_at: row.created_at,
@@ -197,7 +203,7 @@ export function mapStockPurchaseRow(row: StockPurchaseRow): StockPurchase {
   };
 }
 
-function mapShopStatusRow(row: ShopStatusRow): ShopStatus {
+export function mapShopStatusRow(row: ShopStatusRow): ShopStatus {
   return {
     id: row.id,
     is_open: row.is_open,
@@ -251,6 +257,7 @@ async function pullTable<TKey extends string | number, Row extends { id: TKey; s
 
   if (error) {
     console.error(`[sync/pull] failed to pull ${tableName}`, error);
+    cycleHadError = true;
     return;
   }
   const rows = (data ?? []) as unknown as Row[];
@@ -283,6 +290,7 @@ async function pullSoftDeletableTable<Row extends { id: string; sync_seq: number
 
   if (error) {
     console.error(`[sync/pull] failed to pull ${tableName}`, error);
+    cycleHadError = true;
     return;
   }
   const rows = (data ?? []) as unknown as Row[];
@@ -314,6 +322,7 @@ async function pullProfiles(): Promise<void> {
 
   if (error) {
     console.error("[sync/pull] failed to pull profiles", error);
+    cycleHadError = true;
     return;
   }
   const rows = (data ?? []) as ProfileRow[];
@@ -349,24 +358,127 @@ async function pullProfiles(): Promise<void> {
   if (rows.length === PULL_BATCH_SIZE) await pullProfiles();
 }
 
-export async function pullAll(): Promise<void> {
+// ---- change detection + single-flight pull ---------------------------------
+
+type SyncedTable =
+  | "categories"
+  | "products"
+  | "student_wallets"
+  | "sales"
+  | "sale_items"
+  | "profiles"
+  | "shop_status"
+  | "suppliers"
+  | "supplier_products"
+  | "stock_purchases"
+  | "supplier_price_history";
+
+export type Watermarks = Partial<Record<SyncedTable, number | null>>;
+
+// "unreachable": network/timeout -- the caller treats the device as offline.
+// "unsupported": the server predates migration 00039 -- pull everything,
+// the old way, rather than nothing.
+export type WatermarkResult =
+  | { ok: true; watermarks: Watermarks }
+  | { ok: false; reason: "unreachable" | "unsupported" };
+
+const WATERMARK_TIMEOUT_MS = 8000;
+
+// One tiny request (sync_watermarks, migration 00039): the highest sync_seq
+// per table. Doubles as the connectivity probe -- if this fails on the
+// network, nothing else in the cycle would have worked either.
+export async function fetchWatermarks(): Promise<WatermarkResult> {
+  try {
+    const { data, error } = await supabase.rpc("sync_watermarks").abortSignal(AbortSignal.timeout(WATERMARK_TIMEOUT_MS));
+    if (error) {
+      // A PostgREST error came back, so the server IS reachable.
+      console.warn("[sync/pull] sync_watermarks failed, falling back to a full pull", error);
+      return { ok: false, reason: "unsupported" };
+    }
+    return { ok: true, watermarks: (data ?? {}) as Watermarks };
+  } catch {
+    return { ok: false, reason: "unreachable" };
+  }
+}
+
+async function pullChangedTables(watermarks: Watermarks | null): Promise<void> {
+  // null watermarks = unknown (old server): pull every table.
+  const changed = async (table: SyncedTable) => {
+    if (watermarks === null) return true;
+    const mark = watermarks[table];
+    return mark !== null && mark !== undefined && mark > (await getCursor(table));
+  };
+
   // Categories before products so a fresh pull has the referenced rows
   // locally first -- not load-bearing (Dexie has no FK enforcement), just
   // keeps one sync cycle internally consistent.
-  await pullSoftDeletableTable("categories", db.categories, mapCategoryRow);
-  await pullSoftDeletableTable("products", db.products, mapProductRow);
-  await pullSoftDeletableTable("student_wallets", db.student_wallets, mapWalletRow);
+  if (await changed("categories")) await pullSoftDeletableTable("categories", db.categories, mapCategoryRow);
+  if (await changed("products")) await pullSoftDeletableTable("products", db.products, mapProductRow);
+  if (await changed("student_wallets")) await pullSoftDeletableTable("student_wallets", db.student_wallets, mapWalletRow);
   // Sales/sale_items are pulled (not push-only) so a device's local Dexie
   // reflects a student's complete purchase history across every terminal,
   // not just what this one till happened to ring up itself.
-  await pullTable("sales", db.sales, "*", mapSaleRow);
-  await pullTable("sale_items", db.sale_items, "*", mapSaleItemRow);
-  await pullProfiles();
-  await pullTable("shop_status", db.shop_status, "*", mapShopStatusRow);
-  // Admin-only under RLS (migration 00036) -- a cashier session just pulls
-  // nothing here.
-  await pullSoftDeletableTable("suppliers", db.suppliers, mapSupplierRow);
-  await pullSoftDeletableTable("supplier_products", db.supplier_products, mapSupplierProductRow);
-  await pullTable("stock_purchases", db.stock_purchases, "*", mapStockPurchaseRow);
-  await pullSoftDeletableTable("supplier_price_history", db.supplier_price_history, mapSupplierPriceHistoryRow);
+  if (await changed("sales")) await pullTable("sales", db.sales, "*", mapSaleRow);
+  if (await changed("sale_items")) await pullTable("sale_items", db.sale_items, "*", mapSaleItemRow);
+  if (await changed("profiles")) await pullProfiles();
+  if (await changed("shop_status")) await pullTable("shop_status", db.shop_status, "*", mapShopStatusRow);
+  // Admin-only under RLS (migration 00036) -- a cashier session gets null
+  // watermarks here and skips them entirely.
+  if (await changed("suppliers")) await pullSoftDeletableTable("suppliers", db.suppliers, mapSupplierRow);
+  if (await changed("supplier_products")) {
+    await pullSoftDeletableTable("supplier_products", db.supplier_products, mapSupplierProductRow);
+  }
+  if (await changed("stock_purchases")) await pullTable("stock_purchases", db.stock_purchases, "*", mapStockPurchaseRow);
+  if (await changed("supplier_price_history")) {
+    await pullSoftDeletableTable("supplier_price_history", db.supplier_price_history, mapSupplierPriceHistoryRow);
+  }
+}
+
+export interface PullResult {
+  reachable: boolean;
+}
+
+let inFlight: Promise<PullResult> | null = null;
+let rerunRequested = false;
+
+// Pulls only the tables whose server watermark moved past this device's
+// cursor -- usually none, i.e. a whole cycle costs one request. Single-
+// flight: a call arriving while a pull runs (a Realtime notification during
+// the periodic cycle, say) doesn't start a second, overlapping pull; it
+// schedules exactly one more pass after the current one, and every caller
+// awaits the same promise.
+//
+// `knownWatermarks`: the sync cycle already fetched them as its
+// connectivity probe and nothing was pushed since -- reuse, don't refetch.
+export function pullAll(knownWatermarks?: Watermarks): Promise<PullResult> {
+  if (inFlight) {
+    rerunRequested = true;
+    return inFlight;
+  }
+  inFlight = (async (): Promise<PullResult> => {
+    let watermarks = knownWatermarks;
+    let reachable = true;
+    do {
+      rerunRequested = false;
+      cycleHadError = false;
+      let marks: Watermarks | null;
+      if (watermarks) {
+        marks = watermarks;
+        watermarks = undefined;
+      } else {
+        const result = await fetchWatermarks();
+        if (!result.ok && result.reason === "unreachable") {
+          reachable = false;
+          break;
+        }
+        marks = result.ok ? result.watermarks : null;
+      }
+      await pullChangedTables(marks);
+      if (!cycleHadError) markSynced();
+    } while (rerunRequested);
+    return { reachable };
+  })().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
 }

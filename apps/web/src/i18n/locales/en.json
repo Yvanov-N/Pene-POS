@@ -539,7 +539,10 @@
       "aboutBuildLabel": "Build",
       "aboutBuildDateLabel": "Built on",
       "aboutLoading": "Checking...",
-      "aboutUnavailable": "Unavailable"
+      "aboutUnavailable": "Unavailable",
+      "aboutStorageLabel": "Local data",
+      "aboutStorageProtected": "Protected",
+      "aboutStorageNotProtected": "Not protected -- install the app on the home screen"
     },
     "routeGuard": {
       "locked": "This section is locked. Enter the admin PIN to continue.",
@@ -767,7 +770,24 @@
     "toastSuccess_one": "Cloud sync successful ({{count}} sale saved)",
     "toastSuccess_other": "Cloud sync successful ({{count}} sales saved)",
     "toastConflict": "Synchronization conflict detected!",
-    "offlineFallbackToast": "Network unavailable — saved locally, will sync automatically."
+    "offlineFallbackToast": "Network unavailable — saved locally, will sync automatically.",
+    "pendingSales_one": "{{count}} sale not sent yet.",
+    "pendingSales_other": "{{count}} sales not sent yet.",
+    "pendingOperations_one": "{{count}} operation not sent yet.",
+    "pendingOperations_other": "{{count}} operations not sent yet.",
+    "pendingHintOffline": "They'll go out when the network is back -- keep the app open.",
+    "pendingHintOnline": "Sending -- keep the app open until it's done.",
+    "retryNow": "Retry",
+    "pendingNotificationTitle_one": "{{count}} operation not sent yet",
+    "pendingNotificationTitle_other": "{{count}} operations not sent yet",
+    "pendingNotificationBody": "Tap Send as soon as you have a connection.",
+    "pendingNotificationTitleSales_one": "{{count}} sale not sent yet",
+    "pendingNotificationTitleSales_other": "{{count}} sales not sent yet",
+    "sendNow": "Send",
+    "sentNotificationTitle": "Sales sent",
+    "sentNotificationBody": "Everything is synced with the server.",
+    "sendNowOfflineBody": "Still no connection. Try again later -- they'll also go out automatically once the network is back.",
+    "notifyMe": "Notify me"
   },
   "update": {
     "toast": {

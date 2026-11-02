@@ -73,6 +73,10 @@ describe("summarizePurchases", () => {
     expect(summary.averageCost).toBe(325);
   });
 
+  it("sums rounded line totals (a pack of 12 at 83.33 each costs 1 000)", () => {
+    expect(summarizePurchases([purchase("a", "p1", "s1", 12, 83.33, 1)]).totalSpent).toBe(1000);
+  });
+
   it("handles no purchases", () => {
     expect(summarizePurchases([])).toEqual({ count: 0, totalQuantity: 0, totalSpent: 0 });
   });

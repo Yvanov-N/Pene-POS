@@ -7,6 +7,8 @@ import { FieldError } from "@/components/ui/field-error";
 import logo from "@/assets/logo.png";
 import cashierPhoto from "@/assets/cashier.jpg";
 
+const OAUTH_LINKED_CACHE_KEY = "pene_pos.oauthLinked";
+
 type Mode = "login" | "forgot";
 type OAuthProvider = "google" | "apple";
 const OAUTH_PROVIDERS: OAuthProvider[] = ["google", "apple"];
@@ -35,21 +37,44 @@ export function GlobalLogin() {
   // configured yet, and a login button that always 404s/errors is worse
   // than no button. oauth_provider_linked (migration 12) is a narrow
   // SECURITY DEFINER RPC anon can call for exactly this yes/no fact.
-  const [oauthLinked, setOauthLinked] = useState<Record<OAuthProvider, boolean>>({
-    google: false,
-    apple: false,
+  // Cached for the browser session: whether a provider is linked changes
+  // about never, and the login screen can be shown many times a day.
+  const [oauthLinked, setOauthLinked] = useState<Record<OAuthProvider, boolean>>(() => {
+    try {
+      const cached = sessionStorage.getItem(OAUTH_LINKED_CACHE_KEY);
+      if (cached) return JSON.parse(cached) as Record<OAuthProvider, boolean>;
+    } catch {
+      // Fall through to the defaults and a fresh check.
+    }
+    return { google: false, apple: false };
   });
 
   useEffect(() => {
-    for (const provider of OAUTH_PROVIDERS) {
-      void supabase.rpc("oauth_provider_linked", { provider_name: provider }).then(({ data, error }) => {
-        if (error) {
-          console.warn(`[GlobalLogin] oauth_provider_linked(${provider}) failed`, error);
-          return;
-        }
-        setOauthLinked((current) => ({ ...current, [provider]: data ?? false }));
-      });
+    try {
+      if (sessionStorage.getItem(OAUTH_LINKED_CACHE_KEY)) return;
+    } catch {
+      // No storage: just check every time.
     }
+    void Promise.all(
+      OAUTH_PROVIDERS.map((provider) =>
+        supabase.rpc("oauth_provider_linked", { provider_name: provider }).then(({ data, error }) => {
+          if (error) {
+            console.warn(`[GlobalLogin] oauth_provider_linked(${provider}) failed`, error);
+            return null;
+          }
+          return [provider, data ?? false] as const;
+        }),
+      ),
+    ).then((results) => {
+      if (results.some((result) => result === null)) return;
+      const linked = Object.fromEntries(results as (readonly [OAuthProvider, boolean])[]) as Record<OAuthProvider, boolean>;
+      setOauthLinked(linked);
+      try {
+        sessionStorage.setItem(OAUTH_LINKED_CACHE_KEY, JSON.stringify(linked));
+      } catch {
+        // Not cached this time.
+      }
+    });
   }, []);
 
   const showOauth = oauthLinked.google || oauthLinked.apple;

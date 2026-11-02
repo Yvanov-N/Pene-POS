@@ -1,5 +1,40 @@
 [
   {
+    "version": "1.28.0",
+    "date": "2026-11-02",
+    "changes": [
+      "round purchase totals to the franc (12 x 83.33 = 1 000)"
+    ]
+  },
+  {
+    "version": "1.27.0",
+    "date": "2026-11-02",
+    "changes": [
+      "unsent-sales notification with a Send button"
+    ]
+  },
+  {
+    "version": "1.26.0",
+    "date": "2026-11-02",
+    "changes": [
+      "protect and deliver unsent sales on phones"
+    ]
+  },
+  {
+    "version": "1.25.2",
+    "date": "2026-11-02",
+    "changes": [
+      "apply Realtime changes straight into Dexie (zero requests per change)"
+    ]
+  },
+  {
+    "version": "1.25.1",
+    "date": "2026-11-02",
+    "changes": [
+      "stop hammering Supabase -- watermark sync, leader tab, no idle polling"
+    ]
+  },
+  {
     "version": "1.25.0",
     "date": "2026-11-02",
     "changes": [

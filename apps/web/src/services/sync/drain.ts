@@ -1,6 +1,9 @@
 import { db } from "@/lib/db";
 import { pushOutbox } from "@/services/sync/push";
+import { drainOutboxWith, type DrainSummary } from "@/services/sync/drainCore";
 import type { OutboxOperation, PushOutcome } from "@/types/db";
+
+export type { DrainSummary };
 
 // ============================================================================
 // Drains the outbox -- replaces the old processSyncQueue(). Sequential, not
@@ -23,28 +26,9 @@ import type { OutboxOperation, PushOutcome } from "@/types/db";
 // the admin dashboard's visibility, it just no longer gates retrying it.
 // ============================================================================
 
-export interface DrainSummary {
-  // Sales specifically -- the sync badge's success toast reads "N sale(s)
-  // saved" (i18n sync.toastSuccess), so it must not be conflated with a
-  // product/category/wallet edit also having synced this cycle.
-  syncedSales: number;
-  conflicts: number;
-}
 
 export async function drainOutbox(): Promise<DrainSummary> {
-  const candidates = await db.sync_outbox.where("status").anyOf(["pending", "error"]).toArray();
-  let syncedSales = 0;
-  let conflicts = 0;
-
-  for (const entry of candidates) {
-    if (entry.id === undefined) continue;
-
-    const outcome = await pushOutbox(entry);
-    if (outcome === "synced" && entry.opType === "complete_sale") syncedSales += 1;
-    if (outcome === "conflict") conflicts += 1;
-  }
-
-  return { syncedSales, conflicts };
+  return drainOutboxWith(pushOutbox);
 }
 
 // Most-recent outbox entry (of any status) whose complete_sale payload

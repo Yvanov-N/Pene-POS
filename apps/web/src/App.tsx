@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { mirrorSession } from "@/lib/authSessionMirror";
 import { GlobalLogin } from "@/components/auth/GlobalLogin";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
 import { ResetPinForm } from "@/components/auth/ResetPinForm";
@@ -19,10 +20,12 @@ function App() {
     void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setCheckingSession(false);
+      void mirrorSession(data.session);
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+      void mirrorSession(newSession);
       if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
     });
 

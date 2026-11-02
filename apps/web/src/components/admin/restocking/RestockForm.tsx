@@ -22,7 +22,7 @@ import { SupplierFormModal } from "./SupplierFormModal";
 import { INPUT_CLASS, SMALL_BUTTON_CLASS } from "./styles";
 import { ProductThumb } from "@/components/ui/product-thumb";
 import { AmountInput } from "@/components/ui/amount-input";
-import { parseAmount, roundMoney } from "@/lib/money";
+import { parseAmount, purchaseLineTotal, roundMoney } from "@/lib/money";
 
 const QUICK_ADD_AMOUNTS = [10, 24, 50, 100] as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -139,7 +139,7 @@ export function RestockForm() {
         supplier_id: values.supplierId,
         quantity: values.quantity,
         unit_cost: unitCost,
-        total_cost: roundMoney(values.quantity * unitCost),
+        total_cost: purchaseLineTotal(values.quantity, unitCost),
         expiry_date: nextExpiry,
         created_at: now,
         updated_at: now,
@@ -222,7 +222,7 @@ export function RestockForm() {
   // Live preview only -- an unparseable entry ("12,") just hides it.
   const parsedCost = formik.values.unitCost === "" ? Number.NaN : parseAmount(formik.values.unitCost);
   const unitCostValue = Number.isFinite(parsedCost) ? parsedCost : undefined;
-  const lineTotal = unitCostValue !== undefined ? roundMoney(unitCostValue * (Number(formik.values.quantity) || 0)) : undefined;
+  const lineTotal = unitCostValue !== undefined ? purchaseLineTotal(Number(formik.values.quantity) || 0, unitCostValue) : undefined;
   const unitMargin = selected && unitCostValue !== undefined ? roundMoney(selected.price - unitCostValue) : undefined;
 
   return (
