@@ -74,7 +74,11 @@
       "title": "Sale complete",
       "printButton": "Print",
       "shareButton": "Share",
-      "closeButton": "Close"
+      "closeButton": "Close",
+      "momoPendingTitle": "Mobile Money payment to verify.",
+      "momoPendingHint": "Check that the confirmation SMS reached the shop phone.",
+      "momoConfirmed": "Mobile Money payment verified.",
+      "momoRejected": "Payment rejected -- sale cancelled."
     },
     "momoReminder": {
       "label_one": "{{count}} MoMo payment to verify",
@@ -123,7 +127,8 @@
       "confirm": "Confirm SMS",
       "reject": "Reject",
       "confirmedToast": "MoMo transaction confirmed ({{amount}})",
-      "rejectedToast": "MoMo transaction rejected, stock restored"
+      "rejectedToast": "MoMo payment rejected -- sale cancelled, stock restored",
+      "rejectPinTitle": "Admin PIN to reject this payment and cancel the sale"
     },
     "wallets": {
       "searchPlaceholder": "Search for a student (name, badge, email)...",
@@ -277,7 +282,9 @@
       "walletChip": "Wallet · {{name}}",
       "showItems": "Show items",
       "hideItems": "Hide items",
-      "sortBy": "Sort by"
+      "sortBy": "Sort by",
+      "momoToVerify": "MoMo to verify",
+      "momoRejected": "MoMo rejected"
     },
     "products": {
       "title": "Products",
