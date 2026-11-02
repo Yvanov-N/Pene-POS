@@ -222,8 +222,8 @@ export function RestockForm() {
   const unitMargin = selected && unitCostValue !== undefined ? roundMoney(selected.price - unitCostValue) : undefined;
 
   return (
-    <>
-      <CardCustom title={t("restocking.title")}>
+    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-12">
+      <CardCustom title={t("restocking.title")} className="min-w-0 xl:col-span-7">
         <div className="flex flex-col gap-4">
           <BarcodeInput ref={barcodeInputRef} onProductSelect={(product) => void selectProduct(product)} onNotFound={handleUnknownBarcode} />
 
@@ -399,9 +399,19 @@ export function RestockForm() {
             </div>
           )}
 
-          {selected && <ProductSupplierPanel product={selected} />}
         </div>
       </CardCustom>
+
+      {/* Supplier comparison beside the form on wide screens, below it otherwise. */}
+      <div className="min-w-0 xl:sticky xl:top-4 xl:col-span-5">
+        {selected ? (
+          <ProductSupplierPanel product={selected} />
+        ) : (
+          <div className="hidden rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted xl:block">
+            {t("restocking.panelPlaceholder")}
+          </div>
+        )}
+      </div>
 
       {showSupplierModal && (
         <SupplierFormModal
@@ -411,6 +421,6 @@ export function RestockForm() {
           }}
         />
       )}
-    </>
+    </div>
   );
 }

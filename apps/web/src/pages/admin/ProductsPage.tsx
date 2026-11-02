@@ -206,7 +206,7 @@ export function ProductsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl p-4">
+    <div className="w-full p-4">
       <CardCustom
         title={t("admin.products.title")}
         header={

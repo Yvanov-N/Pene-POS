@@ -643,7 +643,8 @@
       "summaryRange": "Paid from {{min}} to {{max}}",
       "deletedProduct": "Deleted product",
       "deletedSupplier": "Deleted supplier"
-    }
+    },
+    "panelPlaceholder": "Select a product to compare its suppliers and purchase price trend."
   },
   "suppliers": {
     "title": "Suppliers",

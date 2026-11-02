@@ -643,7 +643,8 @@
       "summaryRange": "Prix paye de {{min}} a {{max}}",
       "deletedProduct": "Produit supprime",
       "deletedSupplier": "Fournisseur supprime"
-    }
+    },
+    "panelPlaceholder": "Selectionnez un produit pour comparer ses fournisseurs et l'evolution de ses prix d'achat."
   },
   "suppliers": {
     "title": "Fournisseurs",

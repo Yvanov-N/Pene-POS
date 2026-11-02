@@ -64,7 +64,7 @@ export function ProductSupplierPanel({ product }: ProductSupplierPanelProps) {
   const marginPct = margin !== undefined && product.price > 0 ? (margin / product.price) * 100 : undefined;
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-border p-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-foreground">{t("suppliers.panelTitle")}</h3>
         <button type="button" className={SMALL_BUTTON_CLASS} onClick={() => setOfferModal({})}>

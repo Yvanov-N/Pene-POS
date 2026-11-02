@@ -412,7 +412,7 @@ export function SalesHistoryPage() {
     "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface2 text-foreground hover:border-accent";
 
   return (
-    <div className="mx-auto max-w-6xl p-4">
+    <div className="w-full p-4">
       <CardCustom title={t("admin.salesHistory.title")}>
         <div className="mb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-2 sm:flex-row">

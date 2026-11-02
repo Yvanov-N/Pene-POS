@@ -330,7 +330,7 @@ export function ProfileSettingsCard() {
         </div>
 
         <div className="flex gap-3">
-          <label className="flex flex-1 flex-col gap-1 text-sm">
+          <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
             <span className="text-muted">{t("admin.profile.fieldFirstName")}</span>
             <input
               type="text"
@@ -338,11 +338,11 @@ export function ProfileSettingsCard() {
               value={nameFormik.values.first_name}
               onChange={nameFormik.handleChange}
               onBlur={nameFormik.handleBlur}
-              className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
+              className="w-full min-w-0 rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
             />
             <FieldError touched={nameFormik.touched.first_name} error={nameFormik.errors.first_name} />
           </label>
-          <label className="flex flex-1 flex-col gap-1 text-sm">
+          <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
             <span className="text-muted">{t("admin.profile.fieldLastName")}</span>
             <input
               type="text"
@@ -350,7 +350,7 @@ export function ProfileSettingsCard() {
               value={nameFormik.values.last_name}
               onChange={nameFormik.handleChange}
               onBlur={nameFormik.handleBlur}
-              className="rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
+              className="w-full min-w-0 rounded-lg border border-border bg-surface2 px-3 py-2 text-foreground"
             />
           </label>
         </div>

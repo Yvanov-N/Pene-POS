@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.21.0",
+    "date": "2026-11-02",
+    "changes": [
+      "full-width admin layouts, settings in two columns, scanner bar only when paired"
+    ]
+  },
+  {
     "version": "1.20.0",
     "date": "2026-11-02",
     "changes": [

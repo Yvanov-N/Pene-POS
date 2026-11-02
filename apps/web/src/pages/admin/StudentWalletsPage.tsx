@@ -3,7 +3,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
-import { X } from "lucide-react";
+import { Archive, Pencil, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
@@ -273,8 +273,9 @@ export function StudentWalletsPage() {
   };
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
+    <div className="grid w-full grid-cols-1 items-start gap-4 p-4 xl:grid-cols-12">
       <CardCustom
+        className="min-w-0 xl:col-span-8"
         title={showArchived ? t("admin.students.archivedTitle") : t("admin.students.title")}
         header={
           showArchived ? (
@@ -331,7 +332,7 @@ export function StudentWalletsPage() {
                       <td className="py-2 pr-3 font-medium text-foreground">{student.student_name}</td>
                       <td className="py-2 pr-3 text-muted">{student.badge_code}</td>
                       <td
-                        className={`py-2 pr-3 font-medium ${student.balance > 0 ? "text-success" : student.balance < 0 ? "text-destructive" : "text-foreground"}`}
+                        className={`whitespace-nowrap py-2 pr-3 font-medium ${student.balance > 0 ? "text-success" : student.balance < 0 ? "text-destructive" : "text-foreground"}`}
                       >
                         {formatCurrency(student.balance)}
                       </td>
@@ -361,8 +362,10 @@ export function StudentWalletsPage() {
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
                   <th className="py-2 pr-3">{t("admin.students.fieldName")}</th>
                   <th className="py-2 pr-3">{t("admin.students.fieldBadge")}</th>
-                  <th className="py-2 pr-3">{t("admin.students.fieldEmail")}</th>
-                  <th className="py-2 pr-3">{t("admin.students.fieldPhone")}</th>
+                  {/* E-mail/phone only on very wide screens -- the table shares the
+                      row with the MoMo card from xl up; both are in the student drawer. */}
+                  <th className="hidden py-2 pr-3 2xl:table-cell">{t("admin.students.fieldEmail")}</th>
+                  <th className="hidden py-2 pr-3 2xl:table-cell">{t("admin.students.fieldPhone")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnEmailOptIn")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnBalance")}</th>
                   <th className="py-2 pr-3">{t("admin.wallets.columnTotalSpend")}</th>
@@ -379,10 +382,10 @@ export function StudentWalletsPage() {
                       onClick={() => setSelectedStudent(student)}
                       className="cursor-pointer border-b border-border last:border-0 hover:bg-surface2"
                     >
-                      <td className="py-2 pr-3 font-medium text-foreground">{student.student_name}</td>
-                      <td className="py-2 pr-3 text-muted">{student.badge_code}</td>
-                      <td className="py-2 pr-3 text-muted">{student.email || "—"}</td>
-                      <td className="py-2 pr-3 text-muted">{student.phone || "—"}</td>
+                      <td className="whitespace-nowrap py-2 pr-3 font-medium text-foreground">{student.student_name}</td>
+                      <td className="whitespace-nowrap py-2 pr-3 text-muted">{student.badge_code}</td>
+                      <td className="hidden py-2 pr-3 text-muted 2xl:table-cell">{student.email || "—"}</td>
+                      <td className="hidden py-2 pr-3 text-muted 2xl:table-cell">{student.phone || "—"}</td>
                       <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
                         <Switch
                           checked={student.email_opt_in}
@@ -395,25 +398,31 @@ export function StudentWalletsPage() {
                       >
                         {formatCurrency(student.balance)}
                       </td>
-                      <td className="py-2 pr-3 text-foreground">{formatCurrency(stats?.totalSpend ?? 0)}</td>
+                      <td className="whitespace-nowrap py-2 pr-3 text-foreground">{formatCurrency(stats?.totalSpend ?? 0)}</td>
                       <td className="py-2 pr-3 text-foreground">{stats?.orderCount ?? 0}</td>
                       <td className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        {/* Icon buttons: the table shares its row with the MoMo
+                            card, so the labelled ones no longer fit. */}
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => openEditForm(student)}
-                            className="rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-foreground hover:border-accent"
+                            aria-label={t("admin.students.edit")}
+                            title={t("admin.students.edit")}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface2 text-foreground hover:border-accent"
                           >
-                            {t("admin.students.edit")}
+                            <Pencil className="h-4 w-4" aria-hidden />
                           </button>
                           <ButtonCustom
                             variant="danger"
-                            size="sm"
+                            size="icon"
                             requiresAdminPin
                             pinModalTitle={t("admin.students.archivePinTitle")}
+                            aria-label={t("admin.students.archive")}
+                            title={t("admin.students.archive")}
                             onClick={() => void handleArchive(student)}
                           >
-                            {t("admin.students.archive")}
+                            <Archive className="h-4 w-4" aria-hidden />
                           </ButtonCustom>
                         </div>
                       </td>
@@ -436,7 +445,9 @@ export function StudentWalletsPage() {
         {!showArchived && !isOnline && <p className="mt-2 text-xs text-muted">{t("admin.pagination.offlineNotice")}</p>}
       </CardCustom>
 
-      <MoMoVerificationCard />
+      <div className="min-w-0 xl:col-span-4">
+        <MoMoVerificationCard />
+      </div>
 
       {selectedStudent && (
         <StudentProfileDrawer student={selectedStudent} onClose={() => setSelectedStudent(null)} />
