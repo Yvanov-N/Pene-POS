@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { hashPin } from "@/lib/hashPin";
 import { supabase } from "@/lib/supabase";
 import { FieldError } from "@/components/ui/field-error";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Profile } from "@/types/db";
 import type { UserRole } from "@/types/supabase";
 
@@ -14,6 +15,11 @@ const PIN_LENGTH = 4;
 const SHAKE_DURATION_MS = 400;
 const PAD_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
 const FAILED_ATTEMPTS_BEFORE_RESET = 3;
+// On-screen digits only where there's no physical keyboard to rely on:
+// phones (narrow viewport) and touch tablets even in landscape. A desktop
+// with a mouse just shows the dots and takes the PIN from the keyboard
+// listener below.
+const SHOW_PAD_QUERY = "(max-width: 767px), (pointer: coarse)";
 
 // Same "don't reveal account existence" concern as GlobalLogin's own
 // isNetworkError -- signInWithOtp({ shouldCreateUser: false }) errors for an
@@ -48,6 +54,7 @@ export function PinPadModal({ title, onSuccess, onClose, requiredRole }: PinPadM
   const [failedAttempts, setFailedAttempts] = useState(0);
 
   const [view, setView] = useState<PinPadView>("pad");
+  const showPad = useMediaQuery(SHOW_PAD_QUERY);
   const [resetError, setResetError] = useState<string | null>(null);
 
   const forgotFormik = useFormik<ForgotFormValues>({
@@ -175,22 +182,26 @@ export function PinPadModal({ title, onSuccess, onClose, requiredRole }: PinPadM
               </p>
             )}
 
-            <div className="pin-pad">
-              {PAD_KEYS.map((key, index) => {
-                if (key === "") return <span key={`blank-${index}`} />;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => handleKeyPress(key)}
-                    disabled={checking}
-                    className="rounded-lg border border-border bg-surface2 py-3 text-lg font-medium text-foreground transition-colors hover:border-accent disabled:opacity-50"
-                  >
-                    {key === "back" ? "⌫" : key}
-                  </button>
-                );
-              })}
-            </div>
+            {!showPad && <p className="mt-1 text-center text-xs text-muted">{t("pos.pin.keyboardHint")}</p>}
+
+            {showPad && (
+              <div className="pin-pad">
+                {PAD_KEYS.map((key, index) => {
+                  if (key === "") return <span key={`blank-${index}`} />;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleKeyPress(key)}
+                      disabled={checking}
+                      className="rounded-lg border border-border bg-surface2 py-3 text-lg font-medium text-foreground transition-colors hover:border-accent disabled:opacity-50"
+                    >
+                      {key === "back" ? "⌫" : key}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
 

@@ -10,7 +10,7 @@
       "notFoundToast": "Code-barres inconnu dans la base locale."
     },
     "filters": {
-      "searchPlaceholder": "Rechercher un produit ou un code-barres...",
+      "searchPlaceholder": "Rechercher par nom, code-barres ou prix...",
       "allCategory": "Tous"
     },
     "grid": {
@@ -55,6 +55,7 @@
       "hideCart": "Masquer le panier"
     },
     "pin": {
+      "keyboardHint": "Saisissez votre code PIN au clavier",
       "checkoutTitle": "Code PIN administrateur pour valider l'encaissement",
       "incorrect": "Code PIN incorrect",
       "close": "Fermer",
@@ -204,11 +205,12 @@
       "offlineNotice": "Hors ligne -- affichage des donnees enregistrees localement."
     },
     "salesHistory": {
+      "unknownStudent": "Étudiant archivé",
       "title": "Historique des ventes",
       "allPaymentMethods": "Tous",
       "allStatuses": "Tous",
       "allDates": "Toutes les dates",
-      "searchPlaceholder": "N° de vente, caissier ou appareil...",
+      "searchPlaceholder": "N° de vente, caissier, étudiant ou appareil...",
       "loading": "Chargement...",
       "empty": "Aucune vente trouvee.",
       "itemsTitle": "Articles",

@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -38,11 +38,13 @@ interface SalesFilters_ {
 // query could silently miss real matches beyond row 200 -- fixed here as a
 // side effect of building real pagination).
 async function queryLocalSales(params: PageParams<"created_at", SalesFilters_>): Promise<PageResult<Sale>> {
-  const [sales, profiles] = await Promise.all([
+  const [sales, profiles, students] = await Promise.all([
     db.sales.orderBy("created_at").reverse().toArray(),
     db.profiles.toArray(),
+    db.student_wallets.toArray(),
   ]);
   const cashierNames = new Map(profiles.map((p) => [p.id, p.full_name]));
+  const studentNames = new Map(students.map((s) => [s.id, s.student_name]));
   const term = params.searchTerm.trim().toLowerCase();
 
   const filtered = sales.filter((sale) => {
@@ -53,7 +55,8 @@ async function queryLocalSales(params: PageParams<"created_at", SalesFilters_>):
       const matchesId = sale.id.toLowerCase().includes(term);
       const matchesCashier = cashierName.toLowerCase().includes(term);
       const matchesDevice = (sale.device_label ?? "").toLowerCase().includes(term);
-      if (!matchesId && !matchesCashier && !matchesDevice) return false;
+      const matchesStudent = (studentNames.get(sale.student_id ?? "") ?? "").toLowerCase().includes(term);
+      if (!matchesId && !matchesCashier && !matchesDevice && !matchesStudent) return false;
     }
     if (params.filters.dateRange && (sale.created_at < params.filters.dateRange.start || sale.created_at > params.filters.dateRange.end)) {
       return false;
@@ -67,8 +70,9 @@ async function queryLocalSales(params: PageParams<"created_at", SalesFilters_>):
 
 // Server path. sales.id is uuid (no ilike operator) -- id_text (migration
 // 00020) is the generated text column that makes id substring search
-// possible. Cashier-name search is a two-step resolution: resolve matching
-// profile ids first, then OR them into the sales filter alongside id_text.
+// possible. Cashier- and student-name search are two-step resolutions:
+// resolve matching profile/student ids first, then OR them into the sales
+// filter alongside id_text.
 async function fetchServerSales(
   params: PageParams<"created_at", SalesFilters_>,
   signal: AbortSignal,
@@ -76,10 +80,18 @@ async function fetchServerSales(
   const term = params.searchTerm.trim().replace(/[%,()]/g, "");
 
   let matchingCashierIds: string[] = [];
+  let matchingStudentIds: string[] = [];
   if (term) {
-    const { data, error } = await supabase.from("profiles").select("id").ilike("full_name", `%${term}%`).abortSignal(signal);
-    if (error) throw error;
-    matchingCashierIds = data.map((row) => row.id);
+    const [cashiers, students] = await Promise.all([
+      supabase.from("profiles").select("id").ilike("full_name", `%${term}%`).abortSignal(signal),
+      // Archived students included on purpose -- their past sales still
+      // belong to them.
+      supabase.from("student_wallets").select("id").ilike("student_name", `%${term}%`).abortSignal(signal),
+    ]);
+    if (cashiers.error) throw cashiers.error;
+    if (students.error) throw students.error;
+    matchingCashierIds = cashiers.data.map((row) => row.id);
+    matchingStudentIds = students.data.map((row) => row.id);
   }
 
   let query = supabase.from("sales").select("*", { count: "exact" });
@@ -90,7 +102,8 @@ async function fetchServerSales(
   }
   if (term) {
     const cashierClause = matchingCashierIds.length > 0 ? `,cashier_id.in.(${matchingCashierIds.join(",")})` : "";
-    query = query.or(`id_text.ilike.%${term}%${cashierClause},device_label.ilike.%${term}%`);
+    const studentClause = matchingStudentIds.length > 0 ? `,student_id.in.(${matchingStudentIds.join(",")})` : "";
+    query = query.or(`id_text.ilike.%${term}%${cashierClause}${studentClause},device_label.ilike.%${term}%`);
   }
 
   const offset = (params.page - 1) * params.pageSize;
@@ -175,6 +188,18 @@ export function SalesHistoryPage() {
     [],
   );
 
+  const localStudentNames = useLiveQuery(
+    () => db.student_wallets.toArray().then((students) => new Map(students.map((s) => [s.id, s.student_name]))),
+    [],
+  );
+  // Archived students are dropped from Dexie by the soft-delete pull, but
+  // their old sales still need a name -- fetch just the ids on this page
+  // that the local table can't resolve.
+  const [remoteStudentNames, setRemoteStudentNames] = useState<Map<string, string>>(new Map());
+  // Ids already asked for, found or not -- so an id the server doesn't
+  // return either isn't refetched on every render.
+  const requestedStudentIds = useRef(new Set<string>());
+
   const expandedItems = useLiveQuery(async () => {
     if (!expandedSaleId) return null;
     const [items, products] = await Promise.all([
@@ -208,6 +233,34 @@ export function SalesHistoryPage() {
     fetchServer: fetchServerSales,
     writeBack: writeBackSales,
   });
+
+  useEffect(() => {
+    if (!filteredSales || !localStudentNames || !isOnline) return;
+    const missing = [
+      ...new Set(
+        filteredSales
+          .map((sale) => sale.student_id)
+          .filter((id): id is string => !!id && !localStudentNames.has(id) && !requestedStudentIds.current.has(id)),
+      ),
+    ];
+    if (missing.length === 0) return;
+    for (const id of missing) requestedStudentIds.current.add(id);
+    void supabase
+      .from("student_wallets")
+      .select("id, student_name")
+      .in("id", missing)
+      .then(({ data, error }) => {
+        if (error || !data) return;
+        setRemoteStudentNames((current) => {
+          const next = new Map(current);
+          for (const row of data) next.set(row.id, row.student_name);
+          return next;
+        });
+      });
+  }, [filteredSales, localStudentNames, isOnline]);
+
+  const studentName = (studentId: string) =>
+    localStudentNames?.get(studentId) ?? remoteStudentNames.get(studentId) ?? t("admin.salesHistory.unknownStudent");
 
   const handleReprint = async (sale: Sale) => {
     setBusyId(sale.id);
@@ -393,6 +446,9 @@ export function SalesHistoryPage() {
                           <span className={PAYMENT_BADGE_CLASS[sale.payment_method]}>
                             {t(`pos.cart.paymentMethod.${sale.payment_method}`)}
                           </span>
+                          {sale.student_id && (
+                            <p className="mt-1 text-xs text-muted">{studentName(sale.student_id)}</p>
+                          )}
                         </td>
                         <td className="py-2 pr-3">
                           <span className={STATUS_BADGE_CLASS[sale.status]}>{t(`admin.salesHistory.status.${sale.status}`)}</span>

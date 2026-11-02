@@ -10,7 +10,7 @@
       "notFoundToast": "Barcode not found in the local database."
     },
     "filters": {
-      "searchPlaceholder": "Search a product or barcode...",
+      "searchPlaceholder": "Search by name, barcode or price...",
       "allCategory": "All"
     },
     "grid": {
@@ -55,6 +55,7 @@
       "hideCart": "Hide cart"
     },
     "pin": {
+      "keyboardHint": "Type your PIN on the keyboard",
       "checkoutTitle": "Enter admin PIN to complete checkout",
       "incorrect": "Incorrect PIN",
       "close": "Close",
@@ -204,11 +205,12 @@
       "offlineNotice": "Offline -- showing locally saved data."
     },
     "salesHistory": {
+      "unknownStudent": "Archived student",
       "title": "Sales history",
       "allPaymentMethods": "All",
       "allStatuses": "All",
       "allDates": "All dates",
-      "searchPlaceholder": "Sale ID, cashier, or device...",
+      "searchPlaceholder": "Sale #, cashier, student or device...",
       "loading": "Loading...",
       "empty": "No sales found.",
       "itemsTitle": "Items",

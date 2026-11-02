@@ -269,20 +269,35 @@
     border: 1px solid hsl(var(--border));
     border-radius: 12px;
     padding: 16px;
+    /* Grid items default to min-width: auto, which let a long amount
+       ("1 234 567 FCFA", non-breaking spaces) stretch or spill out of the
+       tile instead of shrinking with it. */
+    min-width: 0;
+    overflow: hidden;
   }
 
   .stat-grid {
     @apply grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4;
   }
 
+  /* For tiles inside a narrow container (e.g. the student drawer, capped at
+     max-w-2xl): .stat-grid's lg:grid-cols-4 follows the viewport, not the
+     container, and leaves ~100px per tile there. */
+  .stat-grid-compact {
+    @apply grid grid-cols-1 gap-3 sm:grid-cols-2;
+  }
+
   .stat-label {
-    @apply text-xs font-bold uppercase tracking-wide;
+    /* pr-8 keeps the label clear of the absolutely positioned icon. */
+    @apply pr-8 text-xs font-bold uppercase tracking-wide;
     color: hsl(var(--muted));
   }
 
   .stat-value {
-    @apply text-3xl font-extrabold;
+    @apply text-2xl font-extrabold leading-tight xl:text-3xl;
     color: hsl(var(--text));
+    /* Last resort only: break inside the number rather than overflow. */
+    overflow-wrap: anywhere;
   }
 
   .stat-sub {

@@ -10,6 +10,7 @@ import { isRevenueRelevant, buildProductTotals } from "@/lib/salesAggregation";
 import type { Product } from "@/types/db";
 import { formatCurrency } from "@/lib/currency";
 import { ALL_CATEGORIES_VALUE } from "@/lib/constants";
+import { isExactPriceMatch, matchesProductSearch } from "@/lib/productSearch";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EXPIRY_WARNING_DAYS = 7;
@@ -110,20 +111,18 @@ export function ProductGrid({ searchTerm, category, onProductSelect }: ProductGr
   }, []);
 
   const filtered = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    const base = (products ?? []).filter(
-      (product) =>
-        !term ||
-        product.name.toLowerCase().includes(term) ||
-        (product.barcode ?? "").toLowerCase().includes(term),
-    );
+    const base = (products ?? []).filter((product) => matchesProductSearch(product, searchTerm));
     return [...base].sort((a, b) => {
+      // A price search ("500") lists the products at exactly that price
+      // before the ones that merely contain those digits (1500, 2500...).
+      const exactA = isExactPriceMatch(a, searchTerm) ? 1 : 0;
+      const exactB = isExactPriceMatch(b, searchTerm) ? 1 : 0;
       const qtyA = bestSellerTotals?.get(a.id)?.quantitySold ?? 0;
       const qtyB = bestSellerTotals?.get(b.id)?.quantitySold ?? 0;
       // Descending by units sold; zero-sales products (not in the map) fall
       // out naturally via ?? 0, tiebroken alphabetically instead of leaving
       // their relative order to incidental fetch/sort order.
-      return qtyB - qtyA || a.name.localeCompare(b.name);
+      return exactB - exactA || qtyB - qtyA || a.name.localeCompare(b.name);
     });
   }, [products, searchTerm, bestSellerTotals]);
 
