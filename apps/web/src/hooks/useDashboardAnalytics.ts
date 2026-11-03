@@ -1,9 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { getRangeForFilter, type CustomRange, type TimeRangeFilter } from "@/lib/dateHelpers";
+import { getRangeForFilter, type CustomRange, type DateRange, type TimeRangeFilter } from "@/lib/dateHelpers";
 import { isRevenueRelevant, buildProductTotals, emptyProductTotals, type ProductTotals } from "@/lib/salesAggregation";
-import type { OutboxOperation, PaymentMethod } from "@/types/db";
+import type { PaymentMethod } from "@/types/db";
 import { roundMoney } from "@/lib/money";
 
 export type { TimeRangeFilter, CustomRange };
@@ -41,6 +41,8 @@ export interface ProductProfit {
 }
 
 export interface DashboardAnalytics {
+  // The selected window, resolved to concrete bounds (CSV export, recharges).
+  range: DateRange;
   grossRevenue: number;
   // Real profit = selling price - purchase cost snapshotted on each sale
   // line (sale_items.unit_cost). Lines with no known cost (sold before any
@@ -56,7 +58,6 @@ export interface DashboardAnalytics {
   // "+Infinity%".
   revenueChangePct: number | null;
   totalTransactions: number;
-  totalWalletRecharges: number;
   hourlyRevenue: HourlyPoint[];
   paymentSplit: PaymentSplitEntry[];
   topProducts: TopProduct[];
@@ -85,17 +86,13 @@ function emptyPaymentSplit(): PaymentSplitEntry[] {
   return PAYMENT_METHODS.map((method) => ({ method, total: 0, percentage: 0, fill: PAYMENT_COLORS[method] }));
 }
 
-async function sumRevenueForRange(start: string, end: string): Promise<number> {
-  const sales = await db.sales.where("created_at").between(start, end, true, true).toArray();
-  return sales.filter(isRevenueRelevant).reduce((sum, sale) => sum + sale.total_amount, 0);
-}
-
-async function sumProfitForRange(start: string, end: string): Promise<number> {
-  const sales = await db.sales.where("created_at").between(start, end, true, true).toArray();
-  const totals = await buildProductTotals(sales.filter(isRevenueRelevant).map((sale) => sale.id));
+// Revenue and profit of the comparison period, from a single read of its sales.
+async function previousPeriodTotals(start: string, end: string): Promise<{ revenue: number; profit: number }> {
+  const sales = (await db.sales.where("created_at").between(start, end, true, true).toArray()).filter(isRevenueRelevant);
+  const totals = await buildProductTotals(sales.map((sale) => sale.id));
   let profit = 0;
   for (const bucket of totals.values()) profit += bucket.profit;
-  return profit;
+  return { revenue: roundMoney(sales.reduce((sum, sale) => sum + sale.total_amount, 0)), profit };
 }
 
 function changePct(current: number, previous: number): number | null {
@@ -107,36 +104,29 @@ function marginOf(totals: Pick<ProductTotals, "profit" | "costedRevenue">): numb
   return totals.costedRevenue > 0 ? Math.round((totals.profit / totals.costedRevenue) * 1000) / 10 : null;
 }
 
-// No dedicated recharge-history table exists anywhere (server or local) --
-// db.sync_outbox is the durable local record of an adjust_wallet_balance
-// mutation, since nothing prunes synced outbox entries. Filtered to
-// reason === "recharge" specifically (StudentProfileDrawer tags every
-// standalone wallet top-up this way) -- unlike the old sync_queue-based
-// version of this query, a checkout wallet debit or a refund credit-back no
-// longer produces a standalone outbox entry at all (complete_sale/void_sale
-// apply those deltas atomically server-side now, bundled into the sale/
-// refund's own single outbox entry), so this is now a clean top-ups-only
-// total instead of a volume-of-all-adjustments figure that used to silently
-// mix in negative checkout debits.
-async function sumWalletRechargesForRange(start: string, end: string): Promise<number> {
-  const items = await db.sync_outbox.where("createdAt").between(start, end, true, true).toArray();
-  return items
-    .filter(
-      (item): item is Extract<OutboxOperation, { opType: "adjust_wallet_balance" }> =>
-        item.opType === "adjust_wallet_balance" && item.payload.reason === "recharge",
-    )
-    .reduce((sum, item) => sum + (Number(item.payload.delta) || 0), 0);
+// Changes once a minute (checked every 15 s): the "today"/"last N days" bounds and the
+// same-elapsed-time comparison cut-off depend on the current time, and a
+// dashboard left open past midnight must roll over to the new day.
+function useMinuteTick(): number {
+  const [minute, setMinute] = useState(() => Math.floor(Date.now() / 60_000));
+  useEffect(() => {
+    const timer = setInterval(() => setMinute(Math.floor(Date.now() / 60_000)), 15_000);
+    return () => clearInterval(timer);
+  }, []);
+  return minute;
 }
 
 export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: CustomRange): DashboardAnalytics {
-  const { current, previous } = useMemo(() => getRangeForFilter(filter, customRange), [filter, customRange]);
+  const minute = useMinuteTick();
+  const { current, previous } = useMemo(
+    () => getRangeForFilter(filter, customRange, new Date(minute * 60_000)),
+    [filter, customRange, minute],
+  );
 
   const result = useLiveQuery(async () => {
-    const [sales, previousRevenue, previousProfit, totalWalletRecharges] = await Promise.all([
+    const [sales, previousTotals] = await Promise.all([
       db.sales.where("created_at").between(current.start, current.end, true, true).toArray(),
-      sumRevenueForRange(previous.start, previous.end),
-      sumProfitForRange(previous.start, previous.end),
-      sumWalletRechargesForRange(current.start, current.end),
+      previousPeriodTotals(previous.start, previous.end),
     ]);
 
     const relevantSales = sales.filter(isRevenueRelevant);
@@ -162,12 +152,7 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
     grossRevenue = roundMoney(grossRevenue);
     const totalTransactions = relevantSales.length;
 
-    const revenueChangePct =
-      previousRevenue === 0
-        ? grossRevenue === 0
-          ? 0
-          : null
-        : Math.round(((grossRevenue - previousRevenue) / previousRevenue) * 1000) / 10;
+    const revenueChangePct = changePct(grossRevenue, previousTotals.revenue);
 
     const hourlyRevenue: HourlyPoint[] = Array.from({ length: 24 }, (_, hour) => {
       const bucket = hourlyBuckets.get(hour);
@@ -233,12 +218,11 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
       costOfGoods: roundMoney(overall.cost),
       grossProfit: roundMoney(overall.profit),
       marginPct: marginOf(overall),
-      profitChangePct: changePct(overall.profit, previousProfit),
+      profitChangePct: changePct(overall.profit, previousTotals.profit),
       uncostedRevenue: roundMoney(overall.revenue - overall.costedRevenue),
       productProfitability,
       revenueChangePct,
       totalTransactions,
-      totalWalletRecharges: roundMoney(totalWalletRecharges),
       hourlyRevenue,
       paymentSplit,
       topProducts,
@@ -247,6 +231,7 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
 
   if (!result) {
     return {
+      range: current,
       grossRevenue: 0,
       costOfGoods: 0,
       grossProfit: 0,
@@ -256,7 +241,6 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
       productProfitability: [],
       revenueChangePct: null,
       totalTransactions: 0,
-      totalWalletRecharges: 0,
       hourlyRevenue: emptyHourly(),
       paymentSplit: emptyPaymentSplit(),
       topProducts: [],
@@ -264,5 +248,5 @@ export function useDashboardAnalytics(filter: TimeRangeFilter, customRange?: Cus
     };
   }
 
-  return { ...result, isLoading: false };
+  return { ...result, range: current, isLoading: false };
 }

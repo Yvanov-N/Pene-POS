@@ -81,7 +81,9 @@ export function ExpiryWarningWidget() {
   const expiringProducts = useLiveQuery(async () => {
     const horizonIso = new Date(Date.now() + EXPIRY_WARNING_DAYS * DAY_MS).toISOString();
     const rows = await db.products.where("expiry_date").belowOrEqual(horizonIso).sortBy("expiry_date");
-    return rows;
+    // Nothing left to pull off the shelf once sold out -- otherwise every
+    // expired, sold-out product would stay listed forever.
+    return rows.filter((product) => product.stock > 0);
   }, []);
 
   return (
@@ -94,7 +96,9 @@ export function ExpiryWarningWidget() {
         ) : (
           expiringProducts.map((product) => {
             const remaining = daysUntil(product.expiry_date!);
-            const expired = remaining < 0;
+            // From the timestamp, not `remaining`: an expiry a few hours ago
+            // rounds up to 0 days and would read "expires in 0 days".
+            const expired = new Date(product.expiry_date!).getTime() < Date.now();
             return (
               <div
                 key={product.id}

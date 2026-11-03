@@ -20,6 +20,14 @@ export function getTodayTimeRange(): DateRange {
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
+// A Date's local calendar day as YYYY-MM-DD -- the value format of an
+// <input type="date">. Not toISOString().slice(0, 10), which is the UTC day
+// and lands on the wrong date near midnight for any shop off UTC.
+export function toLocalDateInput(date: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export type TimeRangeFilter = "today" | "yesterday" | "last7days" | "last30days" | "custom";
 
 export interface CustomRange {
@@ -51,51 +59,47 @@ function addDays(date: Date, days: number): Date {
 // Same local-calendar-boundary reasoning as getTodayTimeRange() above,
 // generalized to a selectable window plus its "previous equivalent period"
 // (same span, immediately preceding) for percentage-change comparisons.
-export function getRangeForFilter(filter: TimeRangeFilter, customRange?: CustomRange): RangeWithPrevious {
-  const now = new Date();
+//
+// A window still in progress (today, last 7/30 days, a custom range reaching
+// today) is compared against the previous period cut at the same elapsed
+// time -- today until 10:00 vs yesterday until 10:00, not vs all of
+// yesterday, which would read as a steep drop every morning. `now` is a
+// parameter so callers can re-evaluate it as time passes (and tests can pin it).
+export function getRangeForFilter(filter: TimeRangeFilter, customRange?: CustomRange, now: Date = new Date()): RangeWithPrevious {
+  let start: Date;
+  let end: Date;
 
   if (filter === "yesterday") {
     const day = addDays(now, -1);
-    const dayBefore = addDays(day, -1);
-    return {
-      current: { start: startOfDay(day).toISOString(), end: endOfDay(day).toISOString() },
-      previous: { start: startOfDay(dayBefore).toISOString(), end: endOfDay(dayBefore).toISOString() },
-    };
-  }
-
-  if (filter === "last7days" || filter === "last30days") {
+    start = startOfDay(day);
+    end = endOfDay(day);
+  } else if (filter === "last7days" || filter === "last30days") {
     const days = filter === "last7days" ? 7 : 30;
-    const end = endOfDay(now);
-    const start = startOfDay(addDays(now, -(days - 1)));
-
-    const prevEnd = endOfDay(addDays(start, -1));
-    const prevStart = startOfDay(addDays(prevEnd, -(days - 1)));
-    return {
-      current: { start: start.toISOString(), end: end.toISOString() },
-      previous: { start: prevStart.toISOString(), end: prevEnd.toISOString() },
-    };
+    start = startOfDay(addDays(now, -(days - 1)));
+    end = endOfDay(now);
+  } else if (filter === "custom" && customRange) {
+    // Picked in either order -- an end before the start would otherwise be an
+    // empty range that silently shows all zeros.
+    const [from, to] = [customRange.start, customRange.end].sort();
+    start = startOfDay(new Date(`${from}T00:00:00`));
+    end = endOfDay(new Date(`${to}T00:00:00`));
+  } else {
+    // "today", or "custom" before the admin has actually picked both dates yet
+    // -- falls back to today rather than throwing, so the dashboard always has
+    // something valid to render while the date pickers are still empty.
+    start = startOfDay(now);
+    end = endOfDay(now);
   }
 
-  if (filter === "custom" && customRange) {
-    const start = startOfDay(new Date(`${customRange.start}T00:00:00`));
-    const end = endOfDay(new Date(`${customRange.end}T00:00:00`));
-    const spanDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1);
+  // Calendar days covered, both ends inclusive (rounded: a DST change makes
+  // one day 23h or 25h long).
+  const spanDays = Math.round((startOfDay(end).getTime() - start.getTime()) / DAY_MS) + 1;
+  const inProgress = start <= now && now <= end;
+  const prevStart = startOfDay(addDays(start, -spanDays));
+  const prevEnd = inProgress ? addDays(now, -spanDays) : endOfDay(addDays(start, -1));
 
-    const prevEnd = endOfDay(addDays(start, -1));
-    const prevStart = startOfDay(addDays(prevEnd, -(spanDays - 1)));
-    return {
-      current: { start: start.toISOString(), end: end.toISOString() },
-      previous: { start: prevStart.toISOString(), end: prevEnd.toISOString() },
-    };
-  }
-
-  // "today", or "custom" before the admin has actually picked both dates yet
-  // -- falls back to today rather than throwing, so the dashboard always has
-  // something valid to render while the date pickers are still empty.
-  const day = now;
-  const dayBefore = addDays(day, -1);
   return {
-    current: { start: startOfDay(day).toISOString(), end: endOfDay(day).toISOString() },
-    previous: { start: startOfDay(dayBefore).toISOString(), end: endOfDay(dayBefore).toISOString() },
+    current: { start: start.toISOString(), end: end.toISOString() },
+    previous: { start: prevStart.toISOString(), end: prevEnd.toISOString() },
   };
 }

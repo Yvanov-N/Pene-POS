@@ -4,9 +4,10 @@ import { Wallet, Receipt, GraduationCap, AlertTriangle, Package, TrendingUp, Sho
 import { formatCurrency } from "@/lib/currency";
 import { downloadCsv } from "@/lib/csv";
 import { useDashboardAnalytics } from "@/hooks/useDashboardAnalytics";
-import { useStudentDebtSummary, useStockValueSummary } from "@/hooks/useDashboardWidgetData";
+import { useStudentDebtSummary, useStockValueSummary, useWalletRechargesTotal } from "@/hooks/useDashboardWidgetData";
 import { useShopStatus } from "@/hooks/useShopStatus";
 import type { CustomRange, TimeRangeFilter } from "@/hooks/useDashboardAnalytics";
+import { toLocalDateInput } from "@/lib/dateHelpers";
 import { CardCustom } from "@/components/ui/card-custom";
 import { ButtonCustom } from "@/components/ui/button-custom";
 import { StatCard } from "@/components/admin/StatCard";
@@ -32,7 +33,7 @@ function StatCardSkeleton({ className }: { className?: string }) {
 }
 
 export function DashboardPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [rangeFilter, setRangeFilter] = useState<TimeRangeFilter>("today");
   const [customRange, setCustomRange] = useState<CustomRange>({ start: "", end: "" });
   // Read-only display only here -- toggling shop status is SidebarNav's /
@@ -49,6 +50,20 @@ export function DashboardPage() {
   );
 
   const analytics = useDashboardAnalytics(rangeFilter, effectiveCustomRange);
+  const totalWalletRecharges = useWalletRechargesTotal(analytics.range);
+  const today = toLocalDateInput();
+
+  // Opening "custom" with empty pickers would otherwise keep showing today's
+  // figures under the "custom" label until both dates are picked.
+  const selectRangeFilter = useCallback((option: TimeRangeFilter) => {
+    setRangeFilter(option);
+    if (option === "custom") {
+      setCustomRange((current) => ({
+        start: current.start || toLocalDateInput(),
+        end: current.end || toLocalDateInput(),
+      }));
+    }
+  }, []);
 
   // Current-state snapshot, not scoped to rangeFilter like the rest of
   // `analytics` -- total debt owed right now isn't a "how much happened this
@@ -63,7 +78,8 @@ export function DashboardPage() {
   const stockValue = useStockValueSummary();
 
   const handleExportCsv = useCallback(() => {
-    const rangeLabel = t(`admin.dashboard.range.${rangeFilter}`);
+    const formatDay = (iso: string) => new Intl.DateTimeFormat(i18n.language).format(new Date(iso));
+    const rangeLabel = `${t(`admin.dashboard.range.${rangeFilter}`)} (${formatDay(analytics.range.start)} → ${formatDay(analytics.range.end)})`;
     const rows: string[][] = [
       ["Cite Shop - Rapport tableau de bord"],
       ["Periode", rangeLabel],
@@ -75,12 +91,16 @@ export function DashboardPage() {
       [t("admin.dashboard.marginLabel"), analytics.marginPct === null ? "" : `${analytics.marginPct}%`],
       [t("admin.dashboard.uncostedRevenueLabel"), String(analytics.uncostedRevenue)],
       [t("admin.dashboard.transactionsLabel"), String(analytics.totalTransactions)],
-      [t("admin.dashboard.walletRechargesLabel"), String(analytics.totalWalletRecharges)],
+      [t("admin.dashboard.walletRechargesLabel"), String(totalWalletRecharges ?? 0)],
       [t("admin.dashboard.studentDebtLabel"), String(totalStudentDebt ?? 0)],
       [t("admin.dashboard.stockValueLabel"), String(stockValue?.retail ?? 0)],
       [t("admin.dashboard.stockValueAtCostLabel"), String(stockValue?.atCost ?? 0)],
       [],
-      [t("admin.dashboard.exportTopProductsHeader"), "Quantite", "Chiffre d'affaires"],
+      [
+        t("admin.dashboard.exportTopProductsHeader"),
+        t("admin.dashboard.profit.columnQuantity"),
+        t("admin.dashboard.profit.columnRevenue"),
+      ],
       ...analytics.topProducts.map((product) => [product.name, String(product.quantitySold), String(product.revenue)]),
       [],
       [
@@ -101,8 +121,8 @@ export function DashboardPage() {
       ]),
     ];
 
-    downloadCsv(`cite-shop-rapport-${new Date().toISOString().slice(0, 10)}.csv`, rows);
-  }, [t, rangeFilter, analytics, totalStudentDebt, stockValue]);
+    downloadCsv(`cite-shop-rapport-${toLocalDateInput()}.csv`, rows);
+  }, [t, i18n.language, rangeFilter, analytics, totalWalletRecharges, totalStudentDebt, stockValue]);
 
   const revenueChangeNode: ReactNode = useMemo(() => {
     const pct = analytics.revenueChangePct;
@@ -160,7 +180,7 @@ export function DashboardPage() {
           <button
             key={option}
             type="button"
-            onClick={() => setRangeFilter(option)}
+            onClick={() => selectRangeFilter(option)}
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               rangeFilter === option
                 ? "border-accent bg-accent text-accent-foreground"
@@ -175,6 +195,7 @@ export function DashboardPage() {
             <input
               type="date"
               value={customRange.start}
+              max={today}
               onChange={(e) => setCustomRange((current) => ({ ...current, start: e.target.value }))}
               className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-sm text-foreground"
             />
@@ -182,6 +203,8 @@ export function DashboardPage() {
             <input
               type="date"
               value={customRange.end}
+              min={customRange.start || undefined}
+              max={today}
               onChange={(e) => setCustomRange((current) => ({ ...current, end: e.target.value }))}
               className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-sm text-foreground"
             />
@@ -249,7 +272,7 @@ export function DashboardPage() {
             <StatCard
               icon={<GraduationCap className="h-6 w-6" />}
               label={t("admin.dashboard.walletRechargesLabel")}
-              value={analytics.totalWalletRecharges}
+              value={totalWalletRecharges ?? 0}
               formatValue={formatCurrency}
               sub={t("admin.dashboard.walletRechargesSub")}
             />

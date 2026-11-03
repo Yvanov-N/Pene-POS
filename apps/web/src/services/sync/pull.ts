@@ -236,6 +236,21 @@ export async function writeBackIfNewer<
   }
 }
 
+// writeBackIfNewer for a full `select("*")` of student_wallets: archived
+// wallets (deleted_at set, migration 00035) are removed locally instead of
+// written back. Writing them back would resurrect them for good -- the main
+// pull's cursor is already past their tombstone, so nothing would ever
+// delete them again -- and they'd count in the dashboard's debt figures and
+// reappear in the POS wallet search.
+export async function writeBackActiveWallets(rows: WalletRow[]): Promise<void> {
+  await db.student_wallets.bulkDelete(rows.filter((row) => row.deleted_at).map((row) => row.id));
+  await writeBackIfNewer(
+    db.student_wallets,
+    rows.filter((row) => !row.deleted_at),
+    mapWalletRow,
+  );
+}
+
 // Generic incremental pull for a table with a plain, non-soft-deletable
 // shape: fetch rows past the local cursor, "only accept if newer" merge
 // each one, advance the cursor, page if the batch was full.
