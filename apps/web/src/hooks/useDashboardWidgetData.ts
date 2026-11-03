@@ -1,8 +1,12 @@
+import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { useNetworkFirstQuery } from "@/hooks/useNetworkFirstQuery";
 import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { mapProductRow, mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
-import type { StudentWallet } from "@/types/db";
+import { roundMoney } from "@/lib/money";
+import type { DateRange } from "@/lib/dateHelpers";
+import { mapProductRow, writeBackActiveWallets, writeBackIfNewer } from "@/services/sync/pull";
+import type { OutboxOperation, StudentWallet } from "@/types/db";
 
 // Same "owing >= 5,000 FCFA" threshold as CriticalDebtWidget's own business
 // rule -- a separate, stricter cutoff than "any debt at all" so the widget
@@ -15,13 +19,12 @@ export interface StudentDebtSummary {
   criticalDebtors: StudentWallet[];
 }
 
+// Archived wallets included on purpose: writeBackActiveWallets removes them
+// locally, which also cleans up any an older build of this fetch resurrected.
 async function fetchWalletsRemote(signal: AbortSignal) {
   const { data, error } = await supabase.from("student_wallets").select("*").abortSignal(signal);
   if (error) throw error;
   return data;
-}
-async function writeBackWallets(rows: Awaited<ReturnType<typeof fetchWalletsRemote>>) {
-  await writeBackIfNewer(db.student_wallets, rows, mapWalletRow);
 }
 
 async function fetchProductsRemote(signal: AbortSignal) {
@@ -55,10 +58,10 @@ export function useStudentDebtSummary(): StudentDebtSummary | undefined {
         const criticalDebtors = wallets
           .filter((w) => w.balance <= CRITICAL_DEBT_THRESHOLD)
           .sort((a, b) => a.balance - b.balance);
-        return { totalDebt, criticalDebtors };
+        return { totalDebt: roundMoney(totalDebt), criticalDebtors };
       }),
     [],
-    { fetchRemote: fetchWalletsRemote, writeBack: writeBackWallets },
+    { fetchRemote: fetchWalletsRemote, writeBack: writeBackActiveWallets },
   );
 }
 
@@ -78,20 +81,115 @@ export interface StockValueSummary {
 export function useStockValueSummary(): StockValueSummary | undefined {
   return useNetworkFirstQuery(
     () =>
-      db.products.toArray().then((products) =>
-        products.reduce<StockValueSummary>(
-          (summary, p) => {
-            // Negative stock (oversell, migration 00019) has no value on hand.
+      db.products.toArray().then((products) => {
+        const summary = products.reduce<StockValueSummary>(
+          (acc, p) => {
+            // Negative stock (oversell, migration 00019) has no value on hand
+            // -- at either price, or it would subtract other products' value.
             const onHand = Math.max(0, p.stock);
-            summary.retail += p.price * p.stock;
-            if (p.cost_price !== undefined) summary.atCost += p.cost_price * onHand;
-            else if (onHand > 0) summary.uncostedProducts += 1;
-            return summary;
+            acc.retail += p.price * onHand;
+            if (p.cost_price !== undefined) acc.atCost += p.cost_price * onHand;
+            else if (onHand > 0) acc.uncostedProducts += 1;
+            return acc;
           },
           { retail: 0, atCost: 0, uncostedProducts: 0 },
-        ),
-      ),
+        );
+        return { ...summary, retail: roundMoney(summary.retail), atCost: roundMoney(summary.atCost) };
+      }),
     [],
     { fetchRemote: fetchProductsRemote, writeBack: writeBackProducts },
   );
+}
+
+// ---- Wallet recharges over a date range ----------------------------------
+//
+// Server-side ledger first: sync_operations (migration 00024) records every
+// adjust_wallet_balance call from every device, which this device's own
+// outbox can't -- it only holds the recharges rung up here. Local outbox
+// entries the server doesn't list yet (not synced, or synced after the last
+// fetch) are added on top, matched by operationId = sync_operations.id.
+// Offline or on a failed fetch, the local outbox alone is the fallback.
+//
+// Known limit: sync_operations.created_at is when the server applied the
+// operation, so a recharge made offline counts on the day it synced.
+
+const RECHARGE_REFRESH_MS = 60_000;
+const RECHARGE_PAGE_SIZE = 1000;
+
+type RechargeOutboxEntry = Extract<OutboxOperation, { opType: "adjust_wallet_balance" }>;
+
+async function fetchRechargesRemote(range: DateRange, signal: AbortSignal): Promise<Map<string, number>> {
+  const recharges = new Map<string, number>();
+  for (let from = 0; ; from += RECHARGE_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("sync_operations")
+      .select("id,result")
+      .eq("op_type", "adjust_wallet_balance")
+      .eq("outcome", "completed")
+      .eq("result->>reason", "recharge")
+      .gte("created_at", range.start)
+      .lte("created_at", range.end)
+      .order("created_at", { ascending: true })
+      .range(from, from + RECHARGE_PAGE_SIZE - 1)
+      .abortSignal(signal);
+    if (error) throw error;
+    for (const row of data) {
+      const delta = (row.result as { delta?: unknown } | null)?.delta;
+      if (typeof delta === "number") recharges.set(row.id, delta);
+    }
+    if (data.length < RECHARGE_PAGE_SIZE) return recharges;
+  }
+}
+
+export function useWalletRechargesTotal(range: DateRange): number | undefined {
+  // A conflict was refused by the server -- that recharge never happened.
+  const localRecharges = useLiveQuery(
+    () =>
+      db.sync_outbox
+        .where("createdAt")
+        .between(range.start, range.end, true, true)
+        .toArray()
+        .then((items) =>
+          items.filter(
+            (item): item is RechargeOutboxEntry =>
+              item.opType === "adjust_wallet_balance" && item.payload.reason === "recharge" && item.status !== "conflict",
+          ),
+        ),
+    [range.start, range.end],
+  );
+
+  const [remote, setRemote] = useState<{ key: string; recharges: Map<string, number> } | null>(null);
+  const rangeKey = `${range.start}|${range.end}`;
+  // Refetch when a local recharge changes state (e.g. just synced), so the
+  // server list catches up instead of the entry dropping out of the total.
+  const localKey = localRecharges?.map((item) => `${item.operationId}:${item.status}`).join(",");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () => {
+      if (!navigator.onLine) return;
+      fetchRechargesRemote(range, controller.signal)
+        .then((recharges) => setRemote({ key: rangeKey, recharges }))
+        .catch(() => {
+          // Silent: the local outbox fallback below keeps rendering.
+        });
+    };
+    load();
+    const timer = setInterval(load, RECHARGE_REFRESH_MS);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+    // range is fully described by rangeKey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeKey, localKey]);
+
+  if (localRecharges === undefined) return undefined;
+  const serverRecharges = remote?.key === rangeKey ? remote.recharges : new Map<string, number>();
+  let total = 0;
+  for (const delta of serverRecharges.values()) total += delta;
+  for (const item of localRecharges) {
+    if (!serverRecharges.has(item.operationId)) total += Number(item.payload.delta) || 0;
+  }
+  return roundMoney(total);
 }

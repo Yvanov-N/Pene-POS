@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { getDeviceLabel } from "@/lib/deviceLabel";
 import { makeOutboxEntry, recordOutbox } from "@/services/sync/outbox";
 import { pushOutbox } from "@/services/sync/push";
-import { mapWalletRow, writeBackIfNewer } from "@/services/sync/pull";
+import { writeBackActiveWallets } from "@/services/sync/pull";
 import { printService } from "@/services/hardware/printService";
 import type { CartItem, PaymentMethod, Profile, Sale, SaleItem, StudentWallet } from "@/types/db";
 import { roundMoney } from "@/lib/money";
@@ -31,8 +31,9 @@ async function writeBackWallets(rows: Awaited<ReturnType<typeof fetchWalletsRemo
   // Without this, a wallet search's background refetch landing right after
   // a wallet-payment checkout (optimistic local balance already
   // decremented, outbox push not necessarily landed yet) could overwrite
-  // that fresher local balance with the stale pre-checkout one.
-  await writeBackIfNewer(db.student_wallets, rows, mapWalletRow);
+  // that fresher local balance with the stale pre-checkout one. Archived
+  // wallets in the result are dropped locally, not resurrected.
+  await writeBackActiveWallets(rows);
 }
 
 export const PAYMENT_METHODS: PaymentMethod[] = ["cash", "momo_mtn", "momo_orange", "student_wallet"];
